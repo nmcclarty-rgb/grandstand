@@ -69,9 +69,22 @@ async function playFight(page, skill = 1) {
 
 const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_PATH || undefined,
-  args: process.env.IGNORE_CERTS ? ['--ignore-certificate-errors'] : [],
+  args: [
+    ...(process.env.IGNORE_CERTS ? ['--ignore-certificate-errors'] : []),
+    // so the music scheduler runs without a click to unlock it
+    '--autoplay-policy=no-user-gesture-required',
+  ],
 });
 const page = await browser.newPage({ viewport: { width: 420, height: 820 }, deviceScaleFactor: 2 });
+
+// Count notes the music scheduler actually commits to the audio clock.
+await page.addInitScript(() => {
+  window.__a = { osc: 0, buf: 0 };
+  const CO = AudioContext.prototype.createOscillator;
+  AudioContext.prototype.createOscillator = function () { window.__a.osc++; return CO.call(this); };
+  const CB = AudioContext.prototype.createBufferSource;
+  AudioContext.prototype.createBufferSource = function () { window.__a.buf++; return CB.call(this); };
+});
 
 const problems = [];
 page.on('console', (m) => {
@@ -97,6 +110,23 @@ check(await page.isVisible('.host-line'), 'the host introduces the programme');
 const hostOpener = (await page.textContent('.host-says')) || '';
 check(hostOpener.length > 10, `host has an opening line (${hostOpener.slice(0, 44)}...)`);
 check(!(await page.isVisible('[data-act="start-pvp"]')), 'PvP is gone from the title screen');
+
+await page.keyboard.press('Shift');
+const musicBefore = await page.evaluate(() => ({ ...window.__a }));
+await page.waitForTimeout(2200);
+const musicAfter = await page.evaluate(() => ({ ...window.__a }));
+const notes = (musicAfter.osc - musicBefore.osc) + (musicAfter.buf - musicBefore.buf);
+check(notes > 20, `the theme is playing (${notes} notes scheduled in 2.2s)`);
+check(await page.isVisible('#btn-music'),
+  'music can be silenced from the title screen, before a run starts');
+
+await page.click('#btn-music');
+const offBefore = await page.evaluate(() => ({ ...window.__a }));
+await page.waitForTimeout(1200);
+const offAfter = await page.evaluate(() => ({ ...window.__a }));
+check((offAfter.osc - offBefore.osc) + (offAfter.buf - offBefore.buf) === 0,
+  'the music toggle actually silences the scheduler');
+await page.click('#btn-music');
 
 console.log('\nSELECT');
 await page.click('[data-act="go-select"]');

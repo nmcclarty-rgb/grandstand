@@ -259,6 +259,24 @@ panel — was found by looking at that page, not by playing.
 
 ---
 
+### The music
+
+Three pieces, all synthesised: a march for the titles, a lighter walk for the
+ladder, a faster minor-key theme for fights. They are deliberately the same
+band — same brass patch, same kit — at different tempos and densities, so
+moving between screens feels like one programme rather than three games.
+
+The one technical point worth keeping: notes are scheduled with **lookahead**,
+not with a `setTimeout` per note. A tick every 25ms commits anything falling in
+the next 120ms directly to the WebAudio clock. Driving a sequencer off the JS
+clock sounds drunk under any load at all, and the one thing a march cannot be
+is late.
+
+Music has its own bus and its own toggle, separate from effects. A soundtrack
+is much more intrusive than a bleep, and plenty of people want one without the
+other — particularly the audience for this, who may well be playing with the
+actual football on in the background.
+
 ## 6. What's deliberately not built
 
 **PvP, for now.** A hot-seat mode was built and has been removed at the
@@ -288,8 +306,15 @@ upgrades to an unproven loop just hides whether the loop works. Character
 select is the natural place to hang it when the time comes — locked portraits
 in the grid are the oldest trick in the arcade.
 
-**Audio beyond bleeps.** WebAudio square waves and noise. Music would be a
-licensing conversation, and this doesn't need one yet.
+**Licensed music.** The obvious thing to want is the actual theme from the
+actual programme. That is a specific composition and still in copyright, and a
+close rework of it is the same problem wearing a hat — the thing a rights
+holder objects to is the tune, not the filename. So the three pieces in
+`music.js` are original, written in the idiom rather than from the source:
+brass-led fanfare, walking bass, snappy kit, relentlessly major. Genre is free;
+melodies are not. If this ever wants the real thing, that is a licensing
+conversation with a publisher, and a cheap one by the standards of games —
+but it is a conversation, not a patch.
 
 ---
 

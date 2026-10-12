@@ -47,12 +47,16 @@
   }
 
   /* ── status bar ─────────────────────────────────────────────── */
-  #hud {
-    display: none; gap: 8px; padding: 7px 9px; align-items: center; flex-wrap: wrap;
+  /* The audio controls live outside #hud so they are reachable on the title
+     screen too: music that starts before you can silence it is a trap. */
+  #topbar {
+    display: flex; gap: 8px; padding: 7px 9px; align-items: center;
     background: linear-gradient(180deg, #2a2148, #1b1531);
     border-bottom: 3px solid var(--line);
   }
+  #hud { display: none; gap: 8px; align-items: center; flex-wrap: wrap; flex: 1 1 auto; }
   #hud.on { display: flex; }
+  #icon-btns { margin-left: auto; }
   .gauge { flex: 1 1 96px; min-width: 80px; }
   .gauge-label {
     font-family: var(--head); font-size: 6px; letter-spacing: .5px;
@@ -72,6 +76,7 @@
     padding: 6px 8px; white-space: nowrap;
   }
   #icon-btns { display: flex; gap: 5px; }
+  #icon-btns .off { opacity: .4; }
 
   /* ── canvas ─────────────────────────────────────────────────── */
   #stage {
@@ -308,7 +313,8 @@
 </head>
 <body>
 <div id="app">
-  <div id="hud">
+  <div id="topbar">
+    <div id="hud">
     <div class="gauge">
       <div class="gauge-label"><span>ENERGY</span><span id="energy-num">110</span></div>
       <div class="gauge-track"><div class="gauge-fill energy" id="energy-fill"></div></div>
@@ -318,7 +324,9 @@
       <div class="gauge-track"><div class="gauge-fill cond" id="cond-fill"></div></div>
     </div>
     <div class="rep-chip" id="rep-chip">REP 0</div>
+    </div>
     <div id="icon-btns">
+      <button class="small-btn" id="btn-music" title="Music">♬</button>
       <button class="small-btn" id="btn-sound" title="Sound">♪</button>
       <button class="small-btn" id="btn-quit" title="End the day">✕</button>
     </div>

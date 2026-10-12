@@ -53,6 +53,12 @@ the answers.
 
 ## The loop
 
+**Music.** Three original pieces, synthesised at runtime like everything else:
+a brass-led march for the titles and menus, a lighter walk for the ladder, and
+a faster minor-key theme for fights. Two toggles in the status bar — `♬` for
+music, `♪` for everything — because plenty of people want the effects without
+a soundtrack.
+
 **The studio.** The game opens on a Saturday-afternoon sports programme: the
 monitor stack, the orbiting set graphics, the gallery working away behind, and
 **Des Rider** at the desk. He is the spine of the whole thing — he introduces
@@ -207,6 +213,7 @@ src/
   engine/sprites.js     procedural sprites and portraits, no image assets
   engine/palette.js     five-tone colour ramps — the art style in one file
   engine/audio.js       WebAudio bleeps, no audio files
+  engine/music.js       three original themes, synthesised at runtime
   engine/rng.js         seeded RNG so a ladder can be shared
   game/ladder.js        the twelve rungs
   game/battle.js        turn-based combat, the damage model, perks

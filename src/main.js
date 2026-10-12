@@ -13,7 +13,8 @@ import { setupCanvas, drawBattleScene, drawSelectScene, drawLadderScene,
          drawTitleScene, drawStars, drawCountdown,
          rungPos, ladderWidth, VIEW_W, VIEW_H } from './engine/render.js';
 import { drawFace, drawPresenterFace } from './engine/sprites.js';
-import { initAudio, sfx, setMuted, isMuted } from './engine/audio.js';
+import { initAudio, sfx, setMuted, isMuted,
+         playTrack, setMusicEnabled, isMusicEnabled } from './engine/audio.js';
 import { Battle, PHASE, ANSWER_MS } from './game/battle.js';
 import { KIND, RUNGS } from './game/ladder.js';
 import { Run, loadSave, recordRun, recordBeaten, savePrefs, wipeSave,
@@ -51,6 +52,7 @@ const save = loadSave();
 G.setup.character = save.lastCharacter || 'ringer';
 G.setup.name = save.lastName || 'YOU';
 setMuted(!!save.muted);
+setMusicEnabled(save.music !== false);
 
 // ── helpers ────────────────────────────────────────────────────────────────
 const esc = (s) => String(s).replace(/[&<>"]/g,
@@ -78,7 +80,11 @@ function floater(text, x, y, colour, big = false) {
   G.scene.floaters.push({ text, x, y, vy: -0.8, life: 46, colour, big });
 }
 
-function setHud(on) { $('hud').classList.toggle('on', on); }
+function setHud(on) {
+  $('hud').classList.toggle('on', on);
+  // Ending the day only means anything during a run; muting always does.
+  $('btn-quit').style.display = on ? '' : 'none';
+}
 
 function updateHud() {
   const r = G.run;
@@ -834,11 +840,33 @@ panel.addEventListener('click', (e) => {
   }
 });
 
+/** Which theme belongs to the screen you are on. */
+const MUSIC_FOR = {
+  battle: 'battle',
+  ladder: 'ladder',
+};
+let playingFor = null;
+function musicForScreen() {
+  const want = MUSIC_FOR[G.screen] || 'theme';
+  if (want === playingFor) return;
+  playingFor = want;
+  playTrack(want);
+}
+
+$('btn-music').addEventListener('click', () => {
+  initAudio();
+  setMusicEnabled(!isMusicEnabled());
+  savePrefs({ music: isMusicEnabled() });
+  $('btn-music').classList.toggle('off', !isMusicEnabled());
+  if (isMusicEnabled()) { playingFor = null; musicForScreen(); }
+});
+
 $('btn-sound').addEventListener('click', () => {
   initAudio();
   setMuted(!isMuted());
   savePrefs({ muted: isMuted() });
   $('btn-sound').textContent = isMuted() ? '♪̸' : '♪';
+$('btn-music').classList.toggle('off', !isMusicEnabled());
 });
 $('btn-quit').addEventListener('click', () => {
   if (G.run && !G.run.over && confirm('End the day here and take your score?')) {
@@ -887,6 +915,7 @@ function frame() {
   G.t++;
   tickTimer();
   tickCountdown();
+  musicForScreen();
   if (G.scene.foeFlash > 0) G.scene.foeFlash--;
   if (G.scene.playerFlash > 0) G.scene.playerFlash--;
   for (let i = G.scene.floaters.length - 1; i >= 0; i--) {
@@ -932,6 +961,7 @@ window.GRANDSTAND = G;
 window.GRANDSTAND.__forceResults = () => screenResults();
 
 $('btn-sound').textContent = isMuted() ? '♪̸' : '♪';
+$('btn-music').classList.toggle('off', !isMusicEnabled());
 document.fonts?.ready.then(layout);
 screenTitle();
 layout();

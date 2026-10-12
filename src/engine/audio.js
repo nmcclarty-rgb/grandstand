@@ -5,8 +5,11 @@
  * nothing to licence. Muted until the first user gesture, per browser policy.
  */
 
+import { attachMusic, playTrack, stopTrack, setMusicEnabled, isMusicEnabled } from './music.js';
+
 let ctx = null;
 let master = null;
+let sfxBus = null;
 let enabled = true;
 
 export function initAudio() {
@@ -15,15 +18,24 @@ export function initAudio() {
   if (!AC) return null;
   ctx = new AC();
   master = ctx.createGain();
-  master.gain.value = 0.22;
+  master.gain.value = 1;
   master.connect(ctx.destination);
+
+  // Effects and music get their own buses: music sits well under the bleeps,
+  // and either can be silenced without touching the other.
+  sfxBus = ctx.createGain();
+  sfxBus.gain.value = 0.22;
+  sfxBus.connect(master);
+  attachMusic(ctx, master);
   return ctx;
 }
 
 export function setMuted(m) {
   enabled = !m;
-  if (master) master.gain.value = m ? 0 : 0.22;
+  if (master) master.gain.value = m ? 0 : 1;
 }
+
+export { playTrack, stopTrack, setMusicEnabled, isMusicEnabled };
 export function isMuted() { return !enabled; }
 
 function tone(freq, dur, type = 'square', vol = 1, slideTo = null) {
@@ -36,7 +48,7 @@ function tone(freq, dur, type = 'square', vol = 1, slideTo = null) {
   g.gain.setValueAtTime(0.0001, ctx.currentTime);
   g.gain.exponentialRampToValueAtTime(0.4 * vol, ctx.currentTime + 0.01);
   g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
-  o.connect(g); g.connect(master);
+  o.connect(g); g.connect(sfxBus);
   o.start(); o.stop(ctx.currentTime + dur + 0.02);
 }
 
@@ -51,7 +63,7 @@ function noise(dur, vol = 1, filterHz = 1200) {
   const f = ctx.createBiquadFilter();
   f.type = 'lowpass'; f.frequency.value = filterHz;
   const g = ctx.createGain(); g.gain.value = 0.5 * vol;
-  src.connect(f); f.connect(g); g.connect(master);
+  src.connect(f); f.connect(g); g.connect(sfxBus);
   src.start();
 }
 
