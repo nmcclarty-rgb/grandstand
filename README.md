@@ -39,6 +39,10 @@ npm run build                   # regenerate docs/index.html
 Source is plain ES modules — no bundler, no framework, no install needed to
 develop or play. `npm install` is only for the browser playtest.
 
+Starting a run is two taps: **START A DAY OUT**, pick a fighter, **FIGHT**.
+If a friend sends you their ladder code, there's a disclosure on the select
+screen to type it in; leave it alone for a random ladder.
+
 **Keys:** `◀` `▶` move along the ladder · `1` `2` `3` answer · `N` nutmeg ·
 `Enter` continue · `M` mute. On a phone: tap the arrows, swipe the ladder, tap
 the answers.
@@ -83,8 +87,10 @@ up to ×2 for perfect answers in a row, and a **yellow card** if you pick the
 outright worst option. Two yellows and you sit an exchange out. Three
 **nutmegs** a day knock a duff option off the board and leave you a 50:50.
 
-**Sport filters.** Play everything, or just football, or just boxing and darts.
-The filter applies to the overworld roster as well as the questions.
+**Sports.** Every run uses the whole bank. The filter plumbing is still there —
+`Ladder` and `Battle` both take a list of sports, and `validate.mjs` warns when
+any one sport is too thin to support a run on its own — but nothing sets it.
+Single-sport runs are a later feature and this is the hook for them.
 
 ---
 

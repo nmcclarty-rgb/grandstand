@@ -18,7 +18,7 @@ import { Battle, PHASE, ANSWER_MS } from './game/battle.js';
 import { KIND, RUNGS } from './game/ladder.js';
 import { Run, loadSave, recordRun, recordBeaten, savePrefs, wipeSave,
          makeSeedFrom, seedName, ENTER_COST, BATTLE_TURN_COST } from './game/state.js';
-import { SPORTS, availableSports, countBySport, QUESTIONS } from './data/questions.js';
+import { SPORTS, QUESTIONS } from './data/questions.js';
 import { CHARACTERS, findCharacter } from './data/characters.js';
 import { HOST, SCRIPT, pick, lineForRung, lineForResult, lineForEnding } from './data/host.js';
 import { ROSTER, findFighter } from './data/roster.js';
@@ -36,6 +36,9 @@ const G = {
   scene: { player: null, foe: null, floaters: [], shake: 0, playerFlash: 0, foeFlash: 0,
            playerPose: null, foePose: null, playerDown: false, foeDown: false,
            venue: 'THE REC' },
+  // `sports` stays in the shape the engine expects — Ladder and Battle both
+  // take a filter — but nothing sets it any more: every run is all sports.
+  // Single-sport runs are a later feature, and this is the hook for them.
   setup: { sports: [], character: 'ringer', name: 'YOU', seed: '' },
   hostLine: '',
   hostTalking: false,
@@ -44,7 +47,6 @@ const G = {
 };
 
 const save = loadSave();
-G.setup.sports = save.lastSports || [];
 G.setup.character = save.lastCharacter || 'ringer';
 G.setup.name = save.lastName || 'YOU';
 setMuted(!!save.muted);
@@ -147,7 +149,7 @@ function screenTitle() {
       <p class="dim small">A turn-based sports-quiz RPG. Every answer is a whole
       number, and the number is how hard you hit.</p>
       <div class="btn-row">
-        <button class="primary" data-act="go-setup">START A DAY OUT</button>
+        <button class="primary" data-act="go-select">START A DAY OUT</button>
       </div>
       <div class="btn-row">
         <button data-act="league">LEAGUE TABLE</button>
@@ -213,42 +215,7 @@ function screenHowTo() {
     </div>`);
 }
 
-function screenSetup() {
-  G.screen = 'setup';
-  setHud(false);
-  const counts = countBySport();
-  const chips = availableSports().map((sp) => {
-    const on = G.setup.sports.includes(sp);
-    return `<button class="chip ${on ? 'on' : ''}" data-act="toggle-sport" data-sport="${sp}">
-      ${esc(SPORTS[sp].name)} <span class="dim">${counts[sp]}</span></button>`;
-  }).join('');
-  const pool = G.setup.sports.length
-    ? QUESTIONS.filter((q) => G.setup.sports.includes(q.sport)).length
-    : QUESTIONS.length;
-
-  show(`
-    <div class="screen on">
-      <h2>A DAY OUT</h2>
-      <div class="card">
-        <h3>SPORTS — PICK SOME, OR LEAVE IT EMPTY FOR THE LOT</h3>
-        <div class="chip-row">${chips}</div>
-        <p class="small dim">${G.setup.sports.length ? `${G.setup.sports.length} selected` : 'ALL SPORTS'}
-          · ${pool} questions in play</p>
-        ${pool < 12 ? '<div class="warn-strip">Thin pool — questions will repeat. Add another sport.</div>' : ''}
-      </div>
-      <div class="card">
-        <h3>SEED — LEAVE BLANK FOR A RANDOM LADDER</h3>
-        <input id="seedin" class="txt" value="${esc(G.setup.seed)}" maxlength="16" placeholder="e.g. SHEARER">
-        <p class="small dim">Same seed, same opponents in the same order.</p>
-      </div>
-      <div class="btn-row">
-        <button class="primary" data-act="go-select">CHOOSE YOUR FIGHTER</button>
-        <button data-act="title">BACK</button>
-      </div>
-    </div>`);
-}
-
-// ── character select ───────────────────────────────────────────────────────
+// ── character select ─────────────────────────────────────────────────────
 function screenSelect() {
   G.screen = 'select';
   setHud(false);
@@ -282,9 +249,16 @@ function screenSelect() {
         <p class="small">${esc(c.blurb)}</p>
         ${perkLines.length ? `<p class="small" style="color:var(--gold)">${perkLines.map(esc).join(' · ')}</p>` : ''}
       </div>
+      <details class="seed-box">
+        <summary>SAME LADDER AS A MATE? ENTER THEIR CODE</summary>
+        <input id="seedin" class="txt" value="${esc(G.setup.seed)}" maxlength="16"
+          placeholder="e.g. SHEARER-27" autocomplete="off">
+        <p class="small dim">Leave it blank for a random ladder. The code for the one
+          you play is shown on the results screen.</p>
+      </details>
       <div class="btn-row">
         <button class="primary" data-act="start-run">FIGHT</button>
-        <button data-act="go-setup">BACK</button>
+        <button data-act="title">BACK</button>
       </div>
     </div>`);
   paintPickFaces();
@@ -571,7 +545,7 @@ function screenResults() {
           — give that to someone else for the exact same climb.</p>
       </div>
       <div class="btn-row">
-        <button class="primary" data-act="go-setup">GO AGAIN</button>
+        <button class="primary" data-act="go-select">GO AGAIN</button>
         <button data-act="league">LEAGUE TABLE</button>
       </div>
       <div class="btn-row"><button data-act="title">BACK TO THE TITLES</button></div>
@@ -681,7 +655,7 @@ function startRun() {
   const seed = makeSeedFrom(G.setup.seed);
   G.run = new Run({ seed, sports: G.setup.sports, characterId: G.setup.character, name: G.setup.name });
   G.battle = null; G.rung = null;
-  savePrefs({ lastSports: G.setup.sports, lastCharacter: G.setup.character, lastName: G.setup.name });
+  savePrefs({ lastCharacter: G.setup.character, lastName: G.setup.name });
   G.camX = rungPos(1).x - VIEW_W / 2;
   sfx.whistle();
   screenLadder();
@@ -786,11 +760,9 @@ panel.addEventListener('click', (e) => {
   switch (btn.dataset.act) {
     case 'title': sfx.back(); screenTitle(); break;
     case 'howto': sfx.select(); screenHowTo(); break;
-    case 'go-setup': sfx.select(); screenSetup(); break;
-    case 'go-select':
-      G.setup.seed = $('seedin')?.value || '';
-      sfx.confirm(); screenSelect(); break;
+    case 'go-select': sfx.confirm(); screenSelect(); break;
     case 'pick':
+      G.setup.seed = $('seedin')?.value || G.setup.seed;
       G.setup.character = btn.dataset.id; sfx.select(); screenSelect(); break;
     case 'league': sfx.select(); screenLeague(); break;
     case 'codex': sfx.select(); screenCodex(); break;
@@ -799,13 +771,9 @@ panel.addEventListener('click', (e) => {
         wipeSave(); Object.assign(save, loadSave()); screenLeague();
       }
       break;
-    case 'toggle-sport': {
-      const s = btn.dataset.sport;
-      const i = G.setup.sports.indexOf(s);
-      if (i >= 0) G.setup.sports.splice(i, 1); else G.setup.sports.push(s);
-      sfx.select(); screenSetup(); break;
-    }
-    case 'start-run': sfx.confirm(); startRun(); break;
+    case 'start-run':
+      G.setup.seed = $('seedin')?.value || '';
+      sfx.confirm(); startRun(); break;
     case 'rung-prev': moveRung(-1); break;
     case 'rung-next': moveRung(1); break;
     case 'fight': sfx.confirm(); enterBattle(); break;

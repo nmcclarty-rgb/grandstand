@@ -254,6 +254,12 @@ real-time online quiz has to assume a second device. The honest routes are
 asynchronous (both players answer the same seeded set, compare after) or a much
 shorter clock. Both are real work.
 
+**Sport filters.** Built, then taken out of the player's way. Every run is all
+sports, because a filter screen between "I want to play" and playing is a tax
+paid by everyone to serve a minority, and nobody picks a filter on their first
+go. The engine still takes the parameter, so single-sport runs come back as a
+mode you choose into rather than a form you fill in.
+
 **Persistent progression.** Rep, stars and a league table persist; nothing else
 does. Meta-progression (permanent upgrades, unlockable fighters) is the obvious
 next hook and deliberately absent until the core fight is proven fun. Adding

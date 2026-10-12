@@ -252,7 +252,7 @@ export function drawSelectScene(ctx, s, t) {
     ctx.restore();
   }
 
-  const PW = 146, PH = 214, PY = 22;
+  const PW = 146, PH = 210, PY = 26;
 
   // ── your pick, left ──
   if (s.player) {
@@ -271,15 +271,15 @@ export function drawSelectScene(ctx, s, t) {
   // ── centre: the globe, as per the arcade original ──
   drawGlobe(ctx, VIEW_W / 2, 112, 56, t);
 
-  textShadowed(ctx, 'PLAYER SELECT', VIEW_W / 2, 214, '13px "Press Start 2P", monospace', '#ffd24a');
+  textShadowed(ctx, 'PLAYER SELECT', VIEW_W / 2, 216, '10px "Press Start 2P", monospace', '#ffd24a');
   const blink = Math.sin(t / 12) > -0.2;
   if (blink) {
     textShadowed(ctx, s.hint || 'PICK YOUR FIGHTER', VIEW_W / 2, 236,
-      '8px "Press Start 2P", monospace', '#e8e3f5');
+      '7px "Press Start 2P", monospace', '#e8e3f5');
   }
 
-  textShadowed(ctx, '1P', 22, 28, '11px "Press Start 2P", monospace', '#4ade80', '#1a1424', 'left');
-  textShadowed(ctx, 'CPU', VIEW_W - 22, 28, '11px "Press Start 2P", monospace', '#f87171', '#1a1424', 'right');
+  textShadowed(ctx, '1P', 12, 16, '10px "Press Start 2P", monospace', '#4ade80', '#1a1424', 'left');
+  textShadowed(ctx, 'CPU', VIEW_W - 12, 16, '10px "Press Start 2P", monospace', '#f87171', '#1a1424', 'right');
 }
 
 function namePlate(c, x, y, w, text, col) {

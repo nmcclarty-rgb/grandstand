@@ -92,33 +92,38 @@ await page.evaluate(() => localStorage.removeItem('grandstand.save.v1'));
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(900);
 await shot(page, '01-title');
-check(await page.isVisible('[data-act="go-setup"]'), 'title screen renders');
+check(await page.isVisible('[data-act="go-select"]'), 'title screen renders');
 check(await page.isVisible('.host-line'), 'the host introduces the programme');
 const hostOpener = (await page.textContent('.host-says')) || '';
 check(hostOpener.length > 10, `host has an opening line (${hostOpener.slice(0, 44)}...)`);
 check(!(await page.isVisible('[data-act="start-pvp"]')), 'PvP is gone from the title screen');
 
-console.log('\nSETUP AND SELECT');
-await page.click('[data-act="go-setup"]');
-await page.waitForTimeout(250);
-await shot(page, '02-setup');
-check(await page.isVisible('[data-act="toggle-sport"]'), 'sport filters offered');
-
-await page.fill('#seedin', 'SHEARER');
+console.log('\nSELECT');
 await page.click('[data-act="go-select"]');
 await page.waitForTimeout(500);
-await shot(page, '03-select');
+await shot(page, '02-select');
+check(!(await page.isVisible('[data-act="toggle-sport"]')),
+  'START goes straight to the fighters — no setup screen in the way');
+check(await page.evaluate(() => window.GRANDSTAND.setup.sports.length === 0),
+  'every run defaults to all sports');
+
+// the seed is optional now, and tucked into a disclosure on this screen
+await page.click('.seed-box > summary');
+await page.waitForTimeout(150);
+await page.fill('#seedin', 'SHEARER');
 const picks = await page.evaluate(() => document.querySelectorAll('[data-act="pick"]').length);
 check(picks === 8, `character select offers all ${picks} fighters`);
 
 await page.click('[data-act="pick"][data-id="keeper"]');
 await page.waitForTimeout(300);
 check(await page.evaluate(() => window.GRANDSTAND.setup.character) === 'keeper', 'picking a fighter sticks');
-await shot(page, '04-select-keeper');
+await shot(page, '03-select-keeper');
 
 await page.click('[data-act="start-run"]');
 await page.waitForTimeout(700);
-await shot(page, '05-ladder');
+await shot(page, '04-ladder');
+check(await page.evaluate(() => window.GRANDSTAND.run.seed === 0x811c9dc5 ? false : true),
+  'the typed seed reached the run');
 check(await page.isVisible('[data-act="rung-next"]'), 'ladder renders');
 check(await page.isVisible('.host-line'), 'the host introduces the rung');
 check(await page.evaluate(() => window.GRANDSTAND.run.player.perk.blockFloor) === 0.12,

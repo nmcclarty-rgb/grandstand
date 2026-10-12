@@ -158,6 +158,21 @@
   .pick.on .pickname { color: #fff; }
   @media (min-width: 560px) { .pick-grid { grid-template-columns: repeat(8, 1fr); } }
 
+  /* ── optional seed, tucked away so it is there without being in the way ── */
+  .seed-box {
+    background: linear-gradient(180deg, var(--panel-2), #201936);
+    border: 2px solid var(--line); border-radius: 9px; padding: 9px 11px;
+  }
+  .seed-box > summary {
+    font-family: var(--head); font-size: 7px; letter-spacing: .5px;
+    color: var(--ink-dim); cursor: pointer; list-style: none;
+  }
+  .seed-box > summary::-webkit-details-marker { display: none; }
+  .seed-box > summary::before { content: '▸ '; color: var(--gold); }
+  .seed-box[open] > summary::before { content: '▾ '; }
+  .seed-box[open] > summary { margin-bottom: 8px; }
+  .seed-box .txt { margin-bottom: 6px; }
+
   /* ── the host ───────────────────────────────────────────────── */
   .host-line {
     display: flex; gap: 10px; align-items: flex-start;
