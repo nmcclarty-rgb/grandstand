@@ -391,7 +391,7 @@ const { drawFace, drawPresenterFace } = __req("engine/sprites.js");
 const { initAudio, sfx, setMuted, isMuted, playTrack, setMusicEnabled, isMusicEnabled } = __req("engine/audio.js");
 const { Battle, PHASE, ANSWER_MS } = __req("game/battle.js");
 const { KIND, RUNGS } = __req("game/ladder.js");
-const { Run, loadSave, recordRun, recordBeaten, savePrefs, wipeSave, restOptions, makeSeedFrom, seedName, ENTER_COST, BATTLE_TURN_COST } = __req("game/state.js");
+const { Run, loadSave, recordRun, recordBeaten, savePrefs, wipeSave, restOptions, makeSeedFrom, seedName, ENTER_COST, BATTLE_TURN_COST, WATER_ENERGY } = __req("game/state.js");
 const { SPORTS, QUESTIONS } = __req("data/questions.js");
 const { CHARACTERS, findCharacter } = __req("data/characters.js");
 const { HOST, SCRIPT, pick, lineForRung, lineForResult, lineForEnding } = __req("data/host.js");
@@ -676,14 +676,16 @@ function screenLadder() {
   const l = r.ladder;
   const canGoBack = r.at > 1;
   const canGoOn = r.at < RUNGS && l.available(r.at + 1);
-  const isRest = rung.kind === KIND.PHYSIO || rung.kind === KIND.BONUS;
+  const isRest = rung.kind === KIND.PHYSIO || rung.kind === KIND.WATER;
   const affordable = r.canAfford(ENTER_COST);
 
   let action;
   if (rung.cleared && isRest) {
     action = `<button disabled>ALREADY TAKEN</button>`;
+  } else if (isRest && !restOptions(rung.kind)) {
+    action = `<button class="primary" data-act="rest">STOP FOR WATER (+${WATER_ENERGY} ENERGY)</button>`;
   } else if (isRest) {
-    // A choice, not a button to walk through.
+    // The treatment room is a real choice; the water break is not.
     action = restOptions(rung.kind).map((o) => `
       <button class="treatment ${o.gamble ? 'gamble' : ''}" data-act="rest" data-opt="${o.id}">
         <span class="t-name">${esc(o.name)}${o.gamble ? ' <span class="t-risk">GAMBLE</span>' : ''}</span>
@@ -708,7 +710,7 @@ function screenLadder() {
     : `<div class="rung-name">${rung.kind === KIND.PHYSIO ? 'THE PHYSIO ROOM' : 'THE CLUB SHOP'}</div>
        <p class="small dim">${rung.kind === KIND.PHYSIO
           ? 'Strip lighting, a massage table and a man with opinions. Pick your treatment.'
-          : 'A trestle table of tat by the turnstiles. Take one thing.'}</p>`;
+          : 'A crate of bottles and two minutes in the shade. Get your breath back.'}</p>`;
 
   show(`
     <div class="screen on">
@@ -726,7 +728,7 @@ function screenLadder() {
         ${who}
         ${rung.fighter ? `<p class="small">"${esc(rung.fighter.taunt)}"</p>` : ''}
       </div>
-      <div class="${isRest && !rung.cleared ? 'treatment-list' : 'btn-row'}">${action}</div>
+      <div class="${isRest && !rung.cleared && restOptions(rung.kind) ? 'treatment-list' : 'btn-row'}">${action}</div>
       <p class="small dim">${r.player.nutmegs} nutmeg${r.player.nutmegs === 1 ? '' : 's'} left
         · ${l.clearedCount()}/${RUNGS} rungs cleared
         · <span class="dim">✕ above ends the day</span></p>
@@ -2026,7 +2028,7 @@ const RUNG_LOOK = {
   [KIND.FIGHT]:  { col: '#4a9be0', label: null },
   [KIND.BOSS]:   { col: '#e0574a', label: null },
   [KIND.PHYSIO]: { col: '#4ec97a', label: '+' },
-  [KIND.BONUS]:  { col: '#e0b040', label: '★' },
+  [KIND.WATER]:  { col: '#3fb6d8', label: '~' },
 };
 
 function drawRung(c, r, x, y, available, current, t) {
@@ -3181,7 +3183,7 @@ const { byTier, bosses } = __req("data/roster.js");
 
 const RUNGS = 12;
 
-const KIND = { FIGHT: 'fight', PHYSIO: 'physio', BONUS: 'bonus', BOSS: 'boss' };
+const KIND = { FIGHT: 'fight', PHYSIO: 'physio', WATER: 'water', BOSS: 'boss' };
 
 /**
  * A rung's venue follows its opponent's sport, not its position on the ladder.
@@ -3203,7 +3205,7 @@ const SPORT_VENUE = {
   telly:      'THE STUDIO',
 };
 const PHYSIO_VENUE = 'THE TREATMENT ROOM';
-const BONUS_VENUE = 'THE CLUB SHOP';
+const WATER_VENUE = 'THE WATER BREAK';
 const BOSS_VENUE = 'THE MAIN ARENA';
 
 /** Star thresholds — see awardStars. */
@@ -3245,7 +3247,7 @@ class Ladder {
       let kind = KIND.FIGHT;
       if (last) kind = KIND.BOSS;
       else if (n === 4 || n === 11) kind = KIND.PHYSIO;
-      else if (n === 8) kind = KIND.BONUS;
+      else if (n === 8) kind = KIND.WATER;
 
       const tier = n <= 3 ? 1 : n <= 7 ? 2 : 3;
       const level = n <= 3 ? 1 : n <= 6 ? 2 : n <= 9 ? 3 : 4;
@@ -3254,7 +3256,7 @@ class Ladder {
                     : kind === KIND.FIGHT ? take(tier) : null;
       const venue = kind === KIND.BOSS ? BOSS_VENUE
                   : kind === KIND.PHYSIO ? PHYSIO_VENUE
-                  : kind === KIND.BONUS ? BONUS_VENUE
+                  : kind === KIND.WATER ? WATER_VENUE
                   : SPORT_VENUE[fighter.sport] || 'THE REC';
 
       this.rungs.push({
@@ -3301,7 +3303,7 @@ function awardStars(battle, player) {
   return stars;
 }
 
-Object.assign(__exports, { RUNGS, KIND, SPORT_VENUE, PHYSIO_VENUE, BONUS_VENUE, BOSS_VENUE, STAR_ACCURACY, STAR_CONDITION, Ladder, awardStars });
+Object.assign(__exports, { RUNGS, KIND, SPORT_VENUE, PHYSIO_VENUE, WATER_VENUE, BOSS_VENUE, STAR_ACCURACY, STAR_CONDITION, Ladder, awardStars });
 });
 
 // ─── engine/rng.js ───────────────────────────────────────────────
@@ -4725,7 +4727,7 @@ const ENTER_COST = 10;         // walking out to face someone
 const BATTLE_TURN_COST = 1;    // per exchange
 const WIN_REFUND = 6;
 const LOSS_PENALTY = 18;
-const BONUS_REP = 250;
+const WATER_ENERGY = 16;
 
 /**
  * The treatment room. A single "press to be healed" button was a rung you
@@ -4773,40 +4775,12 @@ const TREATMENTS = [
   },
 ];
 
-/** The club shop. Same idea: three different things to want. */
-const SHOP_ITEMS = [
-  {
-    id: 'programme',
-    name: 'THE MATCH PROGRAMME',
-    blurb: 'Worth something to the right collector. Straight rep.',
-    apply(run) {
-      const gain = Math.round(BONUS_REP * (run.player.perk.repMult || 1));
-      run.rep += gain;
-      return { tone: 'good', text: `MATCH PROGRAMME — +${gain} REP` };
-    },
-  },
-  {
-    id: 'nutmegs',
-    name: 'TWO SPARE NUTMEGS',
-    blurb: 'Two more chances to turn a question you do not know into a coin flip.',
-    apply(run) {
-      run.player.nutmegs += 2;
-      return { tone: 'good', text: 'NUTMEGS — +2' };
-    },
-  },
-  {
-    id: 'lucozade',
-    name: 'A CRATE OF LUCOZADE',
-    blurb: 'Energy. Which is to say: another fight, maybe two.',
-    apply(run) {
-      const before = run.energy;
-      run.energy = Math.min(run.maxEnergy, run.energy + 26);
-      return { tone: 'good', text: `LUCOZADE — +${run.energy - before} ENERGY` };
-    },
-  },
-];
-
-const restOptions = (kind) => (kind === KIND.PHYSIO ? TREATMENTS : SHOP_ITEMS);
+/**
+ * Only the treatment room offers a choice. The water break is one thing that
+ * does one obvious thing — three ways to say "have a reward" is a menu, not a
+ * decision, and energy is the resource that actually runs out.
+ */
+const restOptions = (kind) => (kind === KIND.PHYSIO ? TREATMENTS : null);
 
 const SAVE_KEY = 'grandstand.save.v2';
 
@@ -4866,7 +4840,7 @@ class Run {
     if (this.over) return false;
     if (this.canAfford(ENTER_COST)) return false;
     return !this.ladder.rungs.some((r) =>
-      !r.cleared && (r.kind === KIND.PHYSIO || r.kind === KIND.BONUS) && this.ladder.available(r.n));
+      !r.cleared && (r.kind === KIND.PHYSIO || r.kind === KIND.WATER) && this.ladder.available(r.n));
   }
 
   spendEnergy(n) {
@@ -4891,16 +4865,22 @@ class Run {
     return true;
   }
 
-  /** Take one of the options on a physio or club-shop rung. */
+  /** Take a treatment, or stop for water. */
   takeRest(optionId) {
     const r = this.rung;
+    let result;
     const options = restOptions(r.kind);
-    if (!options) return null;
-    const choice = options.find((o) => o.id === optionId) || options[0];
-    const result = choice.apply(this);
+    if (options) {
+      const choice = options.find((o) => o.id === optionId) || options[0];
+      result = { choice, ...choice.apply(this) };
+    } else {
+      const before = this.energy;
+      this.energy = Math.min(this.maxEnergy, this.energy + WATER_ENERGY);
+      result = { tone: 'good', text: `WATER BREAK — +${this.energy - before} ENERGY` };
+    }
     r.cleared = true;
     r.stars = Math.max(r.stars, 3);
-    return { kind: r.kind, choice, ...result };
+    return { kind: r.kind, ...result };
   }
 
   finishBattle(rung, battle, won) {
@@ -5009,7 +4989,7 @@ function seedName(seed) {
   return `${WORDS[seed % WORDS.length]}-${(seed >> 8) % 90 + 10}`;
 }
 
-Object.assign(__exports, { START_ENERGY, ENTER_COST, BATTLE_TURN_COST, WIN_REFUND, LOSS_PENALTY, BONUS_REP, TREATMENTS, SHOP_ITEMS, restOptions, Run, loadSave, recordRun, recordBeaten, savePrefs, wipeSave, makeSeedFrom, seedName });
+Object.assign(__exports, { START_ENERGY, ENTER_COST, BATTLE_TURN_COST, WIN_REFUND, LOSS_PENALTY, WATER_ENERGY, TREATMENTS, restOptions, Run, loadSave, recordRun, recordBeaten, savePrefs, wipeSave, makeSeedFrom, seedName });
 });
 
 // ─── data/characters.js ──────────────────────────────────────────
@@ -5185,10 +5165,10 @@ const SCRIPT = {
     'The magic sponge. Never fails, never explained.',
     'Take the treatment. There is no medal for limping.',
   ],
-  bonus: [
-    'A little something from the club shop. Take it.',
-    'Programme, pin badge, and a spare trick up your sleeve.',
-    'Free of charge, and very much earned.',
+  water: [
+    'Two minutes, a drink, and back out you go.',
+    'Get that down you. You have earned the breather.',
+    'Water, shade, and a long look at the scoreboard.',
   ],
 
   treatmentGreat: [
@@ -5250,7 +5230,7 @@ const SCRIPT = {
 function lineForRung(rung) {
   if (rung.kind === 'boss') return pick(SCRIPT.rung.boss);
   if (rung.kind === 'physio') return pick(SCRIPT.physio);
-  if (rung.kind === 'bonus') return pick(SCRIPT.bonus);
+  if (rung.kind === 'water') return pick(SCRIPT.water);
   const tier = rung.fighter ? rung.fighter.tier : 1;
   return pick(SCRIPT.rung[Math.min(3, tier)] || SCRIPT.rung[1]);
 }

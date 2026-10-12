@@ -18,7 +18,7 @@ import { initAudio, sfx, setMuted, isMuted,
 import { Battle, PHASE, ANSWER_MS } from './game/battle.js';
 import { KIND, RUNGS } from './game/ladder.js';
 import { Run, loadSave, recordRun, recordBeaten, savePrefs, wipeSave, restOptions,
-         makeSeedFrom, seedName, ENTER_COST, BATTLE_TURN_COST } from './game/state.js';
+         makeSeedFrom, seedName, ENTER_COST, BATTLE_TURN_COST, WATER_ENERGY } from './game/state.js';
 import { SPORTS, QUESTIONS } from './data/questions.js';
 import { CHARACTERS, findCharacter } from './data/characters.js';
 import { HOST, SCRIPT, pick, lineForRung, lineForResult, lineForEnding } from './data/host.js';
@@ -303,14 +303,16 @@ function screenLadder() {
   const l = r.ladder;
   const canGoBack = r.at > 1;
   const canGoOn = r.at < RUNGS && l.available(r.at + 1);
-  const isRest = rung.kind === KIND.PHYSIO || rung.kind === KIND.BONUS;
+  const isRest = rung.kind === KIND.PHYSIO || rung.kind === KIND.WATER;
   const affordable = r.canAfford(ENTER_COST);
 
   let action;
   if (rung.cleared && isRest) {
     action = `<button disabled>ALREADY TAKEN</button>`;
+  } else if (isRest && !restOptions(rung.kind)) {
+    action = `<button class="primary" data-act="rest">STOP FOR WATER (+${WATER_ENERGY} ENERGY)</button>`;
   } else if (isRest) {
-    // A choice, not a button to walk through.
+    // The treatment room is a real choice; the water break is not.
     action = restOptions(rung.kind).map((o) => `
       <button class="treatment ${o.gamble ? 'gamble' : ''}" data-act="rest" data-opt="${o.id}">
         <span class="t-name">${esc(o.name)}${o.gamble ? ' <span class="t-risk">GAMBLE</span>' : ''}</span>
@@ -335,7 +337,7 @@ function screenLadder() {
     : `<div class="rung-name">${rung.kind === KIND.PHYSIO ? 'THE PHYSIO ROOM' : 'THE CLUB SHOP'}</div>
        <p class="small dim">${rung.kind === KIND.PHYSIO
           ? 'Strip lighting, a massage table and a man with opinions. Pick your treatment.'
-          : 'A trestle table of tat by the turnstiles. Take one thing.'}</p>`;
+          : 'A crate of bottles and two minutes in the shade. Get your breath back.'}</p>`;
 
   show(`
     <div class="screen on">
@@ -353,7 +355,7 @@ function screenLadder() {
         ${who}
         ${rung.fighter ? `<p class="small">"${esc(rung.fighter.taunt)}"</p>` : ''}
       </div>
-      <div class="${isRest && !rung.cleared ? 'treatment-list' : 'btn-row'}">${action}</div>
+      <div class="${isRest && !rung.cleared && restOptions(rung.kind) ? 'treatment-list' : 'btn-row'}">${action}</div>
       <p class="small dim">${r.player.nutmegs} nutmeg${r.player.nutmegs === 1 ? '' : 's'} left
         · ${l.clearedCount()}/${RUNGS} rungs cleared
         · <span class="dim">✕ above ends the day</span></p>

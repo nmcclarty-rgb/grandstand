@@ -207,21 +207,28 @@ await page.click('[data-act="rung-next"]');
 await page.waitForTimeout(200);
 
 console.log('\nCLIMBING');
-let fights = 1, restsTaken = 0;
+let fights = 1, restsTaken = 0, seenTreatment = false, seenWater = false, shotTaken = false;
 for (let i = 0; i < 14; i++) {
   if (await page.evaluate(() => window.GRANDSTAND.run.over)) break;
   const frontier = await page.evaluate(() => window.GRANDSTAND.run.ladder.frontier());
   if (!(await goToRung(page, frontier))) break;
   if (await page.isVisible('[data-act="rest"]')) {
+    // Two kinds of rest rung: the treatment room is a choice of three, the
+    // water break is one button. Both have to work.
     const opts = await page.evaluate(() =>
-      [...document.querySelectorAll('[data-act="rest"]')].map((b) => b.dataset.opt));
-    if (restsTaken === 0) {
-      check(opts.length === 3, `the rest rung offers a choice of ${opts.length}`);
+      [...document.querySelectorAll('[data-act="rest"]')].map((b) => b.dataset.opt || null));
+    if (opts.length > 1) {
+      seenTreatment = true;
+      check(opts.length === 3, `the treatment room offers a choice of ${opts.length}`);
       check(await page.isVisible('.treatment.gamble'), 'one of them is a gamble');
-      await shot(page, '09-rest-choice');
+      if (!shotTaken) { await shot(page, '09-treatment-choice'); shotTaken = true; }
+      // a different treatment each time, so all three paths get exercised
+      await page.click(`[data-act="rest"][data-opt="${opts[restsTaken % 3]}"]`);
+    } else {
+      seenWater = true;
+      check(opts[0] === null, 'the water break is a single action, not a menu');
+      await page.click('[data-act="rest"]');
     }
-    // take a different option each time, so all three paths get exercised
-    await page.click(`[data-act="rest"][data-opt="${opts[restsTaken % opts.length]}"]`);
     await page.waitForTimeout(300);
     restsTaken++;
     continue;
@@ -238,6 +245,7 @@ for (let i = 0; i < 14; i++) {
 }
 check(fights > 3, `played ${fights} fights in one day`);
 check(restsTaken > 0, `took ${restsTaken} rest rung(s)`);
+check(seenTreatment || seenWater, `exercised rest rungs (treatment: ${seenTreatment}, water: ${seenWater})`);
 await shot(page, '08-ladder-progress');
 
 // Being alive but unable to afford anything used to leave the player staring

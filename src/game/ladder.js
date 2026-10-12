@@ -17,7 +17,7 @@ import { byTier, bosses } from '../data/roster.js';
 
 export const RUNGS = 12;
 
-export const KIND = { FIGHT: 'fight', PHYSIO: 'physio', BONUS: 'bonus', BOSS: 'boss' };
+export const KIND = { FIGHT: 'fight', PHYSIO: 'physio', WATER: 'water', BOSS: 'boss' };
 
 /**
  * A rung's venue follows its opponent's sport, not its position on the ladder.
@@ -39,7 +39,7 @@ export const SPORT_VENUE = {
   telly:      'THE STUDIO',
 };
 export const PHYSIO_VENUE = 'THE TREATMENT ROOM';
-export const BONUS_VENUE = 'THE CLUB SHOP';
+export const WATER_VENUE = 'THE WATER BREAK';
 export const BOSS_VENUE = 'THE MAIN ARENA';
 
 /** Star thresholds — see awardStars. */
@@ -81,7 +81,7 @@ export class Ladder {
       let kind = KIND.FIGHT;
       if (last) kind = KIND.BOSS;
       else if (n === 4 || n === 11) kind = KIND.PHYSIO;
-      else if (n === 8) kind = KIND.BONUS;
+      else if (n === 8) kind = KIND.WATER;
 
       const tier = n <= 3 ? 1 : n <= 7 ? 2 : 3;
       const level = n <= 3 ? 1 : n <= 6 ? 2 : n <= 9 ? 3 : 4;
@@ -90,7 +90,7 @@ export class Ladder {
                     : kind === KIND.FIGHT ? take(tier) : null;
       const venue = kind === KIND.BOSS ? BOSS_VENUE
                   : kind === KIND.PHYSIO ? PHYSIO_VENUE
-                  : kind === KIND.BONUS ? BONUS_VENUE
+                  : kind === KIND.WATER ? WATER_VENUE
                   : SPORT_VENUE[fighter.sport] || 'THE REC';
 
       this.rungs.push({

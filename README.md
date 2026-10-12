@@ -72,9 +72,9 @@ nothing through, the Statistician carries seven nutmegs, Touchline Dad hits
 like a lorry and takes 15% extra. See `src/data/characters.js`.
 
 **The ladder (PvE).** Twelve rungs, seeded, getting harder as you climb, with
-a boss at the top. Rungs 4 and 11 are the treatment room and rung 8 is the club shop — each a
-choice of three rather than a button to walk through, including one gamble that
-beats both safe options when it lands and is worse than either when it doesn't. Walking
+a boss at the top. Rungs 4 and 11 are the treatment room — a choice of three, including a gamble
+that beats both safe options when it lands and is worse than either when it
+doesn't. Rung 8 is a water break: one button, straight energy. Walking
 out to face someone costs 10 energy and every exchange costs 1 more, so a
 player who answers well finishes fights sooner and gets further up. When you can no longer afford a fight and there's no
 restorative rung left in reach, the day ends on its own and the score goes to

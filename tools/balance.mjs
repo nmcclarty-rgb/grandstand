@@ -45,7 +45,7 @@ function climb(skill, answerMs, charId, trials = 300) {
       const n = run.ladder.frontier();
       run.moveTo(n);
       const rung = run.rung;
-      if (rung.kind === KIND.PHYSIO || rung.kind === KIND.BONUS) { run.takeRest(); continue; }
+      if (rung.kind === KIND.PHYSIO || rung.kind === KIND.WATER) { run.takeRest('sponge'); continue; }
       if (!run.canAfford(ENTER_COST)) { run.end('energy'); break; }
       run.spendEnergy(ENTER_COST);
       const b = new Battle(run.player, rung.fighter, {

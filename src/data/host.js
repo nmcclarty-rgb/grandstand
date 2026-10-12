@@ -84,10 +84,10 @@ export const SCRIPT = {
     'The magic sponge. Never fails, never explained.',
     'Take the treatment. There is no medal for limping.',
   ],
-  bonus: [
-    'A little something from the club shop. Take it.',
-    'Programme, pin badge, and a spare trick up your sleeve.',
-    'Free of charge, and very much earned.',
+  water: [
+    'Two minutes, a drink, and back out you go.',
+    'Get that down you. You have earned the breather.',
+    'Water, shade, and a long look at the scoreboard.',
   ],
 
   treatmentGreat: [
@@ -149,7 +149,7 @@ export const SCRIPT = {
 export function lineForRung(rung) {
   if (rung.kind === 'boss') return pick(SCRIPT.rung.boss);
   if (rung.kind === 'physio') return pick(SCRIPT.physio);
-  if (rung.kind === 'bonus') return pick(SCRIPT.bonus);
+  if (rung.kind === 'water') return pick(SCRIPT.water);
   const tier = rung.fighter ? rung.fighter.tier : 1;
   return pick(SCRIPT.rung[Math.min(3, tier)] || SCRIPT.rung[1]);
 }

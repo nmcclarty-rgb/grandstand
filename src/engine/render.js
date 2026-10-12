@@ -662,7 +662,7 @@ const RUNG_LOOK = {
   [KIND.FIGHT]:  { col: '#4a9be0', label: null },
   [KIND.BOSS]:   { col: '#e0574a', label: null },
   [KIND.PHYSIO]: { col: '#4ec97a', label: '+' },
-  [KIND.BONUS]:  { col: '#e0b040', label: '★' },
+  [KIND.WATER]:  { col: '#3fb6d8', label: '~' },
 };
 
 function drawRung(c, r, x, y, available, current, t) {

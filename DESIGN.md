@@ -115,14 +115,25 @@ roster is a thing you browse between runs, not during one.
 The treatment room began as one button that healed you, which made it a rung
 you walked through rather than played. It is now three: a safe heal, a trade of
 health for stamina, and a gamble that gives you a full tank 60% of the time and
-costs you energy the rest. The club shop works the same way — rep, nutmegs or
-energy — and those three pull in genuinely different directions: score,
-survivability, or more fights.
+costs you energy the rest.
 
 The gamble is the interesting one, because it is the only place in the game
 where the player takes a risk that isn't a question. At 60/40 it is correct to
 take when you are badly hurt and wrong when you are nearly full, which is a
 real decision rather than a coin you flip for fun.
+
+**Not every rung should be a choice, though.** The other rest rung got the same
+three-option treatment — rep, nutmegs or energy — and it was wrong. Those were
+three ways of saying "have a reward" rather than three things to weigh, and a
+menu that doesn't make you think is just a slower button. It is now a water
+break: one action, straight energy, which is the resource that actually runs
+out. The rule that fell out of it is worth keeping — a choice earns its screen
+when the options pull against each other, and not otherwise.
+
+That change moved the difficulty, as any change to the energy economy does: a
+free +30 took a decent player from 59% to 74% champion. Settling the water
+break at +16 put the curve back where it was (0 / 11 / 62 / 99 across the four
+skill levels). Anything touching energy needs `npm run balance` afterwards.
 
 ### Running out is an ending, not a wall
 

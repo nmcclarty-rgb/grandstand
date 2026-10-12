@@ -25,7 +25,7 @@ export const ENTER_COST = 10;         // walking out to face someone
 export const BATTLE_TURN_COST = 1;    // per exchange
 export const WIN_REFUND = 6;
 export const LOSS_PENALTY = 18;
-export const BONUS_REP = 250;
+export const WATER_ENERGY = 16;
 
 /**
  * The treatment room. A single "press to be healed" button was a rung you
@@ -73,40 +73,12 @@ export const TREATMENTS = [
   },
 ];
 
-/** The club shop. Same idea: three different things to want. */
-export const SHOP_ITEMS = [
-  {
-    id: 'programme',
-    name: 'THE MATCH PROGRAMME',
-    blurb: 'Worth something to the right collector. Straight rep.',
-    apply(run) {
-      const gain = Math.round(BONUS_REP * (run.player.perk.repMult || 1));
-      run.rep += gain;
-      return { tone: 'good', text: `MATCH PROGRAMME — +${gain} REP` };
-    },
-  },
-  {
-    id: 'nutmegs',
-    name: 'TWO SPARE NUTMEGS',
-    blurb: 'Two more chances to turn a question you do not know into a coin flip.',
-    apply(run) {
-      run.player.nutmegs += 2;
-      return { tone: 'good', text: 'NUTMEGS — +2' };
-    },
-  },
-  {
-    id: 'lucozade',
-    name: 'A CRATE OF LUCOZADE',
-    blurb: 'Energy. Which is to say: another fight, maybe two.',
-    apply(run) {
-      const before = run.energy;
-      run.energy = Math.min(run.maxEnergy, run.energy + 26);
-      return { tone: 'good', text: `LUCOZADE — +${run.energy - before} ENERGY` };
-    },
-  },
-];
-
-export const restOptions = (kind) => (kind === KIND.PHYSIO ? TREATMENTS : SHOP_ITEMS);
+/**
+ * Only the treatment room offers a choice. The water break is one thing that
+ * does one obvious thing — three ways to say "have a reward" is a menu, not a
+ * decision, and energy is the resource that actually runs out.
+ */
+export const restOptions = (kind) => (kind === KIND.PHYSIO ? TREATMENTS : null);
 
 const SAVE_KEY = 'grandstand.save.v2';
 
@@ -166,7 +138,7 @@ export class Run {
     if (this.over) return false;
     if (this.canAfford(ENTER_COST)) return false;
     return !this.ladder.rungs.some((r) =>
-      !r.cleared && (r.kind === KIND.PHYSIO || r.kind === KIND.BONUS) && this.ladder.available(r.n));
+      !r.cleared && (r.kind === KIND.PHYSIO || r.kind === KIND.WATER) && this.ladder.available(r.n));
   }
 
   spendEnergy(n) {
@@ -191,16 +163,22 @@ export class Run {
     return true;
   }
 
-  /** Take one of the options on a physio or club-shop rung. */
+  /** Take a treatment, or stop for water. */
   takeRest(optionId) {
     const r = this.rung;
+    let result;
     const options = restOptions(r.kind);
-    if (!options) return null;
-    const choice = options.find((o) => o.id === optionId) || options[0];
-    const result = choice.apply(this);
+    if (options) {
+      const choice = options.find((o) => o.id === optionId) || options[0];
+      result = { choice, ...choice.apply(this) };
+    } else {
+      const before = this.energy;
+      this.energy = Math.min(this.maxEnergy, this.energy + WATER_ENERGY);
+      result = { tone: 'good', text: `WATER BREAK — +${this.energy - before} ENERGY` };
+    }
     r.cleared = true;
     r.stars = Math.max(r.stars, 3);
-    return { kind: r.kind, choice, ...result };
+    return { kind: r.kind, ...result };
   }
 
   finishBattle(rung, battle, won) {
