@@ -10,7 +10,7 @@
  */
 
 import { setupCanvas, drawBattleScene, drawSelectScene, drawLadderScene,
-         drawTitleScene, drawStars,
+         drawTitleScene, drawStars, drawCountdown,
          rungPos, ladderWidth, VIEW_W, VIEW_H } from './engine/render.js';
 import { drawFace, drawPresenterFace } from './engine/sprites.js';
 import { initAudio, sfx, setMuted, isMuted } from './engine/audio.js';
@@ -43,6 +43,7 @@ const G = {
   hostLine: '',
   hostTalking: false,
   timer: { running: false, start: 0, lastTick: 0 },
+  countdown: null,
   busy: false,
 };
 
@@ -370,9 +371,14 @@ function fighterBars() {
     </div>`;
 }
 
+// 3 - 2 - 1 - GO, then straight into the first question.
+const COUNT_BEAT = 760;
+const COUNT_BEATS = ['3', '2', '1', 'FIGHT!'];
+
 function screenBattleIntro() {
   G.screen = 'battle';
   const b = G.battle;
+  G.countdown = { start: performance.now(), beat: -1 };
   show(`
     <div class="screen on">
       ${fighterBars()}
@@ -380,12 +386,26 @@ function screenBattleIntro() {
         <h3>${esc(G.scene.venue)} · RUNG ${G.rung.n}</h3>
         <p>"${esc(b.foe.taunt)}"</p>
       </div>
-      <div class="btn-row">
-        <button class="primary" data-act="begin">SECONDS OUT</button>
-        <button data-act="leg-it">LEG IT</button>
-      </div>
     </div>`);
   layout();
+}
+
+/** Advances the countdown and hands over to the first question when it's done. */
+function tickCountdown() {
+  const cd = G.countdown;
+  if (!cd || !G.battle) return;
+  const elapsed = performance.now() - cd.start;
+  const beat = Math.floor(elapsed / COUNT_BEAT);
+
+  if (beat !== cd.beat && beat < COUNT_BEATS.length) {
+    cd.beat = beat;
+    if (beat === COUNT_BEATS.length - 1) sfx.whistle(); else sfx.tick();
+  }
+  if (beat >= COUNT_BEATS.length) {
+    G.countdown = null;
+    G.battle.begin();
+    screenQuestion();
+  }
 }
 
 function screenQuestion() {
@@ -798,12 +818,6 @@ panel.addEventListener('click', (e) => {
       stepUp();
       updateHud(); screenLadder(); break;
     }
-    case 'begin': sfx.confirm(); G.battle.begin(); screenQuestion(); break;
-    case 'leg-it':
-      sfx.back(); G.battle = null; G.rung = null;
-      updateHud();
-      if (G.run.over) screenResults(); else screenLadder();
-      break;
     case 'answer': doAnswer(+btn.dataset.i); break;
     case 'nutmeg':
       if (G.battle.useNutmeg()) { sfx.select(); toast('NUTMEG — one option gone'); screenQuestion(); }
@@ -871,6 +885,7 @@ stage.addEventListener('touchend', (e) => {
 function frame() {
   G.t++;
   tickTimer();
+  tickCountdown();
   if (G.scene.foeFlash > 0) G.scene.foeFlash--;
   if (G.scene.playerFlash > 0) G.scene.playerFlash--;
   for (let i = G.scene.floaters.length - 1; i >= 0; i--) {
@@ -896,6 +911,12 @@ function frame() {
       break;
     case 'battle':
       drawBattleScene(ctx, G.scene, G.t);
+      if (G.countdown) {
+        const elapsed = performance.now() - G.countdown.start;
+        const i = Math.min(COUNT_BEATS.length - 1, Math.floor(elapsed / COUNT_BEAT));
+        drawCountdown(ctx, COUNT_BEATS[i], (elapsed % COUNT_BEAT) / COUNT_BEAT,
+                      i === COUNT_BEATS.length - 1);
+      }
       break;
     default:
       drawTitleScene(ctx, G.t, HOST, G.hostTalking);

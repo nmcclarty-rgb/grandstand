@@ -166,6 +166,19 @@ Three modifiers, each doing a specific job:
 
 ---
 
+### Nothing between you and the question
+
+The fight used to open on a screen with SECONDS OUT and LEG IT on it. Both were
+dead weight. You had already committed — and paid the energy — by choosing to
+fight on the ladder, so LEG IT was an undo for a decision nobody regrets, and
+SECONDS OUT was a button whose only job was to say "yes, still". A three-beat
+countdown does the same framing work, puts it where you are already looking
+(between the two fighters), and costs no input at all.
+
+The caption under the numbers went the same way. Every version of it either
+collided with the far fighter's gloves or washed out against the crowd, and
+"3 - 2 - 1" has never needed explaining.
+
 ## 4b. The host
 
 The ladder gave the game a shape. Des Rider gives it a voice.

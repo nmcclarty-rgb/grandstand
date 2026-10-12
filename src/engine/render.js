@@ -745,3 +745,43 @@ export function drawTitleWordmark(ctx, t) {
 }
 
 export { drawPortrait, drawFace };
+
+/**
+ * Seconds out. Drawn between the two fighters, where you are already looking.
+ * `p` is 0..1 progress through the current beat: the number pops in oversized
+ * and settles, then fades, so each beat reads as a distinct count rather than
+ * a number quietly changing.
+ */
+export function drawCountdown(ctx, label, p, isGo) {
+  const cx = VIEW_W / 2, cy = 152;
+  const pop = 1 + Math.max(0, 0.75 - p * 2.6);
+  const fade = p > 0.82 ? 1 - (p - 0.82) / 0.18 : 1;
+
+  // A solid backing, not a wash: the crowd behind is busy and high-contrast,
+  // and a number that competes with it is a number nobody reads in time.
+  ctx.save();
+  ctx.globalAlpha = 0.92 * fade;
+  const ring = ctx.createRadialGradient(cx, cy - 15, 6, cx, cy - 15, 52);
+  ring.addColorStop(0, 'rgba(8,6,16,0.96)');
+  ring.addColorStop(0.6, 'rgba(8,6,16,0.82)');
+  ring.addColorStop(1, 'rgba(8,6,16,0)');
+  ctx.fillStyle = ring;
+  ctx.fillRect(cx - 56, cy - 70, 112, 112);
+  ctx.restore();
+
+  // No caption. "3 - 2 - 1" explains itself, and every attempt at a label
+  // either collided with the far fighter or washed out against the crowd.
+  ctx.save();
+  ctx.globalAlpha = fade;
+  ctx.textAlign = 'center';
+  ctx.translate(cx, cy);
+  ctx.scale(pop, pop);
+  ctx.font = `${isGo ? 20 : 42}px "Press Start 2P", monospace`;
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = '#0d0a18';
+  ctx.strokeText(label, 0, 0);
+  ctx.fillStyle = isGo ? '#ff7a6e' : '#ffd24a';
+  ctx.fillText(label, 0, 0);
+  ctx.restore();
+}

@@ -76,7 +76,9 @@ finishing in decent nick. Cleared rungs can be replayed for a better rating,
 which is the only reason to ever climb back down — and it costs energy, so it
 is a real decision rather than free grinding.
 
-**The fight.** Turns alternate, and so does the question:
+**The fight.** A three-beat countdown runs between the two fighters and hands
+straight over to the first question — no button to press to start. Then turns
+alternate, and so does the question:
 
 | Your turn | **STRIKE** | *"Who scored the MOST…"* | Pick the **biggest** number. It's your damage. |
 | Their turn | **BLOCK** | *"Who scored the FEWEST…"* | Pick the **smallest** number to take the sting out. |

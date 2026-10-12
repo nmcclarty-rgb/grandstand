@@ -138,9 +138,15 @@ await page.click('[data-act="fight"]');
 await page.waitForTimeout(350);
 const e1 = await page.evaluate(() => window.GRANDSTAND.run.energy);
 check(e1 < e0, `walking out costs energy (${e0} → ${e1})`);
-await page.click('[data-act="begin"]');
-await page.waitForTimeout(400);
-await shot(page, '06-strike');
+// No button any more — a three-beat countdown runs between the fighters and
+// hands straight over to the first question.
+check(!(await page.isVisible('[data-act="begin"]')), 'no SECONDS OUT button to press');
+await page.waitForTimeout(500);
+await shot(page, '06-countdown');
+check(await page.evaluate(() => window.GRANDSTAND.countdown !== null), 'countdown is running');
+await page.waitForSelector('[data-act="answer"]', { timeout: 8000 });
+check(true, 'countdown hands over to the first question on its own');
+await shot(page, '07-strike');
 check(await page.isVisible('.q-prompt'), 'a question is asked');
 check(await page.isVisible('.q-hint'), 'the direction hint is shown');
 
@@ -149,7 +155,7 @@ const r1 = await playFight(page, 1);
 check(r1.sawStrike, 'STRIKE phase reached');
 check(r1.sawBlock, 'BLOCK phase reached');
 check(r1.finished, 'fight resolved to a result');
-await shot(page, '07-fight-end');
+await shot(page, '08-fight-end');
 check(await page.isVisible('.host-line'), 'the host reacts to the result');
 const won = await page.evaluate(() => window.GRANDSTAND.run.wins > 0);
 check(won, `a perfect player beats rung 1 (opponent started on ${foeBefore})`);
@@ -185,9 +191,7 @@ for (let i = 0; i < 14; i++) {
   const fightBtn = await page.$('[data-act="fight"]:not([disabled])');
   if (!fightBtn) break;
   await fightBtn.click();
-  await page.waitForTimeout(280);
-  await page.click('[data-act="begin"]');
-  await page.waitForTimeout(280);
+  await page.waitForSelector('[data-act="answer"]', { timeout: 8000 });
   await playFight(page, 0.7);
   fights++;
   await page.evaluate(() =>
