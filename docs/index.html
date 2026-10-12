@@ -384,7 +384,7 @@ const G = {
   camX: 0,
   scene: { player: null, foe: null, floaters: [], shake: 0, playerFlash: 0, foeFlash: 0,
            playerPose: null, foePose: null, playerDown: false, foeDown: false,
-           venue: 'THE REC' },
+           venue: 'THE REC', sport: 'football' },
   // `sports` stays in the shape the engine expects — Ladder and Battle both
   // take a filter — but nothing sets it any more: every run is all sports.
   // Single-sport runs are a later feature, and this is the hook for them.
@@ -1065,6 +1065,7 @@ function enterBattle() {
   sfx.encounter();
   say(rung.kind === 'boss' ? pick(SCRIPT.rung.boss) : '');
   G.scene.venue = rung.venue;
+  G.scene.sport = rung.fighter.sport;
   G.battle = new Battle(r.player, rung.fighter, {
     level: rung.level,
     sports: G.setup.sports,
@@ -1441,24 +1442,237 @@ function drawCrowd(c, top, height, t, density = 8) {
   }
 }
 
-const VENUE_LOOK = {
-  'THE REC':               { ground: '#2c8f4a', alt: '#248040', sky: ['#4a6fb5', '#89a8d8'], crowd: true },
-  'THE LEISURE CENTRE':    { ground: '#3f7fae', alt: '#37729e', sky: ['#2b2448', '#4a3f6e'], crowd: false },
-  'THE ATHLETICS TRACK':   { ground: '#b24a2c', alt: '#a04227', sky: ['#3d63a8', '#7e9fd0'], crowd: true },
-  'THE SNOOKER CLUB':      { ground: '#1a7046', alt: '#16613d', sky: ['#1b1530', '#2e2450'], crowd: false },
-  'THE TENNIS COURTS':     { ground: '#3e6fa8', alt: '#376298', sky: ['#4a6fb5', '#9dbbe0'], crowd: true },
-  'THE MUNICIPAL LINKS':   { ground: '#4a9a42', alt: '#40883a', sky: ['#4f7cc0', '#a9c4e4'], crowd: false },
-  'THE SPORTS HALL':       { ground: '#c08a48', alt: '#ad7b3f', sky: ['#241d3c', '#3a3057'], crowd: true },
-  'THE PADDOCK':           { ground: '#5e6072', alt: '#545667', sky: ['#2b3446', '#4d5a71'], crowd: true },
-  'THE COUNTY GROUND':     { ground: '#3a9450', alt: '#328446', sky: ['#4f7cc0', '#a9c4e4'], crowd: true },
-  'THE OLD BATHS':         { ground: '#2f7fa8', alt: '#2a7197', sky: ['#1f2b40', '#3c4d6b'], crowd: false },
-  'THE VELODROME':         { ground: '#9a6a3c', alt: '#8a5e35', sky: ['#1d1832', '#332a52'], crowd: true },
-  'THE MAIN ARENA':        { ground: '#2c8f4a', alt: '#248040', sky: ['#120f24', '#2a2148'], crowd: true },
+/**
+ * One arena per sport. `props` draws the set dressing on the ground, behind
+ * the fighters — a snooker table, a running track, a dartboard — which is what
+ * makes rung 6 feel like a different fight from rung 5 rather than the same
+ * pitch in a different colour.
+ *
+ * Fighters stand at x 44..188 and 292..436, so the centre column (188..292) is
+ * the one reliably clear strip: central props go there, wide ones go behind.
+ */
+const ARENAS = {
+  football:   { sky: ['#4a6fb5', '#89a8d8'], ground: '#2c8f4a', alt: '#248040', crowd: true,  props: propsFootball },
+  boxing:     { sky: ['#241d3c', '#3a3057'], ground: '#b89a6a', alt: '#a98c5e', crowd: true,  props: propsBoxing },
+  athletics:  { sky: ['#3d63a8', '#7e9fd0'], ground: '#b24a2c', alt: '#a04227', crowd: true,  props: propsAthletics },
+  cricket:    { sky: ['#5f8ac8', '#b3cde8'], ground: '#4aa359', alt: '#419350', crowd: true,  props: propsCricket },
+  snooker:    { sky: ['#140f26', '#241a3d'], ground: '#3b2a4a', alt: '#352646', crowd: false, props: propsSnooker },
+  darts:      { sky: ['#2a1d18', '#3d2b22'], ground: '#5a3f2e', alt: '#523828', crowd: false, props: propsDarts },
+  golf:       { sky: ['#4f7cc0', '#a9c4e4'], ground: '#4a9a42', alt: '#40883a', crowd: false, props: propsGolf },
+  tennis:     { sky: ['#4a6fb5', '#9dbbe0'], ground: '#3e6fa8', alt: '#376298', crowd: true,  props: propsTennis },
+  motorsport: { sky: ['#2b3446', '#4d5a71'], ground: '#5e6072', alt: '#545667', crowd: true,  props: propsMotorsport },
+  rugby:      { sky: ['#4f7cc0', '#8fb0d8'], ground: '#3a9450', alt: '#328446', crowd: true,  props: propsRugby },
+  olympics:   { sky: ['#1f2b40', '#46608c'], ground: '#b24a2c', alt: '#a04227', crowd: true,  props: propsOlympics },
+  telly:      { sky: ['#0b1f52', '#13327d'], ground: '#2b3f6b', alt: '#25375f', crowd: false, props: propsTelly },
+  any:        { sky: ['#120f24', '#2a2148'], ground: '#2c8f4a', alt: '#248040', crowd: true,  props: propsArena },
 };
 
+// ── set dressing ──────────────────────────────────────────────────────────
+const HZ = 150;
+
+function propsFootball(c, t) {
+  // goal at the back, penalty arc on the deck
+  px(c, 178, HZ - 44, 124, 4, '#f1f5f9');
+  px(c, 178, HZ - 44, 4, 46, '#f1f5f9');
+  px(c, 298, HZ - 44, 4, 46, '#f1f5f9');
+  for (let x = 184; x < 298; x += 8) px(c, x, HZ - 40, 1, 38, 'rgba(255,255,255,0.28)');
+  for (let y = HZ - 38; y < HZ; y += 8) px(c, 180, y, 120, 1, 'rgba(255,255,255,0.28)');
+  c.strokeStyle = '#dff3e4'; c.lineWidth = 2;
+  c.beginPath(); c.arc(240, 238, 58, Math.PI, 0); c.stroke();
+  px(c, 0, 196, VIEW_W, 2, '#dff3e4');
+}
+
+function propsBoxing(c, t) {
+  // canvas, ropes and corner posts
+  px(c, 0, HZ, VIEW_W, 6, '#8d7a52');
+  for (let i = 0; i < 3; i++) {
+    const y = HZ - 54 + i * 18;
+    px(c, 0, y, VIEW_W, 3, i === 1 ? '#d8d2e8' : '#c9303c');
+  }
+  px(c, 26, HZ - 62, 10, 70, '#4a3f58');
+  px(c, 26, HZ - 62, 10, 8, '#c9303c');
+  px(c, 444, HZ - 62, 10, 70, '#4a3f58');
+  px(c, 444, HZ - 62, 10, 8, '#1d4ed8');
+  px(c, 0, 206, VIEW_W, 3, '#9a8560');
+}
+
+function propsAthletics(c, t) {
+  // lanes receding, with white lines and a finish
+  for (let i = 0; i < 6; i++) {
+    const y = HZ + 6 + i * 18;
+    px(c, 0, y, VIEW_W, 2, '#efe7d8');
+  }
+  px(c, 214, HZ, 6, VIEW_H - HZ, '#f4f0e6');       // finish line
+  for (let y = HZ; y < VIEW_H; y += 10) px(c, 214, y, 6, 5, '#2b2334');
+  px(c, 36, HZ - 26, 52, 26, '#1d6b3a');           // infield grass
+  px(c, 392, HZ - 26, 56, 26, '#1d6b3a');
+}
+
+function propsCricket(c, t) {
+  px(c, 150, HZ, 180, VIEW_H - HZ, '#c2b183');     // the strip
+  px(c, 150, HZ, 180, 3, '#d6c89f');
+  const stumpsX = 232;
+  for (let i = 0; i < 3; i++) px(c, stumpsX + i * 7, 176, 4, 34, '#f0ead6');
+  px(c, stumpsX, 174, 18, 3, '#f0ead6');           // bails
+  px(c, 150, 212, 180, 2, '#f4f1e6');              // crease
+  px(c, 60, HZ - 34, 70, 34, '#e9e4d6');           // pavilion
+  px(c, 60, HZ - 34, 70, 5, '#8a6b4a');
+}
+
+function propsSnooker(c, t) {
+  // the table, lit from above
+  c.save();
+  c.globalAlpha = 0.5;
+  const beam = c.createLinearGradient(240, HZ - 70, 240, 250);
+  beam.addColorStop(0, 'rgba(255,245,200,0.55)');
+  beam.addColorStop(1, 'rgba(255,245,200,0)');
+  c.fillStyle = beam;
+  c.beginPath(); c.moveTo(212, HZ - 74); c.lineTo(268, HZ - 74);
+  c.lineTo(360, 244); c.lineTo(120, 244); c.closePath(); c.fill();
+  c.restore();
+  px(c, 222, HZ - 84, 36, 10, '#2b2334');          // the light
+  px(c, 226, HZ - 76, 28, 4, '#fff4c8');
+
+  px(c, 104, 182, 272, 62, '#5a3a24');             // cushions
+  px(c, 104, 182, 272, 5, '#7a5234');
+  px(c, 112, 188, 256, 48, '#12663c');             // baize
+  px(c, 112, 188, 256, 4, '#1a8a52');
+  px(c, 112, 230, 256, 6, '#0d4e2d');
+  for (const [bx, col] of [[150, '#f4f1e6'], [182, '#c9303c'], [214, '#f0d060'],
+                           [252, '#2f7f4f'], [292, '#8a4a2a'], [330, '#1a1424']]) {
+    px(c, bx, 204, 11, 11, col);
+    px(c, bx + 1, 205, 4, 4, 'rgba(255,255,255,0.5)');
+  }
+  for (const px_ of [106, 234, 362]) {             // pockets
+    px(c, px_, 182, 13, 10, '#120d1c'); px(c, px_, 228, 13, 10, '#120d1c');
+  }
+}
+
+function propsDarts(c, t) {
+  // board on the wall, oche on the floor
+  const bx = 240, by = HZ - 54;
+  c.save();
+  c.beginPath(); c.arc(bx, by, 30, 0, Math.PI * 2); c.fillStyle = '#1a1424'; c.fill();
+  c.beginPath(); c.arc(bx, by, 26, 0, Math.PI * 2); c.fillStyle = '#e8dcc0'; c.fill();
+  for (let i = 0; i < 20; i++) {
+    c.beginPath();
+    c.moveTo(bx, by);
+    c.arc(bx, by, 26, (i * Math.PI) / 10, ((i + 1) * Math.PI) / 10);
+    c.closePath();
+    c.fillStyle = i % 2 ? '#1a1424' : '#e8dcc0';
+    c.fill();
+  }
+  c.beginPath(); c.arc(bx, by, 11, 0, Math.PI * 2); c.strokeStyle = '#c9303c'; c.lineWidth = 3; c.stroke();
+  c.beginPath(); c.arc(bx, by, 5, 0, Math.PI * 2); c.fillStyle = '#2f7f4f'; c.fill();
+  c.beginPath(); c.arc(bx, by, 2.5, 0, Math.PI * 2); c.fillStyle = '#c9303c'; c.fill();
+  c.restore();
+  px(c, 0, 226, VIEW_W, 4, '#3c2a1e');             // the oche
+  px(c, 0, 226, VIEW_W, 1, '#6b4f39');
+  px(c, 40, HZ - 44, 46, 44, '#3a2a20');           // bar fittings
+  px(c, 44, HZ - 40, 38, 6, '#6b4f39');
+  px(c, 400, HZ - 40, 44, 40, '#3a2a20');
+}
+
+function propsGolf(c, t) {
+  c.save();                                        // the green
+  c.fillStyle = '#5fb24e';
+  c.beginPath(); c.ellipse(240, 214, 150, 42, 0, 0, Math.PI * 2); c.fill();
+  c.fillStyle = '#6ec25a';
+  c.beginPath(); c.ellipse(240, 210, 132, 34, 0, 0, Math.PI * 2); c.fill();
+  c.fillStyle = '#d8c48a';                         // bunker
+  c.beginPath(); c.ellipse(78, 188, 48, 16, 0, 0, Math.PI * 2); c.fill();
+  c.restore();
+  px(c, 238, 180, 5, 5, '#1c1917');                // hole
+  px(c, 240, 150, 2, 32, '#f4f1e6');               // pin
+  const flap = Math.sin(t / 9) > 0 ? 0 : 1;
+  px(c, 242, 150 + flap, 14, 9, '#c9303c');
+}
+
+function propsTennis(c, t) {
+  px(c, 0, 206, VIEW_W, 3, '#f1f5f9');             // baseline
+  px(c, 0, 176, VIEW_W, 2, '#dfe8f2');             // service line
+  px(c, 238, 176, 4, 32, '#dfe8f2');
+  px(c, 0, HZ + 4, VIEW_W, 26, 'rgba(255,255,255,0.05)');
+  for (let x = 0; x < VIEW_W; x += 6) px(c, x, HZ + 2, 3, 24, '#e8eef6');  // the net
+  px(c, 0, HZ, VIEW_W, 4, '#1f2d45');
+  px(c, 236, HZ + 2, 6, 26, '#f8fbff');
+  px(c, 430, HZ - 48, 20, 52, '#3a3a4e');          // umpire chair
+  px(c, 426, HZ - 52, 28, 8, '#54546e');
+}
+
+function propsMotorsport(c, t) {
+  px(c, 0, HZ - 10, VIEW_W, 12, '#2a2f3d');        // pit wall
+  for (let x = 0; x < VIEW_W; x += 28) {
+    px(c, x, HZ - 10, 14, 12, '#c9303c');
+    px(c, x + 14, HZ - 10, 14, 12, '#e8e8ee');
+  }
+  for (let i = 0; i < 3; i++) {                    // tyre stacks
+    const sx = 30 + i * 400 / 3;
+    for (let j = 0; j < 3; j++) px(c, sx, HZ - 24 - j * 8, 22, 8, j % 2 ? '#1f1f28' : '#2a2a34');
+  }
+  const lit = Math.floor(t / 14) % 6;              // start lights
+  px(c, 196, HZ - 58, 88, 20, '#15151d');
+  for (let i = 0; i < 5; i++) {
+    px(c, 202 + i * 17, HZ - 53, 11, 11, i <= lit ? '#ff3b30' : '#3a2024');
+  }
+  px(c, 0, 220, VIEW_W, 3, '#d8d8e0');
+}
+
+function propsRugby(c, t) {
+  // Uprights have to clear the fighters' heads (they top out around y=60) or
+  // the posts are a crossbar floating between two shoulders.
+  px(c, 150, 28, 7, 142, '#f1f5f9');
+  px(c, 150, 28, 3, 142, '#c9cfdb');
+  px(c, 324, 28, 7, 142, '#f1f5f9');
+  px(c, 324, 28, 3, 142, '#c9cfdb');
+  px(c, 150, 96, 181, 7, '#f1f5f9');
+  px(c, 150, 96, 181, 3, '#ffffff');
+  px(c, 0, 200, VIEW_W, 2, '#e6f2ea');
+  px(c, 0, 228, VIEW_W, 2, 'rgba(230,242,234,0.5)');
+}
+
+function propsOlympics(c, t) {
+  for (let i = 0; i < 5; i++) {                    // lanes
+    px(c, 0, HZ + 10 + i * 20, VIEW_W, 2, '#efe7d8');
+  }
+  px(c, 196, 186, 88, 24, '#c8a94a');              // podium
+  px(c, 196, 186, 88, 4, '#e2c468');
+  px(c, 142, 198, 54, 12, '#aab0bd');
+  px(c, 142, 198, 54, 3, '#c6ccd8');
+  px(c, 284, 200, 54, 10, '#b1793f');
+  px(c, 284, 200, 54, 3, '#cc9354');
+  const flick = Math.sin(t / 6) > 0 ? 1 : 0;       // the flame
+  px(c, 424, HZ - 58, 14, 34, '#8a8f9e');
+  px(c, 422, HZ - 72 - flick, 18, 16, '#ff8a2b');
+  px(c, 426, HZ - 78 - flick, 10, 10, '#ffd24a');
+}
+
+function propsTelly(c, t) {
+  px(c, 0, HZ - 60, VIEW_W, 62, '#152246');
+  for (let x = 10; x < VIEW_W; x += 60) {          // monitor wall
+    px(c, x, HZ - 52, 46, 34, '#1b1b26');
+    px(c, x + 3, HZ - 49, 40, 26, ['#1f5e3a', '#5a2f2f', '#2c3f70', '#5a4a1f'][(x / 60) % 4]);
+    px(c, x + 3, HZ - 49 + ((Math.floor(t / 3) + x) % 26), 40, 1, 'rgba(255,255,255,0.18)');
+  }
+  px(c, 0, 210, VIEW_W, 4, '#5a7fc0');
+  px(c, 0, 214, VIEW_W, VIEW_H - 214, '#16254a');
+}
+
+function propsArena(c, t) {
+  // the final: pitch markings, and a wall of flashbulbs
+  c.strokeStyle = '#dff3e4'; c.lineWidth = 2;
+  c.beginPath(); c.arc(240, 216, 66, 0, Math.PI * 2); c.stroke();
+  px(c, 238, 150, 4, 120, 'rgba(223,243,228,0.5)');
+  for (let i = 0; i < 26; i++) {
+    const fx = (i * 97) % VIEW_W;
+    const fy = HZ - 92 + ((i * 37) % 80);
+    if ((Math.floor(t / 3) + i * 7) % 23 < 2) px(c, fx, fy, 3, 3, '#fffbe8');
+  }
+}
+
 function drawBattleScene(ctx, s, t) {
-  const look = VENUE_LOOK[s.venue] || VENUE_LOOK['THE REC'];
-  const HORIZON = 150;
+  const look = ARENAS[s.sport] || ARENAS.any;
+  const HORIZON = HZ;
 
   // sky
   const sky = ctx.createLinearGradient(0, 0, 0, HORIZON);
@@ -1468,7 +1682,7 @@ function drawBattleScene(ctx, s, t) {
   ctx.fillRect(0, 0, VIEW_W, HORIZON);
 
   if (look.crowd) drawCrowd(ctx, HORIZON - 92, 92, t);
-  else drawInteriorWall(ctx, HORIZON - 92, 92);
+  else drawInteriorWall(ctx, HORIZON - 92, 92, look);
 
   // ground, receding bands
   for (let y = HORIZON; y < VIEW_H; y += 7) {
@@ -1477,6 +1691,9 @@ function drawBattleScene(ctx, s, t) {
   }
   px(ctx, 0, HORIZON, VIEW_W, 3, '#0d0a18');
   px(ctx, 0, HORIZON + 3, VIEW_W, 1, highlight(look.ground, 0.5));
+
+  // ── the set dressing for this sport, behind the fighters ──
+  if (look.props) look.props(ctx, t);
 
   // ── fighters ──
   const SC = 3;
@@ -1510,13 +1727,14 @@ function drawBattleScene(ctx, s, t) {
   }
 }
 
-function drawInteriorWall(c, top, h) {
-  px(c, 0, top, VIEW_W, h, '#2a2340');
-  px(c, 0, top, VIEW_W, 5, '#191330');
+function drawInteriorWall(c, top, h, look) {
+  const base = (look && look.sky && look.sky[1]) || '#2a2340';
+  px(c, 0, top, VIEW_W, h, shadow(base, 0.6));
+  px(c, 0, top, VIEW_W, 5, shadow(base, 1.4));
   for (let x = 8; x < VIEW_W; x += 52) {
-    px(c, x, top + 16, 34, 26, '#3b3257');
-    px(c, x, top + 16, 34, 3, '#4d4370');
-    px(c, x + 3, top + 20, 28, 3, '#5c5185');
+    px(c, x, top + 16, 34, 26, highlight(base, 0.3));
+    px(c, x, top + 16, 34, 3, highlight(base, 0.7));
+    px(c, x + 3, top + 20, 28, 3, highlight(base, 1));
   }
   for (let x = 24; x < VIEW_W; x += 104) px(c, x, top + 6, 20, 5, '#fdf3cd');
 }
@@ -2892,20 +3110,28 @@ const RUNGS = 12;
 
 const KIND = { FIGHT: 'fight', PHYSIO: 'physio', BONUS: 'bonus', BOSS: 'boss' };
 
-const VENUES = [
-  'THE REC',
-  'THE LEISURE CENTRE',
-  'THE ATHLETICS TRACK',
-  'THE SNOOKER CLUB',
-  'THE TENNIS COURTS',
-  'THE MUNICIPAL LINKS',
-  'THE SPORTS HALL',
-  'THE PADDOCK',
-  'THE COUNTY GROUND',
-  'THE OLD BATHS',
-  'THE VELODROME',
-  'THE MAIN ARENA',
-];
+/**
+ * A rung's venue follows its opponent's sport, not its position on the ladder.
+ * You fight the snooker player in a snooker club. Deriving it the other way
+ * round put a man with a cue in the middle of a football pitch.
+ */
+const SPORT_VENUE = {
+  football:   'THE REC',
+  boxing:     'THE SPORTS HALL',
+  athletics:  'THE ATHLETICS TRACK',
+  cricket:    'THE COUNTY GROUND',
+  snooker:    'THE SNOOKER CLUB',
+  darts:      'THE TAP ROOM',
+  golf:       'THE MUNICIPAL LINKS',
+  tennis:     'THE TENNIS COURTS',
+  motorsport: 'THE PADDOCK',
+  rugby:      'THE RECREATION GROUND',
+  olympics:   'THE OLYMPIC STADIUM',
+  telly:      'THE STUDIO',
+};
+const PHYSIO_VENUE = 'THE TREATMENT ROOM';
+const BONUS_VENUE = 'THE CLUB SHOP';
+const BOSS_VENUE = 'THE MAIN ARENA';
 
 /** Star thresholds — see awardStars. */
 const STAR_ACCURACY = 0.6;
@@ -2951,11 +3177,17 @@ class Ladder {
       const tier = n <= 3 ? 1 : n <= 7 ? 2 : 3;
       const level = n <= 3 ? 1 : n <= 6 ? 2 : n <= 9 ? 3 : 4;
 
+      const fighter = kind === KIND.BOSS ? rng.pick(bosses())
+                    : kind === KIND.FIGHT ? take(tier) : null;
+      const venue = kind === KIND.BOSS ? BOSS_VENUE
+                  : kind === KIND.PHYSIO ? PHYSIO_VENUE
+                  : kind === KIND.BONUS ? BONUS_VENUE
+                  : SPORT_VENUE[fighter.sport] || 'THE REC';
+
       this.rungs.push({
         n, kind, level,
-        venue: VENUES[i % VENUES.length],
-        fighter: kind === KIND.BOSS ? rng.pick(bosses())
-               : kind === KIND.FIGHT ? take(tier) : null,
+        venue,
+        fighter,
         cleared: false,
         stars: 0,
         attempts: 0,
@@ -2996,7 +3228,7 @@ function awardStars(battle, player) {
   return stars;
 }
 
-Object.assign(__exports, { RUNGS, KIND, VENUES, STAR_ACCURACY, STAR_CONDITION, Ladder, awardStars });
+Object.assign(__exports, { RUNGS, KIND, SPORT_VENUE, PHYSIO_VENUE, BONUS_VENUE, BOSS_VENUE, STAR_ACCURACY, STAR_CONDITION, Ladder, awardStars });
 });
 
 // ─── engine/rng.js ───────────────────────────────────────────────

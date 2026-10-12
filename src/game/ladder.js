@@ -19,20 +19,28 @@ export const RUNGS = 12;
 
 export const KIND = { FIGHT: 'fight', PHYSIO: 'physio', BONUS: 'bonus', BOSS: 'boss' };
 
-export const VENUES = [
-  'THE REC',
-  'THE LEISURE CENTRE',
-  'THE ATHLETICS TRACK',
-  'THE SNOOKER CLUB',
-  'THE TENNIS COURTS',
-  'THE MUNICIPAL LINKS',
-  'THE SPORTS HALL',
-  'THE PADDOCK',
-  'THE COUNTY GROUND',
-  'THE OLD BATHS',
-  'THE VELODROME',
-  'THE MAIN ARENA',
-];
+/**
+ * A rung's venue follows its opponent's sport, not its position on the ladder.
+ * You fight the snooker player in a snooker club. Deriving it the other way
+ * round put a man with a cue in the middle of a football pitch.
+ */
+export const SPORT_VENUE = {
+  football:   'THE REC',
+  boxing:     'THE SPORTS HALL',
+  athletics:  'THE ATHLETICS TRACK',
+  cricket:    'THE COUNTY GROUND',
+  snooker:    'THE SNOOKER CLUB',
+  darts:      'THE TAP ROOM',
+  golf:       'THE MUNICIPAL LINKS',
+  tennis:     'THE TENNIS COURTS',
+  motorsport: 'THE PADDOCK',
+  rugby:      'THE RECREATION GROUND',
+  olympics:   'THE OLYMPIC STADIUM',
+  telly:      'THE STUDIO',
+};
+export const PHYSIO_VENUE = 'THE TREATMENT ROOM';
+export const BONUS_VENUE = 'THE CLUB SHOP';
+export const BOSS_VENUE = 'THE MAIN ARENA';
 
 /** Star thresholds — see awardStars. */
 export const STAR_ACCURACY = 0.6;
@@ -78,11 +86,17 @@ export class Ladder {
       const tier = n <= 3 ? 1 : n <= 7 ? 2 : 3;
       const level = n <= 3 ? 1 : n <= 6 ? 2 : n <= 9 ? 3 : 4;
 
+      const fighter = kind === KIND.BOSS ? rng.pick(bosses())
+                    : kind === KIND.FIGHT ? take(tier) : null;
+      const venue = kind === KIND.BOSS ? BOSS_VENUE
+                  : kind === KIND.PHYSIO ? PHYSIO_VENUE
+                  : kind === KIND.BONUS ? BONUS_VENUE
+                  : SPORT_VENUE[fighter.sport] || 'THE REC';
+
       this.rungs.push({
         n, kind, level,
-        venue: VENUES[i % VENUES.length],
-        fighter: kind === KIND.BOSS ? rng.pick(bosses())
-               : kind === KIND.FIGHT ? take(tier) : null,
+        venue,
+        fighter,
         cleared: false,
         stars: 0,
         attempts: 0,

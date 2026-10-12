@@ -76,6 +76,13 @@ finishing in decent nick. Cleared rungs can be replayed for a better rating,
 which is the only reason to ever climb back down — and it costs energy, so it
 is a real decision rather than free grinding.
 
+**The arena matches the opponent.** You fight the snooker player in a club,
+over a lit table; the runner on a track with lane markings; the darts player in
+a tap room with a board on the wall. Thirteen arenas, each with its own palette
+and set dressing, keyed off the opponent's sport — so a rung's venue follows
+*who* you are fighting rather than *where* you are on the ladder.
+`tools/arenacheck.html` renders all of them on one page.
+
 **The fight.** A three-beat countdown runs between the two fighters and hands
 straight over to the first question — no button to press to start. Then turns
 alternate, and so does the question:
@@ -204,7 +211,8 @@ src/
   game/ladder.js        the twelve rungs
   game/battle.js        turn-based combat, the damage model, perks
   game/state.js         run state, scoring, localStorage
-tools/                  validate · balance · bundle · playtest · artcheck.html
+tools/                  validate · balance · bundle · playtest
+                        artcheck.html · arenacheck.html
 ```
 
 The built single file lands at `docs/index.html` because GitHub Pages' "deploy

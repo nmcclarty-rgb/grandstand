@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Arena check</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  body { background:#14102a; color:#e8e3f5; font-family:'Press Start 2P',monospace; margin:0; padding:14px; }
+  .row { display:flex; flex-wrap:wrap; gap:12px; }
+  .cell span { display:block; font-size:7px; margin-top:5px; color:#ffd24a; }
+  canvas { image-rendering:pixelated; border:2px solid #3f3366; }
+</style></head><body>
+<div class="row" id="out"></div>
+<script type="module">
+import { drawBattleScene, VIEW_W, VIEW_H } from '../src/engine/render.js';
+import { ROSTER } from '../src/data/roster.js';
+import { CHARACTERS } from '../src/data/characters.js';
+
+const SPORTS = ['football','boxing','athletics','cricket','snooker','darts',
+                'golf','tennis','motorsport','rugby','olympics','telly','any'];
+const out = document.getElementById('out');
+for (const sport of SPORTS) {
+  const d = document.createElement('div'); d.className = 'cell';
+  const c = document.createElement('canvas');
+  c.width = VIEW_W; c.height = VIEW_H;
+  c.style.width = VIEW_W + 'px'; c.style.height = VIEW_H + 'px';
+  d.appendChild(c);
+  const s = document.createElement('span'); s.textContent = sport.toUpperCase();
+  d.appendChild(s); out.appendChild(d);
+  const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+  const foe = ROSTER.find((f) => f.sport === sport) || ROSTER[ROSTER.length - 1];
+  drawBattleScene(x, {
+    sport, venue: sport, floaters: [], shake: 0, playerFlash: 0, foeFlash: 0,
+    player: CHARACTERS[0], foe,
+  }, 40);
+}
+window.__ready = true;
+</script></body></html>

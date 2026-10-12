@@ -9,6 +9,7 @@
  * player hits it mid-fight.
  */
 
+import { readFileSync } from 'node:fs';
 import { QUESTIONS, SPORTS, countBySport } from '../src/data/questions.js';
 import { ROSTER, bosses, byTier } from '../src/data/roster.js';
 import { CHARACTERS } from '../src/data/characters.js';
@@ -110,6 +111,19 @@ for (const c of CHARACTERS) {
   }
 }
 console.log(`  ${CHARACTERS.length} fighters, ${CHARACTERS.filter((c) => Object.keys(c.perk || {}).length).length} with perks`);
+
+console.log(`\nARENAS`);
+// Every sport a fighter can have needs a backdrop, or that fight falls back to
+// a generic pitch and the whole point of the per-sport arenas is lost.
+const arenaSrc = readFileSync(new URL('../src/engine/render.js', import.meta.url), 'utf8');
+const arenaBlock = arenaSrc.slice(arenaSrc.indexOf('const ARENAS = {'));
+const declared = new Set([...arenaBlock.slice(0, arenaBlock.indexOf('};'))
+  .matchAll(/^\s{2}(\w+):\s*\{/gm)].map((m) => m[1]));
+for (const sport of Object.keys(SPORTS)) {
+  if (!declared.has(sport)) fail(`no arena for "${sport}" — that fight falls back to a generic pitch`);
+}
+if (!declared.has('any')) fail('no fallback arena for bosses (sport "any")');
+console.log(`  ${declared.size} arenas for ${Object.keys(SPORTS).length} sports + bosses`);
 
 console.log(`\nLADDER`);
 // Generating a ladder must never leave a rung without an opponent, and must

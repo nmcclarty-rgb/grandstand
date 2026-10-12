@@ -35,7 +35,7 @@ const G = {
   camX: 0,
   scene: { player: null, foe: null, floaters: [], shake: 0, playerFlash: 0, foeFlash: 0,
            playerPose: null, foePose: null, playerDown: false, foeDown: false,
-           venue: 'THE REC' },
+           venue: 'THE REC', sport: 'football' },
   // `sports` stays in the shape the engine expects — Ladder and Battle both
   // take a filter — but nothing sets it any more: every run is all sports.
   // Single-sport runs are a later feature, and this is the hook for them.
@@ -716,6 +716,7 @@ function enterBattle() {
   sfx.encounter();
   say(rung.kind === 'boss' ? pick(SCRIPT.rung.boss) : '');
   G.scene.venue = rung.venue;
+  G.scene.sport = rung.fighter.sport;
   G.battle = new Battle(r.player, rung.fighter, {
     level: rung.level,
     sports: G.setup.sports,
