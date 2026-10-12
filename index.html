@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Grandstand</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20shape-rendering%3D%22crispEdges%22%3E%3Crect%20width%3D%2216%22%20height%3D%2216%22%20fill%3D%22%230b0a12%22%2F%3E%3Crect%20x%3D%223%22%20y%3D%222%22%20width%3D%2210%22%20height%3D%2210%22%20fill%3D%22%23f7d774%22%2F%3E%3Crect%20x%3D%225%22%20y%3D%224%22%20width%3D%226%22%20height%3D%226%22%20fill%3D%22%230b0a12%22%2F%3E%3Crect%20x%3D%226%22%20y%3D%225%22%20width%3D%224%22%20height%3D%224%22%20fill%3D%22%23f7d774%22%2F%3E%3Crect%20x%3D%224%22%20y%3D%2212%22%20width%3D%223%22%20height%3D%223%22%20fill%3D%22%23c9403a%22%2F%3E%3Crect%20x%3D%229%22%20y%3D%2212%22%20width%3D%223%22%20height%3D%223%22%20fill%3D%22%233b6ca8%22%2F%3E%3C%2Fsvg%3E">
+<meta name="description" content="A turn-based sports-quiz RPG. Retro pixel graphics, whole-number answers, and a car park full of 1980s sporting legends who want a word.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #171128;
+    --panel:    #1e1735;
+    --panel-2:  #2a2148;
+    --panel-3:  #372b5c;
+    --ink:      #ece7fb;
+    --ink-dim:  #a79cc9;
+    --gold:     #ffd24a;
+    --green:    #5ad47f;
+    --red:      #ff7a6e;
+    --blue:     #6fb3f5;
+    --purple:   #b98cff;
+    --line:     #473a6e;
+    --line-hi:  #6c58a3;
+    --head: 'Press Start 2P', ui-monospace, monospace;
+    --body: 'Silkscreen', ui-monospace, monospace;
+    --bevel: 0 3px 0 #120d22, 0 5px 10px rgba(0,0,0,.45);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg); color: var(--ink);
+    font-family: var(--body);
+    overscroll-behavior: none;
+  }
+  body {
+    display: flex; flex-direction: column; align-items: center;
+    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  }
+  #app {
+    width: 100%; max-width: 760px; height: 100%;
+    display: flex; flex-direction: column; background: var(--bg);
+  }
+
+  /* ── status bar ─────────────────────────────────────────────── */
+  #hud {
+    display: none; gap: 8px; padding: 7px 9px; align-items: center; flex-wrap: wrap;
+    background: linear-gradient(180deg, #2a2148, #1b1531);
+    border-bottom: 3px solid var(--line);
+  }
+  #hud.on { display: flex; }
+  .gauge { flex: 1 1 96px; min-width: 80px; }
+  .gauge-label {
+    font-family: var(--head); font-size: 6px; letter-spacing: .5px;
+    color: var(--ink-dim); display: flex; justify-content: space-between; margin-bottom: 3px;
+  }
+  .gauge-track {
+    height: 9px; background: #100c1e; border: 2px solid var(--line);
+    border-radius: 5px; overflow: hidden;
+  }
+  .gauge-fill { height: 100%; width: 100%; transition: width .3s ease-out; }
+  .gauge-fill.energy { background: linear-gradient(180deg, #ffe487, var(--gold)); }
+  .gauge-fill.cond   { background: linear-gradient(180deg, #86e6a4, var(--green)); }
+  .gauge-fill.cond.low { background: linear-gradient(180deg, #ffa79e, var(--red)); }
+  .rep-chip {
+    font-family: var(--head); font-size: 8px; color: var(--gold);
+    background: #100c1e; border: 2px solid var(--line); border-radius: 6px;
+    padding: 6px 8px; white-space: nowrap;
+  }
+  #icon-btns { display: flex; gap: 5px; }
+
+  /* ── canvas ─────────────────────────────────────────────────── */
+  #stage {
+    position: relative; width: 100%; flex: 0 0 auto; min-height: 120px;
+    display: flex; align-items: center; justify-content: center;
+    background: #0c0918; overflow: hidden; border-bottom: 3px solid var(--line);
+  }
+  #game { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+  #scanlines {
+    position: absolute; inset: 0; pointer-events: none; opacity: .16;
+    background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0 2px, rgba(0,0,0,.6) 2px 3px);
+  }
+  #stage.shake { animation: shake .23s steps(3); }
+  @keyframes shake {
+    0%,100% { transform: translate(0,0); }
+    33% { transform: translate(-4px, 2px); }
+    66% { transform: translate(4px, -2px); }
+  }
+
+  /* ── panel ──────────────────────────────────────────────────── */
+  #panel {
+    flex: 1 1 auto; overflow-y: auto; padding: 11px;
+    display: flex; flex-direction: column; gap: 10px;
+    background: linear-gradient(180deg, var(--panel), #17112a);
+    -webkit-overflow-scrolling: touch;
+  }
+  .screen { display: none; flex-direction: column; gap: 10px; }
+  .screen.on { display: flex; }
+
+  h1, h2, h3 { font-family: var(--head); margin: 0; font-weight: 400; }
+  h1 { font-size: 20px; color: var(--gold); letter-spacing: 1px; line-height: 1.5;
+       text-shadow: 0 2px 0 #7a1f1a; }
+  h2 { font-size: 12px; color: var(--gold); letter-spacing: .5px; }
+  h3 { font-size: 8px; color: var(--ink-dim); letter-spacing: .5px; }
+  p  { margin: 0; font-size: 15px; line-height: 1.55; }
+  .dim { color: var(--ink-dim); }
+  .small { font-size: 13px; }
+  .epithet { font-size: 12px; color: var(--ink-dim); font-style: italic; }
+
+  /* ── buttons ────────────────────────────────────────────────── */
+  button {
+    font-family: var(--head); font-size: 10px; line-height: 1.6; color: var(--ink);
+    background: linear-gradient(180deg, var(--panel-3), var(--panel-2));
+    border: 2px solid var(--line-hi); border-radius: 8px;
+    box-shadow: var(--bevel);
+    padding: 11px 12px; cursor: pointer; text-align: left; letter-spacing: .3px;
+  }
+  button:hover:not(:disabled) { border-color: var(--gold); filter: brightness(1.14); }
+  button:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 0 0 #120d22; }
+  button:disabled { opacity: .38; cursor: not-allowed; box-shadow: none; }
+  button.primary {
+    background: linear-gradient(180deg, #7b4bd6, #4a2a94);
+    border-color: var(--purple); color: #fff;
+    box-shadow: 0 3px 0 #2a1558, 0 5px 12px rgba(0,0,0,.5);
+  }
+  button.primary:hover:not(:disabled) { border-color: var(--gold); }
+  button.small-btn { font-size: 8px; padding: 8px 9px; }
+  .btn-row { display: flex; gap: 7px; flex-wrap: wrap; }
+  .btn-row > button { flex: 1 1 auto; text-align: center; }
+  .btn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 7px; }
+
+  .chip {
+    font-size: 8px; padding: 7px 9px; text-align: center;
+    background: linear-gradient(180deg, #2f2552, #241c42);
+  }
+  .chip.on { background: linear-gradient(180deg, #2c7a4c, #1d5434); border-color: var(--green); color: #d9ffe6; }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  input.txt {
+    font-family: var(--head); font-size: 11px; padding: 10px;
+    background: #100c1e; color: var(--ink);
+    border: 2px solid var(--line); border-radius: 7px; width: 100%;
+  }
+
+  /* ── character select grid ──────────────────────────────────── */
+  .pick-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .pick {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 6px 3px; text-align: center;
+  }
+  .pick.on { border-color: var(--gold); background: linear-gradient(180deg, #6b4bb8, #402a80); }
+  .pick canvas { image-rendering: pixelated; border-radius: 5px; }
+  .pickname { font-family: var(--head); font-size: 5px; line-height: 1.5; color: var(--ink-dim); }
+  .pick.on .pickname { color: #fff; }
+  @media (min-width: 560px) { .pick-grid { grid-template-columns: repeat(8, 1fr); } }
+
+  /* ── ladder ─────────────────────────────────────────────────── */
+  .ladder-bar { display: flex; align-items: center; gap: 9px; }
+  .ladder-bar .nav { flex: 0 0 auto; font-size: 14px; padding: 12px 15px; }
+  .ladder-meta { flex: 1 1 auto; text-align: center; min-width: 0; }
+  .stars-line { font-size: 15px; color: var(--gold); letter-spacing: 2px; }
+  .stars-line .dim { font-size: 11px; letter-spacing: 0; margin-left: 6px; }
+  .rung-head { display: flex; gap: 10px; align-items: center; }
+  .rung-head canvas { image-rendering: pixelated; border-radius: 6px; flex: 0 0 auto; }
+  .rung-name { font-family: var(--head); font-size: 10px; line-height: 1.5; }
+  .star-award { font-size: 22px; color: var(--gold); letter-spacing: 3px; text-align: center; }
+  .star-award .small { display: block; letter-spacing: 0; }
+
+  /* ── quiz ───────────────────────────────────────────────────── */
+  .q-prompt {
+    font-family: var(--head); font-size: 11px; line-height: 1.85; color: var(--ink);
+    background: linear-gradient(180deg, #2f2552, #241c42);
+    border: 2px solid var(--line); border-left: 6px solid var(--gold);
+    border-radius: 8px; padding: 12px 13px;
+  }
+  .q-prompt.block { border-left-color: var(--blue); }
+  .q-hint {
+    font-family: var(--head); font-size: 7px; letter-spacing: 1px;
+    color: var(--gold); text-align: center; padding: 2px 0;
+  }
+  .q-hint.block { color: var(--blue); }
+  .q-mode {
+    font-family: var(--head); font-size: 8px; letter-spacing: 1px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .q-mode .strike { color: var(--gold); }
+  .q-mode .block  { color: var(--blue); }
+
+  .opt {
+    display: flex; align-items: center; gap: 11px; width: 100%;
+    font-family: var(--body); font-size: 17px; font-weight: 700;
+    padding: 13px 12px; text-align: left;
+  }
+  .opt .num {
+    font-family: var(--head); font-size: 10px; color: var(--gold);
+    background: #100c1e; border: 2px solid var(--line); border-radius: 6px;
+    width: 27px; height: 27px; display: grid; place-items: center; flex: 0 0 auto;
+  }
+  .opt .label { flex: 1 1 auto; }
+  .opt .val { display: none; }
+  .opt.gone { opacity: .2; text-decoration: line-through; pointer-events: none; }
+
+  #timer-track {
+    height: 11px; background: #100c1e; border: 2px solid var(--line);
+    border-radius: 6px; overflow: hidden;
+  }
+  #timer-fill { height: 100%; width: 100%; background: linear-gradient(180deg,#86e6a4,var(--green)); }
+  #timer-fill.warn  { background: linear-gradient(180deg,#ffe487,var(--gold)); }
+  #timer-fill.panic { background: linear-gradient(180deg,#ffa79e,var(--red)); }
+
+  /* ── fighter bars ───────────────────────────────────────────── */
+  .fighter-bar { display: flex; flex-direction: column; gap: 3px; }
+  .fighter-bar .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .fighter-bar .nm { font-family: var(--head); font-size: 9px; }
+  .fighter-bar .hpnum { font-family: var(--head); font-size: 8px; color: var(--ink-dim); }
+  .hp-track {
+    height: 11px; background: #100c1e; border: 2px solid var(--line);
+    border-radius: 6px; overflow: hidden;
+  }
+  .hp-fill { height: 100%; background: linear-gradient(180deg,#86e6a4,var(--green)); transition: width .3s ease-out; }
+  .hp-fill.foe { background: linear-gradient(180deg,#ffa79e,var(--red)); }
+  .hp-fill.hurt { background: linear-gradient(180deg,#ffe487,var(--gold)); }
+
+  /* ── cards and misc ─────────────────────────────────────────── */
+  .card {
+    background: linear-gradient(180deg, var(--panel-2), #201936);
+    border: 2px solid var(--line); border-radius: 9px; padding: 11px;
+    display: flex; flex-direction: column; gap: 7px;
+    box-shadow: 0 2px 0 #120d22;
+  }
+  .card.gold { border-color: var(--gold); }
+  .card.red { border-color: var(--red); }
+  .card.blue { border-color: var(--blue); }
+  .card.green { border-color: var(--green); }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(86px,1fr)); gap: 6px; }
+  .stat { background: #100c1e; border: 2px solid var(--line); border-radius: 7px; padding: 8px; }
+  .stat .k { font-family: var(--head); font-size: 6px; color: var(--ink-dim); display: block; margin-bottom: 5px; }
+  .stat .v { font-family: var(--head); font-size: 13px; color: var(--gold); }
+  .feedback { font-family: var(--head); font-size: 13px; line-height: 1.6; }
+  .feedback.good { color: var(--green); }
+  .feedback.bad  { color: var(--red); }
+  .feedback.mid  { color: var(--gold); }
+  .note {
+    font-size: 14px; color: var(--ink-dim); line-height: 1.5;
+    border-left: 3px solid var(--line-hi); padding-left: 9px;
+  }
+  .toast {
+    position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px;
+    background: var(--panel-2); border: 2px solid var(--gold); border-radius: 8px;
+    color: var(--gold); font-family: var(--head); font-size: 9px;
+    padding: 10px 13px; z-index: 50; pointer-events: none;
+    box-shadow: 0 4px 14px rgba(0,0,0,.6);
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { font-family: var(--head); font-size: 7px; color: var(--ink-dim); text-align: left; padding: 6px 4px; }
+  td { padding: 7px 4px; border-top: 2px solid var(--line); }
+  td.n { font-family: var(--head); font-size: 9px; color: var(--gold); }
+  .kbd {
+    font-family: var(--head); font-size: 7px; color: var(--ink-dim);
+    border: 2px solid var(--line); border-radius: 4px; padding: 2px 5px; background: #100c1e;
+  }
+  .warn-strip {
+    font-size: 12px; color: #171128; background: var(--gold);
+    padding: 6px 9px; font-weight: 700; border-radius: 6px;
+  }
+  .warn-strip.red { background: var(--red); color: #fff; }
+
+  @media (max-width: 420px) {
+    h1 { font-size: 15px; }
+    .q-prompt { font-size: 10px; line-height: 1.75; }
+    .opt { font-size: 15px; }
+    .rung-name { font-size: 9px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="gauge">
+      <div class="gauge-label"><span>ENERGY</span><span id="energy-num">110</span></div>
+      <div class="gauge-track"><div class="gauge-fill energy" id="energy-fill"></div></div>
+    </div>
+    <div class="gauge">
+      <div class="gauge-label"><span>CONDITION</span><span id="cond-num">120</span></div>
+      <div class="gauge-track"><div class="gauge-fill cond" id="cond-fill"></div></div>
+    </div>
+    <div class="rep-chip" id="rep-chip">REP 0</div>
+    <div id="icon-btns">
+      <button class="small-btn" id="btn-sound" title="Sound">♪</button>
+      <button class="small-btn" id="btn-quit" title="End the day">✕</button>
+    </div>
+  </div>
+
+  <div id="stage">
+    <canvas id="game"></canvas>
+    <div id="scanlines"></div>
+  </div>
+
+  <div id="panel"><!-- screens injected by main.js --></div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

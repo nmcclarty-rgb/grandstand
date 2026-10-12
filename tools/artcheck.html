@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Grandstand art check</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  body { background:#1a1530; color:#e8e3f5; font-family:'Press Start 2P',monospace; margin:0; padding:16px; }
+  h2 { font-size:10px; color:#f7d774; margin:18px 0 8px; }
+  canvas { image-rendering:pixelated; }
+  .row { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; }
+  .cell { text-align:center; }
+  .cell span { display:block; font-size:5px; margin-top:4px; color:#9c93b8; max-width:110px; }
+</style></head>
+<body>
+<h2>PORTRAITS (SELECT SCREEN)</h2><div class="row" id="portraits"></div>
+<h2>FIGHTERS — IDLE / STRIKE / GUARD @2x</h2><div class="row" id="fighters"></div>
+<h2>SELECT-GRID FACES</h2><div class="row" id="faces"></div>
+<script type="module">
+import { drawFighter, drawPortrait, drawFace, drawGroundShadow, POSE,
+         SPRITE_W, SPRITE_H, PORTRAIT_W, PORTRAIT_H } from '../src/engine/sprites.js';
+import { ROSTER } from '../src/data/roster.js';
+
+const mk = (parent, w, h, label) => {
+  const d = document.createElement('div'); d.className = 'cell';
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  c.style.width = w + 'px'; c.style.height = h + 'px';
+  d.appendChild(c);
+  if (label) { const s = document.createElement('span'); s.textContent = label; d.appendChild(s); }
+  parent.appendChild(d);
+  const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+  return x;
+};
+
+for (const f of ROSTER.slice(0, 10)) {
+  const x = mk(document.getElementById('portraits'), PORTRAIT_W * 2, PORTRAIT_H * 2, f.name);
+  drawPortrait(x, f, 0, 0, PORTRAIT_W * 2, PORTRAIT_H * 2, { scale: 2 });
+}
+for (const f of ROSTER.slice(0, 6)) {
+  const x = mk(document.getElementById('fighters'), SPRITE_W * 2 * 3 + 20, SPRITE_H * 2 + 8, f.name);
+  x.fillStyle = '#2b2448'; x.fillRect(0, 0, 1000, 1000);
+  [POSE.IDLE, POSE.STRIKE, POSE.GUARD].forEach((pose, i) => {
+    const ox = i * (SPRITE_W * 2 + 10);
+    drawGroundShadow(x, ox + SPRITE_W, SPRITE_H * 2 + 2, 26);
+    drawFighter(x, f, ox, 0, { pose, t: 0, scale: 2 });
+  });
+}
+for (const f of ROSTER) {
+  const x = mk(document.getElementById('faces'), 44, 46, '');
+  x.fillStyle = '#3a3159'; x.fillRect(0, 0, 44, 46);
+  drawFace(x, f, 2, 2, 40);
+}
+window.__ready = true;
+</script></body></html>
