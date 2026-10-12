@@ -276,6 +276,20 @@ function drawHair(x, cx, top, s, feat, hair, halfAt) {
       px(x, cx - 3 * s, top, 5 * s, 2 * s, '#ffffff30');
       px(x, cx - halfAt(5) - s, top + 4 * s, 2 * s, 5 * s, hair.dark);
       break;
+    case 'anchor': {
+      // A presenter's hair: follows the curve of the skull with a side parting,
+      // rather than sitting on top like a hat. Rounded crown, neat sides.
+      const crownW = [4, 6, 7, 8, 8, 8];
+      for (let i = 0; i < crownW.length; i++) {
+        const hw = crownW[i] * s + (i > 2 ? s : 0);
+        px(x, cx - hw, crown - 2 * s + i * s, hw * 2, s, i < 2 ? hair.light : hair.base);
+      }
+      px(x, cx - 3 * s, crown - 2 * s, s, 5 * s, shadow(hair.base, 1.5));   // parting
+      px(x, cx + 2 * s, crown - 2 * s, 4 * s, s, hair.lightest);            // sheen
+      px(x, cx - halfAt(5) - s, top + 2 * s, 2 * s, 5 * s, hair.dark);      // sideburns
+      px(x, cx + halfAt(5) - s, top + 2 * s, 2 * s, 5 * s, hair.base);
+      break;
+    }
     case 'bowl':
       px(x, cx - 9 * s, crown - 3 * s, 18 * s, 9 * s, hair.base);
       px(x, cx - 9 * s, crown - 3 * s, 18 * s, 2 * s, hair.light);
@@ -622,3 +636,93 @@ export function drawFace(ctx, f, ox, oy, size, opts = {}) {
 }
 
 export function clearSpriteCache() { spriteCache.clear(); portraitCache.clear(); }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// THE PRESENTER — seated head-and-shoulders, for the studio set
+// ═══════════════════════════════════════════════════════════════════════════
+
+export const PRESENTER_W = 60;
+export const PRESENTER_H = 68;
+
+const presenterCache = new Map();
+
+/**
+ * A man in a suit behind a desk. Deliberately a different build from the
+ * fighters — no kit, no gear, shoulders that go off the bottom of the frame —
+ * so he reads as the person introducing the sport rather than one of the
+ * people doing it.
+ */
+function renderPresenter(p, mouthOpen) {
+  const { c, x } = surface(PRESENTER_W, PRESENTER_H);
+  const skin = ramp(p.skin || '#f0c49b');
+  const suit = ramp(p.suit || '#2b2b3a');
+  const shirt = ramp(p.shirt || '#d9dceb');
+  const tie = ramp(p.tie || '#7b3f6e');
+  const hair = ramp(p.hair || '#b9b2a4');
+  const feat = { hair: p.hairStyle || 'receding', facial: 'none', brow: 'raised', band: null };
+  const CX = PRESENTER_W / 2;
+
+  // ── shoulders: a wide trapezoid running off the bottom edge ──
+  const SH_Y = 42;
+  const rows = [];
+  for (let i = 0; i < PRESENTER_H - SH_Y; i++) rows.push(Math.round(11 + i * 1.25));
+  fillProfile(x, CX, SH_Y, rows, suit, 1, { shadeW: 7, lightW: 5, capTop: false });
+
+  // ── shirt wedge and lapels ──
+  px(x, CX - 7, SH_Y + 2, 14, PRESENTER_H - SH_Y - 2, shirt.base);
+  px(x, CX - 7, SH_Y + 2, 4, PRESENTER_H - SH_Y - 2, shirt.dark);
+  px(x, CX + 3, SH_Y + 2, 4, PRESENTER_H - SH_Y - 4, shirt.light);
+  for (let i = 0; i < 16; i++) {           // lapels angling outward
+    px(x, CX - 8 - i, SH_Y + 3 + i, 4, 2, suit.light);
+    px(x, CX + 5 + i, SH_Y + 3 + i, 4, 2, suit.dark);
+  }
+  // ── tie: knot, then the blade widening as it goes down ──
+  px(x, CX - 3, SH_Y + 3, 6, 5, tie.light);
+  px(x, CX - 2, SH_Y + 4, 3, 3, tie.lightest);
+  for (let i = 0; i < PRESENTER_H - SH_Y - 8; i++) {
+    const w = 5 + Math.floor(i / 4);
+    px(x, CX - Math.floor(w / 2), SH_Y + 8 + i, w, 1, i % 5 === 2 ? tie.dark : tie.base);
+  }
+
+  // ── collar over the neck join ──
+  px(x, CX - 9, SH_Y - 1, 7, 5, shirt.lightest);
+  px(x, CX + 2, SH_Y - 1, 7, 5, shirt.light);
+
+  // ── neck ──
+  px(x, CX - 6, 34, 12, 10, skin.base);
+  px(x, CX - 6, 34, 12, 5, shadow(skin.base, 1.5));
+
+  drawHead(x, CX, 2, skin, hair, feat, 2);
+
+  // Talking: a darker mouth, so the narration has something to sync to.
+  if (mouthOpen) {
+    px(x, CX - 5, 2 + 13 * 2, 10, 4, shadow(skin.base, 2.4));
+    px(x, CX - 4, 2 + 13 * 2 + 3, 8, 1, '#c87d7d');
+  }
+
+  inkOutline(x, PRESENTER_W, PRESENTER_H);
+  return c;
+}
+
+export function drawPresenter(ctx, p, ox, oy, scale = 1, t = 0, talking = false) {
+  // ~3 frames a second of mouth movement reads as speech without being manic
+  const mouthOpen = talking && Math.floor(t / 10) % 2 === 0;
+  const key = `${p.id || 'host'}|${mouthOpen ? 1 : 0}`;
+  let img = presenterCache.get(key);
+  if (!img) { img = renderPresenter(p, mouthOpen); presenterCache.set(key, img); }
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, ox, oy, PRESENTER_W * scale, PRESENTER_H * scale);
+  ctx.restore();
+}
+
+/** Just the head, for the little talking-head chip beside his lines in the UI. */
+export function drawPresenterFace(ctx, p, ox, oy, size) {
+  const key = `${p.id || 'host'}|0`;
+  let img = presenterCache.get(key);
+  if (!img) { img = renderPresenter(p, false); presenterCache.set(key, img); }
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, 12, 0, 36, 40, ox, oy, size, Math.round(size * (40 / 36)));
+  ctx.restore();
+}

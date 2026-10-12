@@ -7,8 +7,9 @@
  * backdrops, not an 8-bit console where everything is the same chunky grid.
  */
 
-import { drawFighter, drawPortrait, drawFace, drawGroundShadow,
-         SPRITE_W, SPRITE_H, PORTRAIT_W, PORTRAIT_H } from './sprites.js';
+import { drawFighter, drawPortrait, drawFace, drawGroundShadow, drawPresenter,
+         SPRITE_W, SPRITE_H, PORTRAIT_W, PORTRAIT_H,
+         PRESENTER_W, PRESENTER_H } from './sprites.js';
 import { ramp, shadow, highlight, mix } from './palette.js';
 import { KIND } from '../game/ladder.js';
 
@@ -565,35 +566,168 @@ function pylon(c, x, groundY) {
 // TITLE
 // ═══════════════════════════════════════════════════════════════════════════
 
-export function drawTitleScene(ctx, t) {
-  const sky = ctx.createLinearGradient(0, 0, 0, 170);
-  sky.addColorStop(0, '#0d0a1e');
-  sky.addColorStop(1, '#2b2151');
-  ctx.fillStyle = sky; ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+/**
+ * THE STUDIO.
+ *
+ * A Saturday-afternoon sports programme: monitor stack on the left, the set's
+ * backdrop with its orbiting graphic behind, the production gallery working
+ * away in the background, and the host at the desk. This is the frame the
+ * whole game sits inside — he introduces every rung, so the opening shot had
+ * better be his studio.
+ *
+ * It is a pastiche of a genre, not of any particular programme: the station
+ * ident is our own and no real broadcaster's marks appear anywhere.
+ */
+export function drawTitleScene(ctx, t, host, talking = false) {
+  // ── the cyclorama ──
+  const g = ctx.createLinearGradient(0, 0, 0, VIEW_H);
+  g.addColorStop(0, '#0b1f52');
+  g.addColorStop(0.55, '#13327d');
+  g.addColorStop(1, '#091634');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
-  for (let i = 0; i < 60; i++) {
-    const x = (i * 71) % VIEW_W, y = (i * 37) % 96;
-    if (Math.sin(t / 28 + i) > 0.25) px(ctx, x, y, 2, 2, '#6f63a0');
+  // Orbiting set graphics pushed out to the corners, so the wordmark and the
+  // host both sit in clear air.
+  atom(ctx, 62, 48, 34, t);
+  atom(ctx, 418, 42, 29, t * 0.8);
+
+  setLogo(ctx, VIEW_W / 2, 44, t);
+  drawMonitorStack(ctx, 4, 106, t);
+  drawGallery(ctx, 334, 112, t);
+
+  // ── the host, framed head-and-shoulders behind his desk ──
+  const hx = Math.round(VIEW_W / 2 - PRESENTER_W);      // scale 2
+  drawPresenter(ctx, host, hx, 96, 2, t, talking);
+
+  drawDesk(ctx, 212);
+}
+
+/** The set's orbiting graphic — every sports programme had one. */
+function atom(c, cx, cy, r, t) {
+  c.save();
+  c.globalAlpha = 0.5;
+  const glow = c.createRadialGradient(cx, cy, 2, cx, cy, r * 1.4);
+  glow.addColorStop(0, 'rgba(120,190,255,0.5)');
+  glow.addColorStop(1, 'rgba(120,190,255,0)');
+  c.fillStyle = glow;
+  c.fillRect(cx - r * 1.5, cy - r * 1.5, r * 3, r * 3);
+  c.globalAlpha = 0.85;
+  c.strokeStyle = '#7cc0ff';
+  c.lineWidth = 2;
+  for (let i = 0; i < 3; i++) {
+    c.save();
+    c.translate(cx, cy);
+    c.rotate((i * Math.PI) / 3 + t / 180);
+    c.beginPath();
+    c.ellipse(0, 0, r, r * 0.36, 0, 0, Math.PI * 2);
+    c.stroke();
+    c.restore();
   }
+  c.globalAlpha = 1;
+  c.beginPath();
+  c.arc(cx, cy, 5, 0, Math.PI * 2);
+  c.fillStyle = '#d6ecff';
+  c.fill();
+  c.restore();
+}
 
-  drawCrowd(ctx, 96, 74, t);
+/** The programme's name, up on the set behind him. Doubles as the title. */
+function setLogo(c, cx, y, t) {
+  const pulse = 0.82 + Math.sin(t / 50) * 0.08;
+  c.save();
+  c.textAlign = 'center';
+  // glow behind the letters
+  c.globalAlpha = pulse * 0.35;
+  const gl = c.createRadialGradient(cx, y - 7, 4, cx, y - 7, 150);
+  gl.addColorStop(0, 'rgba(140,200,255,0.85)');
+  gl.addColorStop(1, 'rgba(140,200,255,0)');
+  c.fillStyle = gl;
+  c.fillRect(cx - 160, y - 42, 320, 70);
+  c.globalAlpha = 1;
 
-  for (let y = 170; y < VIEW_H; y += 8) {
-    px(ctx, 0, y, VIEW_W, 8, ((y - 170) / 8) % 2 ? '#2c8f4a' : '#248040');
+  c.font = '26px "Press Start 2P", monospace';
+  c.fillStyle = '#061436';
+  c.fillText('GRANDSTAND', cx + 3, y + 3);
+  c.fillStyle = '#2f5fa8';
+  c.fillText('GRANDSTAND', cx + 1, y + 1);
+  c.fillStyle = '#ffd24a';
+  c.fillText('GRANDSTAND', cx, y);
+
+  c.font = '8px "Press Start 2P", monospace';
+  c.fillStyle = '#07152f';
+  c.fillText('TRIVIA ATHLETIC', cx + 1, y + 21);
+  c.fillStyle = '#bcd8f8';
+  c.fillText('TRIVIA ATHLETIC', cx, y + 20);
+  c.restore();
+}
+
+/** Bank of CRTs, each showing its own flickering nonsense. */
+function drawMonitorStack(c, x, y, t) {
+  const W = 58, H = 42;
+  for (let row = 0; row < 2; row++) {
+    for (let col = 0; col < 2; col++) {
+      const mx = x + col * (W + 4), my = y + row * (H + 4);
+      px(c, mx, my, W, H, '#1b1b26');
+      px(c, mx, my, W, 2, '#3a3a4e');
+      const sx = mx + 4, sy = my + 4, sw = W - 8, sh = H - 10;
+      const tint = ['#1f5e3a', '#5a2f2f', '#2c3f70', '#5a4a1f'][(row * 2 + col) % 4];
+      px(c, sx, sy, sw, sh, tint);
+      // a crowd-ish blur of moving blocks, so the screens look live
+      for (let i = 0; i < 7; i++) {
+        const bx = sx + (((i * 13 + Math.floor(t / 4) + row * 7) % sw));
+        px(c, bx, sy + 3 + ((i * 5) % (sh - 6)), 4, 3, highlight(tint, 1.3));
+      }
+      px(c, sx, sy + ((Math.floor(t / 2) * 3) % sh), sw, 1, 'rgba(255,255,255,0.16)');
+      px(c, mx + 2, my + H - 4, W - 4, 2, '#2a2a38');
+    }
   }
-  px(ctx, 0, 170, VIEW_W, 3, '#0d0a18');
+}
 
-  // floodlight cones
-  ctx.save();
-  ctx.globalAlpha = 0.1 + Math.sin(t / 40) * 0.025;
-  ctx.fillStyle = '#fff7d6';
-  ctx.beginPath(); ctx.moveTo(44, 62); ctx.lineTo(-40, VIEW_H); ctx.lineTo(200, VIEW_H); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(436, 62); ctx.lineTo(280, VIEW_H); ctx.lineTo(520, VIEW_H); ctx.closePath(); ctx.fill();
-  ctx.restore();
-  px(ctx, 36, 54, 16, 9, '#fdf3cd');
-  px(ctx, 428, 54, 16, 9, '#fdf3cd');
-  px(ctx, 42, 63, 3, 20, '#59617a');
-  px(ctx, 434, 63, 3, 20, '#59617a');
+/** The gallery: people at desks, still working while he talks. */
+function drawGallery(c, x, y, t) {
+  const SKIN = ['#e8b48a', '#7a4a21', '#f0c49b', '#5a3418', '#e8a878'];
+  const HAIR = ['#3a2a18', '#1a1a1a', '#6b5a3a', '#2a2018', '#9a9a9a'];
+  const TOP = ['#2f3a55', '#46324f', '#2c4a46', '#4a3a2c', '#38384a'];
+  for (let i = 0; i < 4; i++) {
+    const gx = x + 4 + i * 34;
+    const gy = y + 18 + (i % 2) * 7;
+    const lean = Math.sin(t / 38 + i * 2.1) > 0.75 ? 1 : 0;
+    px(c, gx + 2 + lean, gy + 6, 16, 16, TOP[i % 5]);          // shoulders
+    px(c, gx + 2 + lean, gy + 6, 5, 16, shadow(TOP[i % 5], 1));
+    px(c, gx + 6 + lean, gy - 4, 9, 10, SKIN[i % 5]);          // head
+    px(c, gx + 6 + lean, gy - 6, 9, 4, HAIR[i % 5]);           // hair
+    px(c, gx + 8 + lean, gy + 1, 2, 1, '#2a2436');             // a suggestion of a face
+    px(c, gx + 12 + lean, gy + 1, 2, 1, '#2a2436');
+  }
+  // the desk they are all sitting at, with monitor glow coming off it
+  px(c, x, y + 30, VIEW_W - x, 5, '#2a4272');
+  px(c, x, y + 30, VIEW_W - x, 2, '#4f73ad');
+  px(c, x, y + 35, VIEW_W - x, 24, '#101f3f');
+  for (let i = 0; i < 4; i++) {
+    const mx = x + 8 + i * 34;
+    px(c, mx, y + 21, 14, 11, '#16294d');
+    px(c, mx + 1, y + 22, 12, 8, i % 2 ? '#2f5f8f' : '#2f7f6f');
+    px(c, mx + 2, y + 23 + ((Math.floor(t / 6) + i) % 6), 10, 1, 'rgba(255,255,255,0.22)');
+  }
+}
+
+/** The desk the whole programme is presented from. */
+function drawDesk(c, y) {
+  const g = c.createLinearGradient(0, y, 0, VIEW_H);
+  g.addColorStop(0, '#2b3f6b');
+  g.addColorStop(0.18, '#1b2a4d');
+  g.addColorStop(1, '#0d1730');
+  c.fillStyle = g;
+  c.fillRect(0, y, VIEW_W, VIEW_H - y);
+  px(c, 0, y, VIEW_W, 3, '#5a7fc0');
+  px(c, 0, y + 3, VIEW_W, 2, '#16254a');
+  // a sheaf of running order on the desk
+  px(c, 300, y + 12, 44, 26, '#e8e6dd');
+  px(c, 300, y + 12, 44, 2, '#ffffff');
+  for (let i = 0; i < 4; i++) px(c, 305, y + 18 + i * 5, 32, 1, '#9aa0b0');
+  px(c, 118, y + 16, 30, 20, '#dcdad2');
+  px(c, 118, y + 16, 30, 2, '#ffffff');
 }
 
 export function drawTitleWordmark(ctx, t) {

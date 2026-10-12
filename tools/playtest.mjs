@@ -4,11 +4,11 @@
  *   npm install && npx serve . -l 8777   (or: python3 -m http.server 8777)
  *   node tools/playtest.mjs [baseUrl] [--shots DIR]
  *
- * Drives a real Chromium through a whole run: setup, character select, the
- * ladder, fights, the physio rung, finishing the day, the league table, then a
- * hot-seat PvP match. Fails loudly on any console error or page exception,
- * because a game that throws halfway through a fight is worse than one that
- * doesn't start.
+ * Drives a real Chromium through a whole run: the studio, setup, character
+ * select, the ladder, fights, the physio rung, finishing the day and the
+ * league table — checking along the way that the host narrates each beat.
+ * Fails loudly on any console error or page exception, because a game that
+ * throws halfway through a fight is worse than one that doesn't start.
  */
 
 import { chromium } from 'playwright';
@@ -93,9 +93,13 @@ await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(900);
 await shot(page, '01-title');
 check(await page.isVisible('[data-act="go-setup"]'), 'title screen renders');
+check(await page.isVisible('.host-line'), 'the host introduces the programme');
+const hostOpener = (await page.textContent('.host-says')) || '';
+check(hostOpener.length > 10, `host has an opening line (${hostOpener.slice(0, 44)}...)`);
+check(!(await page.isVisible('[data-act="start-pvp"]')), 'PvP is gone from the title screen');
 
 console.log('\nSETUP AND SELECT');
-await page.click('[data-act="go-setup"][data-mode="career"]');
+await page.click('[data-act="go-setup"]');
 await page.waitForTimeout(250);
 await shot(page, '02-setup');
 check(await page.isVisible('[data-act="toggle-sport"]'), 'sport filters offered');
@@ -116,6 +120,7 @@ await page.click('[data-act="start-run"]');
 await page.waitForTimeout(700);
 await shot(page, '05-ladder');
 check(await page.isVisible('[data-act="rung-next"]'), 'ladder renders');
+check(await page.isVisible('.host-line'), 'the host introduces the rung');
 check(await page.evaluate(() => window.GRANDSTAND.run.player.perk.blockFloor) === 0.12,
   'the chosen fighter\'s perk reached the run');
 
@@ -140,6 +145,7 @@ check(r1.sawStrike, 'STRIKE phase reached');
 check(r1.sawBlock, 'BLOCK phase reached');
 check(r1.finished, 'fight resolved to a result');
 await shot(page, '07-fight-end');
+check(await page.isVisible('.host-line'), 'the host reacts to the result');
 const won = await page.evaluate(() => window.GRANDSTAND.run.wins > 0);
 check(won, `a perfect player beats rung 1 (opponent started on ${foeBefore})`);
 check(await page.evaluate(() => window.GRANDSTAND.run.ladder.get(1).stars) === 3,
@@ -192,10 +198,11 @@ if (!(await page.isVisible('[data-act="league"]'))) {
 await page.waitForTimeout(400);
 await shot(page, '09-results');
 check(await page.isVisible('[data-act="league"]'), 'results screen shown at end of day');
+check(await page.isVisible('.host-line'), 'the host signs off');
 
 await page.click('[data-act="league"]');
 await page.waitForTimeout(300);
-await shot(page, '10-league');
+await shot(page, '09-league');
 const leagueRows = await page.evaluate(() => document.querySelectorAll('tbody tr').length);
 check(leagueRows >= 1, `league table persisted the run (${leagueRows} row(s))`);
 
@@ -204,49 +211,9 @@ await page.click('[data-act="title"]');
 await page.waitForTimeout(200);
 await page.click('[data-act="codex"]');
 await page.waitForTimeout(400);
-await shot(page, '11-roster');
+await shot(page, '10-roster');
 check(await page.evaluate(() => document.querySelectorAll('canvas.portrait').length) === 20, 'all 20 roster portraits drawn');
 
-console.log('\nHOT-SEAT PvP');
-await page.click('[data-act="title"]');
-await page.waitForTimeout(200);
-await page.click('[data-act="go-setup"][data-mode="pvp"]');
-await page.waitForTimeout(250);
-await page.fill('#p1name', 'DAD');
-await page.fill('#p2name', 'LAD');
-await page.click('[data-act="start-pvp"]');
-await page.waitForTimeout(350);
-await shot(page, '12-pvp-handover');
-check(await page.isVisible('[data-act="pvp-begin"]'), 'handover screen hides the question');
-
-let pvpGuard = 0;
-while (pvpGuard++ < 80) {
-  if (await page.isVisible('[data-act="pvp-begin"]')) {
-    await page.click('[data-act="pvp-begin"]'); await page.waitForTimeout(250);
-    if (pvpGuard < 4) await shot(page, '13-pvp-question');
-    continue;
-  }
-  if (await page.isVisible('[data-act="pvp-advance"]')) {
-    await page.click('[data-act="pvp-advance"]'); await page.waitForTimeout(220); continue;
-  }
-  if (await page.isVisible('[data-act="pvp-answer"]')) {
-    const i = await page.evaluate(() => {
-      const opts = [...document.querySelectorAll('[data-act="pvp-answer"]')];
-      const vals = opts.map((o) => +o.querySelector('.val').textContent);
-      // player 1 plays well, player 2 guesses — someone has to lose
-      const turn = window.GRANDSTAND.match.turn;
-      return turn === 0 ? opts[vals.indexOf(Math.max(...vals))].dataset.i
-                        : opts[Math.floor(Math.random() * opts.length)].dataset.i;
-    });
-    await page.click(`[data-act="pvp-answer"][data-i="${i}"]`);
-    await page.waitForTimeout(380);
-    continue;
-  }
-  break;
-}
-await page.waitForTimeout(300);
-await shot(page, '14-pvp-result');
-check(await page.evaluate(() => window.GRANDSTAND.match.winner !== null), 'PvP match produced a winner');
 
 console.log('');
 if (problems.length) { console.error('PAGE PROBLEMS:'); problems.forEach((p) => console.error('  ' + p)); failures += problems.length; }

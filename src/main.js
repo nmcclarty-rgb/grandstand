@@ -10,17 +10,17 @@
  */
 
 import { setupCanvas, drawBattleScene, drawSelectScene, drawLadderScene,
-         drawTitleScene, drawTitleWordmark, drawStars,
+         drawTitleScene, drawStars,
          rungPos, ladderWidth, VIEW_W, VIEW_H } from './engine/render.js';
-import { drawFace, drawPortrait, PORTRAIT_W, PORTRAIT_H } from './engine/sprites.js';
+import { drawFace, drawPresenterFace } from './engine/sprites.js';
 import { initAudio, sfx, setMuted, isMuted } from './engine/audio.js';
 import { Battle, PHASE, ANSWER_MS } from './game/battle.js';
-import { PvpMatch, PVP_PHASE } from './game/pvp.js';
 import { KIND, RUNGS } from './game/ladder.js';
 import { Run, loadSave, recordRun, recordBeaten, savePrefs, wipeSave,
          makeSeedFrom, seedName, ENTER_COST, BATTLE_TURN_COST } from './game/state.js';
 import { SPORTS, availableSports, countBySport, QUESTIONS } from './data/questions.js';
 import { CHARACTERS, findCharacter } from './data/characters.js';
+import { HOST, SCRIPT, pick, lineForRung, lineForResult, lineForEnding } from './data/host.js';
 import { ROSTER, findFighter } from './data/roster.js';
 
 const $ = (id) => document.getElementById(id);
@@ -30,13 +30,15 @@ const { ctx, resize } = setupCanvas($('game'));
 
 const G = {
   screen: 'title',
-  run: null, battle: null, match: null, rung: null,
+  run: null, battle: null, rung: null,
   t: 0,
   camX: 0,
   scene: { player: null, foe: null, floaters: [], shake: 0, playerFlash: 0, foeFlash: 0,
            playerPose: null, foePose: null, playerDown: false, foeDown: false,
            venue: 'THE REC' },
-  setup: { mode: 'career', sports: [], character: 'ringer', name: 'YOU', name2: 'THEM', seed: '' },
+  setup: { sports: [], character: 'ringer', name: 'YOU', seed: '' },
+  hostLine: '',
+  hostTalking: false,
   timer: { running: false, start: 0, lastTick: 0 },
   busy: false,
 };
@@ -87,7 +89,37 @@ function updateHud() {
   $('rep-chip').textContent = `REP ${r.rep}`;
 }
 
-function show(html) { panel.innerHTML = html; panel.scrollTop = 0; }
+function show(html) { panel.innerHTML = html; panel.scrollTop = 0; paintHostFace(); }
+
+/**
+ * The host says his piece. `say()` sets the line and starts his mouth moving;
+ * it stops after roughly the time it takes to read, so he isn't gurning
+ * silently for the rest of the screen.
+ */
+function say(line) {
+  G.hostLine = line || '';
+  G.hostTalking = !!line;
+  clearTimeout(G.hostTimer);
+  if (line) G.hostTimer = setTimeout(() => { G.hostTalking = false; }, 900 + line.length * 42);
+}
+
+const hostBox = () => (G.hostLine ? `
+  <div class="host-line">
+    <canvas class="hostface" width="34" height="38"></canvas>
+    <div>
+      <div class="host-name">${esc(HOST.name)}</div>
+      <p class="host-says">“${esc(G.hostLine)}”</p>
+    </div>
+  </div>` : '');
+
+function paintHostFace() {
+  for (const cv of panel.querySelectorAll('canvas.hostface')) {
+    const c = cv.getContext('2d');
+    c.imageSmoothingEnabled = false;
+    c.clearRect(0, 0, cv.width, cv.height);
+    drawPresenterFace(c, HOST, 0, 0, 34);
+  }
+}
 
 function layout() {
   const app = $('app');
@@ -108,19 +140,20 @@ function screenTitle() {
   G.screen = 'title';
   setHud(false);
   const best = save.bestRep ? `BEST DAY: ${save.bestRep} REP` : 'NO RESULT RECORDED';
+  say(pick(SCRIPT.title));
   show(`
     <div class="screen on">
+      ${hostBox()}
       <p class="dim small">A turn-based sports-quiz RPG. Every answer is a whole
       number, and the number is how hard you hit.</p>
       <div class="btn-row">
-        <button class="primary" data-act="go-setup" data-mode="career">START A DAY OUT</button>
+        <button class="primary" data-act="go-setup">START A DAY OUT</button>
       </div>
       <div class="btn-row">
-        <button data-act="go-setup" data-mode="pvp">HOT-SEAT PvP</button>
         <button data-act="league">LEAGUE TABLE</button>
+        <button data-act="codex">THE ROSTER</button>
       </div>
       <div class="btn-row">
-        <button data-act="codex">THE ROSTER</button>
         <button data-act="howto">HOW TO PLAY</button>
       </div>
       <p class="dim small">${esc(best)} · ${QUESTIONS.length} questions ·
@@ -180,15 +213,14 @@ function screenHowTo() {
     </div>`);
 }
 
-function screenSetup(mode) {
+function screenSetup() {
   G.screen = 'setup';
-  G.setup.mode = mode;
   setHud(false);
   const counts = countBySport();
-  const chips = availableSports().map((s) => {
-    const on = G.setup.sports.includes(s);
-    return `<button class="chip ${on ? 'on' : ''}" data-act="toggle-sport" data-sport="${s}">
-      ${esc(SPORTS[s].name)} <span class="dim">${counts[s]}</span></button>`;
+  const chips = availableSports().map((sp) => {
+    const on = G.setup.sports.includes(sp);
+    return `<button class="chip ${on ? 'on' : ''}" data-act="toggle-sport" data-sport="${sp}">
+      ${esc(SPORTS[sp].name)} <span class="dim">${counts[sp]}</span></button>`;
   }).join('');
   const pool = G.setup.sports.length
     ? QUESTIONS.filter((q) => G.setup.sports.includes(q.sport)).length
@@ -196,7 +228,7 @@ function screenSetup(mode) {
 
   show(`
     <div class="screen on">
-      <h2>${mode === 'pvp' ? 'HOT-SEAT PvP' : 'A DAY OUT'}</h2>
+      <h2>A DAY OUT</h2>
       <div class="card">
         <h3>SPORTS — PICK SOME, OR LEAVE IT EMPTY FOR THE LOT</h3>
         <div class="chip-row">${chips}</div>
@@ -204,23 +236,13 @@ function screenSetup(mode) {
           · ${pool} questions in play</p>
         ${pool < 12 ? '<div class="warn-strip">Thin pool — questions will repeat. Add another sport.</div>' : ''}
       </div>
-      ${mode === 'pvp' ? `
-        <div class="card">
-          <h3>PLAYERS</h3>
-          <label class="small dim">PLAYER ONE</label>
-          <input id="p1name" class="txt" value="${esc(G.setup.name)}" maxlength="10">
-          <label class="small dim">PLAYER TWO</label>
-          <input id="p2name" class="txt" value="${esc(G.setup.name2)}" maxlength="10">
-          <p class="small dim">One device. You take it in turns and pass it over.</p>
-        </div>` : `
-        <div class="card">
-          <h3>SEED — LEAVE BLANK FOR A RANDOM LADDER</h3>
-          <input id="seedin" class="txt" value="${esc(G.setup.seed)}" maxlength="16" placeholder="e.g. SHEARER">
-          <p class="small dim">Same seed, same opponents in the same order.</p>
-        </div>`}
+      <div class="card">
+        <h3>SEED — LEAVE BLANK FOR A RANDOM LADDER</h3>
+        <input id="seedin" class="txt" value="${esc(G.setup.seed)}" maxlength="16" placeholder="e.g. SHEARER">
+        <p class="small dim">Same seed, same opponents in the same order.</p>
+      </div>
       <div class="btn-row">
-        <button class="primary" data-act="${mode === 'pvp' ? 'start-pvp' : 'go-select'}">
-          ${mode === 'pvp' ? 'THROW IN' : 'CHOOSE YOUR FIGHTER'}</button>
+        <button class="primary" data-act="go-select">CHOOSE YOUR FIGHTER</button>
         <button data-act="title">BACK</button>
       </div>
     </div>`);
@@ -244,8 +266,10 @@ function screenSelect() {
   if (c.perk.comboBoost) perkLines.push('Combos build a rung early');
   if (c.perk.glassJaw) perkLines.push(`Takes ${Math.round((c.perk.glassJaw - 1) * 100)}% extra damage`);
 
+  say(pick(SCRIPT.select));
   show(`
     <div class="screen on">
+      ${hostBox()}
       <div class="pick-grid">${grid}</div>
       <div class="card gold">
         <h2 style="font-size:11px">${esc(c.name)}</h2>
@@ -260,7 +284,7 @@ function screenSelect() {
       </div>
       <div class="btn-row">
         <button class="primary" data-act="start-run">FIGHT</button>
-        <button data-act="go-setup" data-mode="career">BACK</button>
+        <button data-act="go-setup">BACK</button>
       </div>
     </div>`);
   paintPickFaces();
@@ -283,6 +307,8 @@ function screenLadder() {
   setHud(true);
   const r = G.run;
   const rung = r.rung;
+  // He introduces the rung you have walked to, and nags when you're spent.
+  say(r.energy <= ENTER_COST * 2 && !rung.cleared ? pick(SCRIPT.lowEnergy) : lineForRung(rung));
   const l = r.ladder;
   const canGoBack = r.at > 1;
   const canGoOn = r.at < RUNGS && l.available(r.at + 1);
@@ -317,6 +343,7 @@ function screenLadder() {
 
   show(`
     <div class="screen on">
+      ${hostBox()}
       <div class="ladder-bar">
         <button class="nav" data-act="rung-prev" ${canGoBack ? '' : 'disabled'}>◀</button>
         <div class="ladder-meta">
@@ -482,9 +509,11 @@ function screenBattleEnd(won) {
   G.scene.foeDown = won;
   G.scene.playerDown = !won;
   const runOver = G.run.over;
+  say(lineForResult(won, G.run.player));
 
   show(`
     <div class="screen on">
+      ${hostBox()}
       <h2 style="color:${won ? 'var(--green)' : 'var(--red)'}">
         ${won ? 'HAVE THAT' : 'STRETCHERED OFF'}</h2>
       <p>"${esc(won ? b.foe.defeat : b.foe.taunt)}"</p>
@@ -520,10 +549,12 @@ function screenResults() {
   const place = save.league.findIndex((x) => x.date === card.date) + 1;
   const headline = r.outcome === 'champion' ? 'CHAMPION OF THE LADDER'
     : r.outcome === 'energy' ? 'THAT\'S YOUR LOT' : 'FULL TIME';
+  say(lineForEnding(r.outcome));
 
   show(`
     <div class="screen on">
       <h1 style="font-size:17px">${headline}</h1>
+      ${hostBox()}
       <p class="small dim">${esc(card.characterName)} · ${card.rungs}/${RUNGS} rungs ·
         ${card.stars}/${card.maxStars} stars</p>
       <div class="stat-grid">
@@ -540,7 +571,7 @@ function screenResults() {
           — give that to someone else for the exact same climb.</p>
       </div>
       <div class="btn-row">
-        <button class="primary" data-act="go-setup" data-mode="career">GO AGAIN</button>
+        <button class="primary" data-act="go-setup">GO AGAIN</button>
         <button data-act="league">LEAGUE TABLE</button>
       </div>
       <div class="btn-row"><button data-act="title">BACK TO THE TITLES</button></div>
@@ -615,100 +646,6 @@ function screenCodex() {
   }
 }
 
-// ── PvP ────────────────────────────────────────────────────────────────────
-function pvpBars() {
-  const m = G.match;
-  return m.players.map((p, i) => `
-    <div class="fighter-bar">
-      <div class="row">
-        <span class="nm" style="color:${i === 0 ? 'var(--green)' : 'var(--red)'}">
-          ${esc(p.name)}${m.turn === i && m.phase !== PVP_PHASE.DONE ? ' ◀' : ''}</span>
-        <span class="hpnum">${p.hp}/${p.maxHp}${p.combo > 1 ? ` · ×${p.combo}` : ''}</span>
-      </div>
-      <div class="hp-track"><div class="hp-fill ${i === 1 ? 'foe' : ''}" style="width:${pct(p.hp, p.maxHp)}"></div></div>
-    </div>`).join('');
-}
-
-function screenPvpHandover() {
-  G.screen = 'pvp';
-  const m = G.match;
-  show(`
-    <div class="screen on">
-      ${pvpBars()}
-      <div class="card gold">
-        <h2>PASS IT TO ${esc(m.active.name)}</h2>
-        <p class="small dim">Round ${m.round}. Don't look until it's yours.</p>
-      </div>
-      <div class="btn-row"><button class="primary" data-act="pvp-begin">I'M ${esc(m.active.name)} — GO</button></div>
-    </div>`);
-  layout();
-}
-
-function screenPvpQuestion() {
-  G.screen = 'pvp';
-  const m = G.match;
-  const q = m.question;
-  const opts = q.options.map((o, i) => `
-    <button class="opt" data-act="pvp-answer" data-i="${i}">
-      <span class="num">${i + 1}</span>
-      <span class="label">${esc(o.label)}</span>
-      <span class="val">${o.value}</span>
-    </button>`).join('');
-  show(`
-    <div class="screen on">
-      ${pvpBars()}
-      <div class="q-mode">
-        <span class="strike">▲ ${esc(m.active.name)} — YOUR GO</span>
-        <span class="dim">${esc(SPORTS[q.sport]?.name || q.sport)}</span>
-      </div>
-      <div id="timer-track"><div id="timer-fill"></div></div>
-      <div class="q-prompt">${esc(q.most)}</div>
-      <div class="q-hint">PICK THE BIGGEST NUMBER TO HIT HARDEST</div>
-      ${opts}
-    </div>`);
-  layout();
-  startTimer();
-}
-
-function screenPvpResolve() {
-  stopTimer();
-  const m = G.match;
-  const r = m.lastResult;
-  const who = m.players[r.by];
-  show(`
-    <div class="screen on">
-      ${pvpBars()}
-      <div class="feedback ${r.perfect ? 'good' : r.timedOut ? 'bad' : 'mid'}">
-        ${r.timedOut ? 'TOO SLOW' : r.perfect ? 'SCREAMER!' : 'GOOD CONTACT'}</div>
-      <p><b>${esc(who.name)}</b> picked <b>${esc(r.option.label)}</b> —
-        ${r.option.value} ${esc(r.unit)} → <b style="color:var(--gold)">${r.damage} DAMAGE</b></p>
-      <p class="small dim">Best answer was <b style="color:var(--green)">${r.correctValue} ${esc(r.unit)}</b>.</p>
-      ${r.note ? `<div class="note">${esc(r.note)}</div>` : ''}
-      <div class="btn-row"><button class="primary" data-act="pvp-advance">CARRY ON</button></div>
-    </div>`);
-  layout();
-}
-
-function screenPvpDone() {
-  const m = G.match;
-  const w = m.players[m.winner], l = m.players[1 - m.winner];
-  sfx.win();
-  show(`
-    <div class="screen on">
-      <h1 style="font-size:18px">${esc(w.name)} WINS</h1>
-      <div class="stat-grid">
-        <div class="stat"><span class="k">${esc(w.name)} ACC</span><span class="v">${Math.round((w.perfects / Math.max(1, w.answered)) * 100)}%</span></div>
-        <div class="stat"><span class="k">${esc(l.name)} ACC</span><span class="v">${Math.round((l.perfects / Math.max(1, l.answered)) * 100)}%</span></div>
-        <div class="stat"><span class="k">ROUNDS</span><span class="v">${m.round}</span></div>
-      </div>
-      <div class="btn-row">
-        <button class="primary" data-act="go-setup" data-mode="pvp">BEST OF THREE?</button>
-        <button data-act="title">TITLES</button>
-      </div>
-    </div>`);
-  layout();
-}
-
 // ═══════════════════════════════════════════════════════════════════════════
 // TIMER
 // ═══════════════════════════════════════════════════════════════════════════
@@ -727,8 +664,7 @@ function tickTimer() {
   if (secs <= 3 && secs !== G.timer.lastTick && secs > 0) { G.timer.lastTick = secs; sfx.tick(); }
   if (elapsed >= ANSWER_MS) {
     stopTimer();
-    if (G.match && G.match.phase === PVP_PHASE.ANSWER) doPvpAnswer(worstIndexPvp(), ANSWER_MS);
-    else if (G.battle) doAnswer(worstIndex(), ANSWER_MS);
+    if (G.battle) doAnswer(worstIndex(), ANSWER_MS);
   }
 }
 
@@ -737,11 +673,6 @@ function worstIndex() {
   const vals = b.question.options.map((o) => o.value);
   return vals.indexOf(b.phase === PHASE.BLOCK ? Math.max(...vals) : Math.min(...vals));
 }
-function worstIndexPvp() {
-  const vals = G.match.question.options.map((o) => o.value);
-  return vals.indexOf(Math.min(...vals));
-}
-
 // ═══════════════════════════════════════════════════════════════════════════
 // ACTIONS
 // ═══════════════════════════════════════════════════════════════════════════
@@ -754,23 +685,10 @@ function startRun() {
   G.camX = rungPos(1).x - VIEW_W / 2;
   sfx.whistle();
   screenLadder();
-}
-
-function startPvp() {
-  const n1 = ($('p1name')?.value || 'PLAYER 1').toUpperCase().slice(0, 10);
-  const n2 = ($('p2name')?.value || 'PLAYER 2').toUpperCase().slice(0, 10);
-  G.setup.name = n1; G.setup.name2 = n2;
-  G.match = new PvpMatch(
-    { ...CHARACTERS[0], name: n1 },
-    { ...CHARACTERS[5], name: n2 },
-    { sports: G.setup.sports });
-  G.scene.venue = 'THE MAIN ARENA';
-  G.scene.player = G.match.players[0];
-  G.scene.foe = G.match.players[1];
-  G.scene.playerDown = G.scene.foeDown = false;
-  setHud(false);
-  sfx.whistle();
-  screenPvpHandover();
+  say(pick(SCRIPT.runStart(G.run.character.name)));
+  paintHostFace();
+  const box = panel.querySelector('.host-says');
+  if (box) box.textContent = `\u201c${G.hostLine}\u201d`;
 }
 
 function moveRung(delta) {
@@ -790,6 +708,7 @@ function enterBattle() {
   r.spendEnergy(ENTER_COST);
   G.rung = rung;
   sfx.encounter();
+  say(rung.kind === 'boss' ? pick(SCRIPT.rung.boss) : '');
   G.scene.venue = rung.venue;
   G.battle = new Battle(r.player, rung.fighter, {
     level: rung.level,
@@ -856,30 +775,6 @@ function advanceBattle() {
   screenQuestion();
 }
 
-function doPvpAnswer(i, forcedMs) {
-  const m = G.match;
-  if (!m || m.phase !== PVP_PHASE.ANSWER || G.busy) return;
-  G.busy = true;
-  stopTimer();
-  const attacker = m.turn;
-  if (attacker === 0) G.scene.playerPose = 'strike'; else G.scene.foePose = 'strike';
-  const r = m.answer(i, forcedMs);
-  setTimeout(() => {
-    G.scene.playerPose = G.scene.foePose = null;
-    if (attacker === 0) {
-      G.scene.foeFlash = 9;
-      floater(`-${r.damage}`, 340, 140, r.perfect ? '#ffd24a' : '#f87171', r.perfect);
-    } else {
-      G.scene.playerFlash = 9;
-      floater(`-${r.damage}`, 96, 146, r.perfect ? '#ffd24a' : '#f87171', r.perfect);
-    }
-    if (r.perfect) sfx.crit(); else sfx.hit();
-    shakeStage(r.perfect ? 1.7 : 1);
-    G.busy = false;
-    screenPvpResolve();
-  }, 280);
-}
-
 // ═══════════════════════════════════════════════════════════════════════════
 // INPUT
 // ═══════════════════════════════════════════════════════════════════════════
@@ -891,7 +786,7 @@ panel.addEventListener('click', (e) => {
   switch (btn.dataset.act) {
     case 'title': sfx.back(); screenTitle(); break;
     case 'howto': sfx.select(); screenHowTo(); break;
-    case 'go-setup': sfx.select(); screenSetup(btn.dataset.mode); break;
+    case 'go-setup': sfx.select(); screenSetup(); break;
     case 'go-select':
       G.setup.seed = $('seedin')?.value || '';
       sfx.confirm(); screenSelect(); break;
@@ -908,10 +803,9 @@ panel.addEventListener('click', (e) => {
       const s = btn.dataset.sport;
       const i = G.setup.sports.indexOf(s);
       if (i >= 0) G.setup.sports.splice(i, 1); else G.setup.sports.push(s);
-      sfx.select(); screenSetup(G.setup.mode); break;
+      sfx.select(); screenSetup(); break;
     }
     case 'start-run': sfx.confirm(); startRun(); break;
-    case 'start-pvp': sfx.confirm(); startPvp(); break;
     case 'rung-prev': moveRung(-1); break;
     case 'rung-next': moveRung(1); break;
     case 'fight': sfx.confirm(); enterBattle(); break;
@@ -939,13 +833,6 @@ panel.addEventListener('click', (e) => {
       if (confirm('End the day here and take your score?')) { G.run.end('quit'); screenResults(); }
       break;
     case 'results': screenResults(); break;
-    case 'pvp-begin': sfx.confirm(); G.match.beginTurn(); screenPvpQuestion(); break;
-    case 'pvp-answer': doPvpAnswer(+btn.dataset.i); break;
-    case 'pvp-advance': {
-      sfx.select();
-      if (G.match.advance() === PVP_PHASE.DONE) screenPvpDone(); else screenPvpHandover();
-      break;
-    }
   }
 });
 
@@ -971,7 +858,7 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'm' || e.key === 'M') { $('btn-sound').click(); return; }
   if (['1', '2', '3'].includes(e.key)) {
     const i = +e.key - 1;
-    const b = panel.querySelector(`[data-act="answer"][data-i="${i}"], [data-act="pvp-answer"][data-i="${i}"]`);
+    const b = panel.querySelector(`[data-act="answer"][data-i="${i}"]`);
     if (b && !b.classList.contains('gone')) { e.preventDefault(); b.click(); }
     return;
   }
@@ -1025,12 +912,10 @@ function frame() {
       }, G.t);
       break;
     case 'battle':
-    case 'pvp':
       drawBattleScene(ctx, G.scene, G.t);
       break;
     default:
-      drawTitleScene(ctx, G.t);
-      if (G.screen === 'title') drawTitleWordmark(ctx, G.t);
+      drawTitleScene(ctx, G.t, HOST, G.hostTalking);
       break;
   }
   requestAnimationFrame(frame);

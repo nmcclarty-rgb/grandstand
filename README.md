@@ -47,6 +47,13 @@ the answers.
 
 ## The loop
 
+**The studio.** The game opens on a Saturday-afternoon sports programme: the
+monitor stack, the orbiting set graphics, the gallery working away behind, and
+**Des Rider** at the desk. He is the spine of the whole thing — he introduces
+every rung, reacts to every result and signs the afternoon off, which is what
+turns a list of twelve fights into an afternoon of television rather than a
+menu. `src/data/host.js`.
+
 **Choose your fighter.** Eight of them, Street Fighter II style, and the choice
 is mechanical rather than cosmetic — the Keeper's perfect blocks let almost
 nothing through, the Statistician carries seven nutmegs, Touchline Dad hits
@@ -75,10 +82,6 @@ On top of that: a 12-second clock worth up to +50% damage, a combo multiplier
 up to ×2 for perfect answers in a row, and a **yellow card** if you pick the
 outright worst option. Two yellows and you sit an exchange out. Three
 **nutmegs** a day knock a duff option off the board and leave you a 50:50.
-
-**Hot-seat PvP.** Two players, one device, pass it across. Symmetric — no block
-phase, you just take turns hitting each other with a number. A "pass the
-device" screen sits in between so nobody reads over a shoulder.
 
 **Sport filters.** Play everything, or just football, or just boxing and darts.
 The filter applies to the overworld roster as well as the questions.
@@ -139,7 +142,7 @@ years on air) and say so in their note. Those are the ones to check first.
 npm run validate   # content checks: ties, units, prompt direction, coverage
 npm run balance    # simulate whole ladder climbs at four skill levels
 npm run build      # regenerate the single-file docs/index.html
-npm run playtest   # drive a real browser through a whole run + a PvP match
+npm run playtest   # drive a real browser through a whole run
 ```
 
 `playtest` takes a target, so the same suite covers both builds:
@@ -182,6 +185,7 @@ src/
   data/questions.js     98 questions — the content engine
   data/roster.js        20 opponents
   data/characters.js    8 playable fighters and their perks
+  data/host.js          Des Rider, and everything he says
   engine/render.js      canvas: select screen, ladder, battle, title
   engine/sprites.js     procedural sprites and portraits, no image assets
   engine/palette.js     five-tone colour ramps — the art style in one file
@@ -189,7 +193,6 @@ src/
   engine/rng.js         seeded RNG so a ladder can be shared
   game/ladder.js        the twelve rungs
   game/battle.js        turn-based combat, the damage model, perks
-  game/pvp.js           hot-seat match
   game/state.js         run state, scoring, localStorage
 tools/                  validate · balance · bundle · playtest · artcheck.html
 ```

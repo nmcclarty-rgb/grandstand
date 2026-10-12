@@ -158,6 +158,30 @@ Three modifiers, each doing a specific job:
 
 ---
 
+## 4b. The host
+
+The ladder gave the game a shape. Des Rider gives it a voice.
+
+He is not decoration. A progression screen that says "RUNG 7 OF 12" is a menu;
+the same screen with *"A marquee name now, and the crowd knows it"* over the
+top is an afternoon of television. He introduces every rung, reacts to the
+result, nags you when the energy runs low, and signs off at the end — about
+fifty lines in `src/data/host.js`, picked by context rather than at random, so
+the boss gets boss lines and a narrow win gets a backhanded compliment.
+
+Three decisions worth keeping:
+
+- **The register is specific.** Unhurried, faintly pompous, treats a pub quiz
+  as the Olympic final. That voice is the single strongest piece of audience
+  targeting in the game — it is doing more for the 40-something dad than any
+  mechanic does.
+- **He is a composite, not an impersonation.** The name is a mash of two
+  presenters, the station ident is ours, and no real broadcaster's marks appear
+  anywhere. Same principle as the roster.
+- **His mouth moves while he talks and stops when he's done.** A tiny thing,
+  but a static portrait beside a line of dialogue reads as a label; a moving
+  one reads as a person.
+
 ## 5. Getting the art out of 8-bit and into 16-bit
 
 The first build was too far down the pixel hole — NES, not arcade. The target
@@ -216,14 +240,19 @@ panel — was found by looking at that page, not by playing.
 
 ## 6. What's deliberately not built
 
-**Online PvP.** The brief asks for PvP and this ships hot-seat only. Online
-competitive trivia needs a server, an account system, matchmaking, and —
-critically — **anti-cheat for a game where the answer is one search away**.
-That last one isn't a feature, it's the entire design problem: any real-time
-online quiz has to assume a second device. The honest routes are asynchronous
-(both players answer the same seeded set, compare after) or a much shorter
-clock. Both are real work and neither is a prototype. Hot-seat is what two
-people in a pub will actually use anyway.
+**PvP, for now.** A hot-seat mode was built and has been removed at the
+author's request, to keep the single-player climb the thing that gets polished.
+The mechanic is worth recording for whoever brings it back: symmetric turns, no
+block phase, with a "pass the device" screen between goes so nobody reads over
+a shoulder. It is a small file to rebuild.
+
+**Online** PvP is a different proposition entirely, and the reason is worth
+stating before anyone promises it. It needs a server, accounts and matchmaking,
+and — critically — **anti-cheat for a game where the answer is one search
+away**. That last one isn't a feature, it's the whole design problem: any
+real-time online quiz has to assume a second device. The honest routes are
+asynchronous (both players answer the same seeded set, compare after) or a much
+shorter clock. Both are real work.
 
 **Persistent progression.** Rep, stars and a league table persist; nothing else
 does. Meta-progression (permanent upgrades, unlockable fighters) is the obvious

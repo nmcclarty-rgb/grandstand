@@ -159,6 +159,20 @@
   .pick.on .pickname { color: #fff; }
   @media (min-width: 560px) { .pick-grid { grid-template-columns: repeat(8, 1fr); } }
 
+  /* ── the host ───────────────────────────────────────────────── */
+  .host-line {
+    display: flex; gap: 10px; align-items: flex-start;
+    background: linear-gradient(180deg, #1b2a4d, #121d38);
+    border: 2px solid #3f5a8c; border-radius: 9px; padding: 9px 11px;
+    border-left: 5px solid #5a7fc0;
+  }
+  .host-line canvas { image-rendering: pixelated; flex: 0 0 auto; margin-top: 1px; }
+  .host-name {
+    font-family: var(--head); font-size: 6px; letter-spacing: 1px;
+    color: #8fb4e8; margin-bottom: 4px;
+  }
+  .host-says { font-size: 15px; line-height: 1.5; color: #dce7fa; font-style: italic; }
+
   /* ── ladder ─────────────────────────────────────────────────── */
   .ladder-bar { display: flex; align-items: center; gap: 9px; }
   .ladder-bar .nav { flex: 0 0 auto; font-size: 14px; padding: 12px 15px; }
@@ -332,15 +346,15 @@ __def("main.js", function (__exports, __req) {
  * readable rather than blitted pixels.
  */
 
-const { setupCanvas, drawBattleScene, drawSelectScene, drawLadderScene, drawTitleScene, drawTitleWordmark, drawStars, rungPos, ladderWidth, VIEW_W, VIEW_H } = __req("engine/render.js");
-const { drawFace, drawPortrait, PORTRAIT_W, PORTRAIT_H } = __req("engine/sprites.js");
+const { setupCanvas, drawBattleScene, drawSelectScene, drawLadderScene, drawTitleScene, drawStars, rungPos, ladderWidth, VIEW_W, VIEW_H } = __req("engine/render.js");
+const { drawFace, drawPresenterFace } = __req("engine/sprites.js");
 const { initAudio, sfx, setMuted, isMuted } = __req("engine/audio.js");
 const { Battle, PHASE, ANSWER_MS } = __req("game/battle.js");
-const { PvpMatch, PVP_PHASE } = __req("game/pvp.js");
 const { KIND, RUNGS } = __req("game/ladder.js");
 const { Run, loadSave, recordRun, recordBeaten, savePrefs, wipeSave, makeSeedFrom, seedName, ENTER_COST, BATTLE_TURN_COST } = __req("game/state.js");
 const { SPORTS, availableSports, countBySport, QUESTIONS } = __req("data/questions.js");
 const { CHARACTERS, findCharacter } = __req("data/characters.js");
+const { HOST, SCRIPT, pick, lineForRung, lineForResult, lineForEnding } = __req("data/host.js");
 const { ROSTER, findFighter } = __req("data/roster.js");
 
 const $ = (id) => document.getElementById(id);
@@ -350,13 +364,15 @@ const { ctx, resize } = setupCanvas($('game'));
 
 const G = {
   screen: 'title',
-  run: null, battle: null, match: null, rung: null,
+  run: null, battle: null, rung: null,
   t: 0,
   camX: 0,
   scene: { player: null, foe: null, floaters: [], shake: 0, playerFlash: 0, foeFlash: 0,
            playerPose: null, foePose: null, playerDown: false, foeDown: false,
            venue: 'THE REC' },
-  setup: { mode: 'career', sports: [], character: 'ringer', name: 'YOU', name2: 'THEM', seed: '' },
+  setup: { sports: [], character: 'ringer', name: 'YOU', seed: '' },
+  hostLine: '',
+  hostTalking: false,
   timer: { running: false, start: 0, lastTick: 0 },
   busy: false,
 };
@@ -407,7 +423,37 @@ function updateHud() {
   $('rep-chip').textContent = `REP ${r.rep}`;
 }
 
-function show(html) { panel.innerHTML = html; panel.scrollTop = 0; }
+function show(html) { panel.innerHTML = html; panel.scrollTop = 0; paintHostFace(); }
+
+/**
+ * The host says his piece. `say()` sets the line and starts his mouth moving;
+ * it stops after roughly the time it takes to read, so he isn't gurning
+ * silently for the rest of the screen.
+ */
+function say(line) {
+  G.hostLine = line || '';
+  G.hostTalking = !!line;
+  clearTimeout(G.hostTimer);
+  if (line) G.hostTimer = setTimeout(() => { G.hostTalking = false; }, 900 + line.length * 42);
+}
+
+const hostBox = () => (G.hostLine ? `
+  <div class="host-line">
+    <canvas class="hostface" width="34" height="38"></canvas>
+    <div>
+      <div class="host-name">${esc(HOST.name)}</div>
+      <p class="host-says">“${esc(G.hostLine)}”</p>
+    </div>
+  </div>` : '');
+
+function paintHostFace() {
+  for (const cv of panel.querySelectorAll('canvas.hostface')) {
+    const c = cv.getContext('2d');
+    c.imageSmoothingEnabled = false;
+    c.clearRect(0, 0, cv.width, cv.height);
+    drawPresenterFace(c, HOST, 0, 0, 34);
+  }
+}
 
 function layout() {
   const app = $('app');
@@ -428,19 +474,20 @@ function screenTitle() {
   G.screen = 'title';
   setHud(false);
   const best = save.bestRep ? `BEST DAY: ${save.bestRep} REP` : 'NO RESULT RECORDED';
+  say(pick(SCRIPT.title));
   show(`
     <div class="screen on">
+      ${hostBox()}
       <p class="dim small">A turn-based sports-quiz RPG. Every answer is a whole
       number, and the number is how hard you hit.</p>
       <div class="btn-row">
-        <button class="primary" data-act="go-setup" data-mode="career">START A DAY OUT</button>
+        <button class="primary" data-act="go-setup">START A DAY OUT</button>
       </div>
       <div class="btn-row">
-        <button data-act="go-setup" data-mode="pvp">HOT-SEAT PvP</button>
         <button data-act="league">LEAGUE TABLE</button>
+        <button data-act="codex">THE ROSTER</button>
       </div>
       <div class="btn-row">
-        <button data-act="codex">THE ROSTER</button>
         <button data-act="howto">HOW TO PLAY</button>
       </div>
       <p class="dim small">${esc(best)} · ${QUESTIONS.length} questions ·
@@ -500,15 +547,14 @@ function screenHowTo() {
     </div>`);
 }
 
-function screenSetup(mode) {
+function screenSetup() {
   G.screen = 'setup';
-  G.setup.mode = mode;
   setHud(false);
   const counts = countBySport();
-  const chips = availableSports().map((s) => {
-    const on = G.setup.sports.includes(s);
-    return `<button class="chip ${on ? 'on' : ''}" data-act="toggle-sport" data-sport="${s}">
-      ${esc(SPORTS[s].name)} <span class="dim">${counts[s]}</span></button>`;
+  const chips = availableSports().map((sp) => {
+    const on = G.setup.sports.includes(sp);
+    return `<button class="chip ${on ? 'on' : ''}" data-act="toggle-sport" data-sport="${sp}">
+      ${esc(SPORTS[sp].name)} <span class="dim">${counts[sp]}</span></button>`;
   }).join('');
   const pool = G.setup.sports.length
     ? QUESTIONS.filter((q) => G.setup.sports.includes(q.sport)).length
@@ -516,7 +562,7 @@ function screenSetup(mode) {
 
   show(`
     <div class="screen on">
-      <h2>${mode === 'pvp' ? 'HOT-SEAT PvP' : 'A DAY OUT'}</h2>
+      <h2>A DAY OUT</h2>
       <div class="card">
         <h3>SPORTS — PICK SOME, OR LEAVE IT EMPTY FOR THE LOT</h3>
         <div class="chip-row">${chips}</div>
@@ -524,23 +570,13 @@ function screenSetup(mode) {
           · ${pool} questions in play</p>
         ${pool < 12 ? '<div class="warn-strip">Thin pool — questions will repeat. Add another sport.</div>' : ''}
       </div>
-      ${mode === 'pvp' ? `
-        <div class="card">
-          <h3>PLAYERS</h3>
-          <label class="small dim">PLAYER ONE</label>
-          <input id="p1name" class="txt" value="${esc(G.setup.name)}" maxlength="10">
-          <label class="small dim">PLAYER TWO</label>
-          <input id="p2name" class="txt" value="${esc(G.setup.name2)}" maxlength="10">
-          <p class="small dim">One device. You take it in turns and pass it over.</p>
-        </div>` : `
-        <div class="card">
-          <h3>SEED — LEAVE BLANK FOR A RANDOM LADDER</h3>
-          <input id="seedin" class="txt" value="${esc(G.setup.seed)}" maxlength="16" placeholder="e.g. SHEARER">
-          <p class="small dim">Same seed, same opponents in the same order.</p>
-        </div>`}
+      <div class="card">
+        <h3>SEED — LEAVE BLANK FOR A RANDOM LADDER</h3>
+        <input id="seedin" class="txt" value="${esc(G.setup.seed)}" maxlength="16" placeholder="e.g. SHEARER">
+        <p class="small dim">Same seed, same opponents in the same order.</p>
+      </div>
       <div class="btn-row">
-        <button class="primary" data-act="${mode === 'pvp' ? 'start-pvp' : 'go-select'}">
-          ${mode === 'pvp' ? 'THROW IN' : 'CHOOSE YOUR FIGHTER'}</button>
+        <button class="primary" data-act="go-select">CHOOSE YOUR FIGHTER</button>
         <button data-act="title">BACK</button>
       </div>
     </div>`);
@@ -564,8 +600,10 @@ function screenSelect() {
   if (c.perk.comboBoost) perkLines.push('Combos build a rung early');
   if (c.perk.glassJaw) perkLines.push(`Takes ${Math.round((c.perk.glassJaw - 1) * 100)}% extra damage`);
 
+  say(pick(SCRIPT.select));
   show(`
     <div class="screen on">
+      ${hostBox()}
       <div class="pick-grid">${grid}</div>
       <div class="card gold">
         <h2 style="font-size:11px">${esc(c.name)}</h2>
@@ -580,7 +618,7 @@ function screenSelect() {
       </div>
       <div class="btn-row">
         <button class="primary" data-act="start-run">FIGHT</button>
-        <button data-act="go-setup" data-mode="career">BACK</button>
+        <button data-act="go-setup">BACK</button>
       </div>
     </div>`);
   paintPickFaces();
@@ -603,6 +641,8 @@ function screenLadder() {
   setHud(true);
   const r = G.run;
   const rung = r.rung;
+  // He introduces the rung you have walked to, and nags when you're spent.
+  say(r.energy <= ENTER_COST * 2 && !rung.cleared ? pick(SCRIPT.lowEnergy) : lineForRung(rung));
   const l = r.ladder;
   const canGoBack = r.at > 1;
   const canGoOn = r.at < RUNGS && l.available(r.at + 1);
@@ -637,6 +677,7 @@ function screenLadder() {
 
   show(`
     <div class="screen on">
+      ${hostBox()}
       <div class="ladder-bar">
         <button class="nav" data-act="rung-prev" ${canGoBack ? '' : 'disabled'}>◀</button>
         <div class="ladder-meta">
@@ -802,9 +843,11 @@ function screenBattleEnd(won) {
   G.scene.foeDown = won;
   G.scene.playerDown = !won;
   const runOver = G.run.over;
+  say(lineForResult(won, G.run.player));
 
   show(`
     <div class="screen on">
+      ${hostBox()}
       <h2 style="color:${won ? 'var(--green)' : 'var(--red)'}">
         ${won ? 'HAVE THAT' : 'STRETCHERED OFF'}</h2>
       <p>"${esc(won ? b.foe.defeat : b.foe.taunt)}"</p>
@@ -840,10 +883,12 @@ function screenResults() {
   const place = save.league.findIndex((x) => x.date === card.date) + 1;
   const headline = r.outcome === 'champion' ? 'CHAMPION OF THE LADDER'
     : r.outcome === 'energy' ? 'THAT\'S YOUR LOT' : 'FULL TIME';
+  say(lineForEnding(r.outcome));
 
   show(`
     <div class="screen on">
       <h1 style="font-size:17px">${headline}</h1>
+      ${hostBox()}
       <p class="small dim">${esc(card.characterName)} · ${card.rungs}/${RUNGS} rungs ·
         ${card.stars}/${card.maxStars} stars</p>
       <div class="stat-grid">
@@ -860,7 +905,7 @@ function screenResults() {
           — give that to someone else for the exact same climb.</p>
       </div>
       <div class="btn-row">
-        <button class="primary" data-act="go-setup" data-mode="career">GO AGAIN</button>
+        <button class="primary" data-act="go-setup">GO AGAIN</button>
         <button data-act="league">LEAGUE TABLE</button>
       </div>
       <div class="btn-row"><button data-act="title">BACK TO THE TITLES</button></div>
@@ -935,100 +980,6 @@ function screenCodex() {
   }
 }
 
-// ── PvP ────────────────────────────────────────────────────────────────────
-function pvpBars() {
-  const m = G.match;
-  return m.players.map((p, i) => `
-    <div class="fighter-bar">
-      <div class="row">
-        <span class="nm" style="color:${i === 0 ? 'var(--green)' : 'var(--red)'}">
-          ${esc(p.name)}${m.turn === i && m.phase !== PVP_PHASE.DONE ? ' ◀' : ''}</span>
-        <span class="hpnum">${p.hp}/${p.maxHp}${p.combo > 1 ? ` · ×${p.combo}` : ''}</span>
-      </div>
-      <div class="hp-track"><div class="hp-fill ${i === 1 ? 'foe' : ''}" style="width:${pct(p.hp, p.maxHp)}"></div></div>
-    </div>`).join('');
-}
-
-function screenPvpHandover() {
-  G.screen = 'pvp';
-  const m = G.match;
-  show(`
-    <div class="screen on">
-      ${pvpBars()}
-      <div class="card gold">
-        <h2>PASS IT TO ${esc(m.active.name)}</h2>
-        <p class="small dim">Round ${m.round}. Don't look until it's yours.</p>
-      </div>
-      <div class="btn-row"><button class="primary" data-act="pvp-begin">I'M ${esc(m.active.name)} — GO</button></div>
-    </div>`);
-  layout();
-}
-
-function screenPvpQuestion() {
-  G.screen = 'pvp';
-  const m = G.match;
-  const q = m.question;
-  const opts = q.options.map((o, i) => `
-    <button class="opt" data-act="pvp-answer" data-i="${i}">
-      <span class="num">${i + 1}</span>
-      <span class="label">${esc(o.label)}</span>
-      <span class="val">${o.value}</span>
-    </button>`).join('');
-  show(`
-    <div class="screen on">
-      ${pvpBars()}
-      <div class="q-mode">
-        <span class="strike">▲ ${esc(m.active.name)} — YOUR GO</span>
-        <span class="dim">${esc(SPORTS[q.sport]?.name || q.sport)}</span>
-      </div>
-      <div id="timer-track"><div id="timer-fill"></div></div>
-      <div class="q-prompt">${esc(q.most)}</div>
-      <div class="q-hint">PICK THE BIGGEST NUMBER TO HIT HARDEST</div>
-      ${opts}
-    </div>`);
-  layout();
-  startTimer();
-}
-
-function screenPvpResolve() {
-  stopTimer();
-  const m = G.match;
-  const r = m.lastResult;
-  const who = m.players[r.by];
-  show(`
-    <div class="screen on">
-      ${pvpBars()}
-      <div class="feedback ${r.perfect ? 'good' : r.timedOut ? 'bad' : 'mid'}">
-        ${r.timedOut ? 'TOO SLOW' : r.perfect ? 'SCREAMER!' : 'GOOD CONTACT'}</div>
-      <p><b>${esc(who.name)}</b> picked <b>${esc(r.option.label)}</b> —
-        ${r.option.value} ${esc(r.unit)} → <b style="color:var(--gold)">${r.damage} DAMAGE</b></p>
-      <p class="small dim">Best answer was <b style="color:var(--green)">${r.correctValue} ${esc(r.unit)}</b>.</p>
-      ${r.note ? `<div class="note">${esc(r.note)}</div>` : ''}
-      <div class="btn-row"><button class="primary" data-act="pvp-advance">CARRY ON</button></div>
-    </div>`);
-  layout();
-}
-
-function screenPvpDone() {
-  const m = G.match;
-  const w = m.players[m.winner], l = m.players[1 - m.winner];
-  sfx.win();
-  show(`
-    <div class="screen on">
-      <h1 style="font-size:18px">${esc(w.name)} WINS</h1>
-      <div class="stat-grid">
-        <div class="stat"><span class="k">${esc(w.name)} ACC</span><span class="v">${Math.round((w.perfects / Math.max(1, w.answered)) * 100)}%</span></div>
-        <div class="stat"><span class="k">${esc(l.name)} ACC</span><span class="v">${Math.round((l.perfects / Math.max(1, l.answered)) * 100)}%</span></div>
-        <div class="stat"><span class="k">ROUNDS</span><span class="v">${m.round}</span></div>
-      </div>
-      <div class="btn-row">
-        <button class="primary" data-act="go-setup" data-mode="pvp">BEST OF THREE?</button>
-        <button data-act="title">TITLES</button>
-      </div>
-    </div>`);
-  layout();
-}
-
 // ═══════════════════════════════════════════════════════════════════════════
 // TIMER
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1047,8 +998,7 @@ function tickTimer() {
   if (secs <= 3 && secs !== G.timer.lastTick && secs > 0) { G.timer.lastTick = secs; sfx.tick(); }
   if (elapsed >= ANSWER_MS) {
     stopTimer();
-    if (G.match && G.match.phase === PVP_PHASE.ANSWER) doPvpAnswer(worstIndexPvp(), ANSWER_MS);
-    else if (G.battle) doAnswer(worstIndex(), ANSWER_MS);
+    if (G.battle) doAnswer(worstIndex(), ANSWER_MS);
   }
 }
 
@@ -1057,11 +1007,6 @@ function worstIndex() {
   const vals = b.question.options.map((o) => o.value);
   return vals.indexOf(b.phase === PHASE.BLOCK ? Math.max(...vals) : Math.min(...vals));
 }
-function worstIndexPvp() {
-  const vals = G.match.question.options.map((o) => o.value);
-  return vals.indexOf(Math.min(...vals));
-}
-
 // ═══════════════════════════════════════════════════════════════════════════
 // ACTIONS
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1074,23 +1019,10 @@ function startRun() {
   G.camX = rungPos(1).x - VIEW_W / 2;
   sfx.whistle();
   screenLadder();
-}
-
-function startPvp() {
-  const n1 = ($('p1name')?.value || 'PLAYER 1').toUpperCase().slice(0, 10);
-  const n2 = ($('p2name')?.value || 'PLAYER 2').toUpperCase().slice(0, 10);
-  G.setup.name = n1; G.setup.name2 = n2;
-  G.match = new PvpMatch(
-    { ...CHARACTERS[0], name: n1 },
-    { ...CHARACTERS[5], name: n2 },
-    { sports: G.setup.sports });
-  G.scene.venue = 'THE MAIN ARENA';
-  G.scene.player = G.match.players[0];
-  G.scene.foe = G.match.players[1];
-  G.scene.playerDown = G.scene.foeDown = false;
-  setHud(false);
-  sfx.whistle();
-  screenPvpHandover();
+  say(pick(SCRIPT.runStart(G.run.character.name)));
+  paintHostFace();
+  const box = panel.querySelector('.host-says');
+  if (box) box.textContent = `\u201c${G.hostLine}\u201d`;
 }
 
 function moveRung(delta) {
@@ -1110,6 +1042,7 @@ function enterBattle() {
   r.spendEnergy(ENTER_COST);
   G.rung = rung;
   sfx.encounter();
+  say(rung.kind === 'boss' ? pick(SCRIPT.rung.boss) : '');
   G.scene.venue = rung.venue;
   G.battle = new Battle(r.player, rung.fighter, {
     level: rung.level,
@@ -1176,30 +1109,6 @@ function advanceBattle() {
   screenQuestion();
 }
 
-function doPvpAnswer(i, forcedMs) {
-  const m = G.match;
-  if (!m || m.phase !== PVP_PHASE.ANSWER || G.busy) return;
-  G.busy = true;
-  stopTimer();
-  const attacker = m.turn;
-  if (attacker === 0) G.scene.playerPose = 'strike'; else G.scene.foePose = 'strike';
-  const r = m.answer(i, forcedMs);
-  setTimeout(() => {
-    G.scene.playerPose = G.scene.foePose = null;
-    if (attacker === 0) {
-      G.scene.foeFlash = 9;
-      floater(`-${r.damage}`, 340, 140, r.perfect ? '#ffd24a' : '#f87171', r.perfect);
-    } else {
-      G.scene.playerFlash = 9;
-      floater(`-${r.damage}`, 96, 146, r.perfect ? '#ffd24a' : '#f87171', r.perfect);
-    }
-    if (r.perfect) sfx.crit(); else sfx.hit();
-    shakeStage(r.perfect ? 1.7 : 1);
-    G.busy = false;
-    screenPvpResolve();
-  }, 280);
-}
-
 // ═══════════════════════════════════════════════════════════════════════════
 // INPUT
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1211,7 +1120,7 @@ panel.addEventListener('click', (e) => {
   switch (btn.dataset.act) {
     case 'title': sfx.back(); screenTitle(); break;
     case 'howto': sfx.select(); screenHowTo(); break;
-    case 'go-setup': sfx.select(); screenSetup(btn.dataset.mode); break;
+    case 'go-setup': sfx.select(); screenSetup(); break;
     case 'go-select':
       G.setup.seed = $('seedin')?.value || '';
       sfx.confirm(); screenSelect(); break;
@@ -1228,10 +1137,9 @@ panel.addEventListener('click', (e) => {
       const s = btn.dataset.sport;
       const i = G.setup.sports.indexOf(s);
       if (i >= 0) G.setup.sports.splice(i, 1); else G.setup.sports.push(s);
-      sfx.select(); screenSetup(G.setup.mode); break;
+      sfx.select(); screenSetup(); break;
     }
     case 'start-run': sfx.confirm(); startRun(); break;
-    case 'start-pvp': sfx.confirm(); startPvp(); break;
     case 'rung-prev': moveRung(-1); break;
     case 'rung-next': moveRung(1); break;
     case 'fight': sfx.confirm(); enterBattle(); break;
@@ -1259,13 +1167,6 @@ panel.addEventListener('click', (e) => {
       if (confirm('End the day here and take your score?')) { G.run.end('quit'); screenResults(); }
       break;
     case 'results': screenResults(); break;
-    case 'pvp-begin': sfx.confirm(); G.match.beginTurn(); screenPvpQuestion(); break;
-    case 'pvp-answer': doPvpAnswer(+btn.dataset.i); break;
-    case 'pvp-advance': {
-      sfx.select();
-      if (G.match.advance() === PVP_PHASE.DONE) screenPvpDone(); else screenPvpHandover();
-      break;
-    }
   }
 });
 
@@ -1291,7 +1192,7 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'm' || e.key === 'M') { $('btn-sound').click(); return; }
   if (['1', '2', '3'].includes(e.key)) {
     const i = +e.key - 1;
-    const b = panel.querySelector(`[data-act="answer"][data-i="${i}"], [data-act="pvp-answer"][data-i="${i}"]`);
+    const b = panel.querySelector(`[data-act="answer"][data-i="${i}"]`);
     if (b && !b.classList.contains('gone')) { e.preventDefault(); b.click(); }
     return;
   }
@@ -1345,12 +1246,10 @@ function frame() {
       }, G.t);
       break;
     case 'battle':
-    case 'pvp':
       drawBattleScene(ctx, G.scene, G.t);
       break;
     default:
-      drawTitleScene(ctx, G.t);
-      if (G.screen === 'title') drawTitleWordmark(ctx, G.t);
+      drawTitleScene(ctx, G.t, HOST, G.hostTalking);
       break;
   }
   requestAnimationFrame(frame);
@@ -1381,7 +1280,7 @@ __def("engine/render.js", function (__exports, __req) {
  * backdrops, not an 8-bit console where everything is the same chunky grid.
  */
 
-const { drawFighter, drawPortrait, drawFace, drawGroundShadow, SPRITE_W, SPRITE_H, PORTRAIT_W, PORTRAIT_H } = __req("engine/sprites.js");
+const { drawFighter, drawPortrait, drawFace, drawGroundShadow, drawPresenter, SPRITE_W, SPRITE_H, PORTRAIT_W, PORTRAIT_H, PRESENTER_W, PRESENTER_H } = __req("engine/sprites.js");
 const { ramp, shadow, highlight, mix } = __req("engine/palette.js");
 const { KIND } = __req("game/ladder.js");
 
@@ -1938,35 +1837,168 @@ function pylon(c, x, groundY) {
 // TITLE
 // ═══════════════════════════════════════════════════════════════════════════
 
-function drawTitleScene(ctx, t) {
-  const sky = ctx.createLinearGradient(0, 0, 0, 170);
-  sky.addColorStop(0, '#0d0a1e');
-  sky.addColorStop(1, '#2b2151');
-  ctx.fillStyle = sky; ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+/**
+ * THE STUDIO.
+ *
+ * A Saturday-afternoon sports programme: monitor stack on the left, the set's
+ * backdrop with its orbiting graphic behind, the production gallery working
+ * away in the background, and the host at the desk. This is the frame the
+ * whole game sits inside — he introduces every rung, so the opening shot had
+ * better be his studio.
+ *
+ * It is a pastiche of a genre, not of any particular programme: the station
+ * ident is our own and no real broadcaster's marks appear anywhere.
+ */
+function drawTitleScene(ctx, t, host, talking = false) {
+  // ── the cyclorama ──
+  const g = ctx.createLinearGradient(0, 0, 0, VIEW_H);
+  g.addColorStop(0, '#0b1f52');
+  g.addColorStop(0.55, '#13327d');
+  g.addColorStop(1, '#091634');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
-  for (let i = 0; i < 60; i++) {
-    const x = (i * 71) % VIEW_W, y = (i * 37) % 96;
-    if (Math.sin(t / 28 + i) > 0.25) px(ctx, x, y, 2, 2, '#6f63a0');
+  // Orbiting set graphics pushed out to the corners, so the wordmark and the
+  // host both sit in clear air.
+  atom(ctx, 62, 48, 34, t);
+  atom(ctx, 418, 42, 29, t * 0.8);
+
+  setLogo(ctx, VIEW_W / 2, 44, t);
+  drawMonitorStack(ctx, 4, 106, t);
+  drawGallery(ctx, 334, 112, t);
+
+  // ── the host, framed head-and-shoulders behind his desk ──
+  const hx = Math.round(VIEW_W / 2 - PRESENTER_W);      // scale 2
+  drawPresenter(ctx, host, hx, 96, 2, t, talking);
+
+  drawDesk(ctx, 212);
+}
+
+/** The set's orbiting graphic — every sports programme had one. */
+function atom(c, cx, cy, r, t) {
+  c.save();
+  c.globalAlpha = 0.5;
+  const glow = c.createRadialGradient(cx, cy, 2, cx, cy, r * 1.4);
+  glow.addColorStop(0, 'rgba(120,190,255,0.5)');
+  glow.addColorStop(1, 'rgba(120,190,255,0)');
+  c.fillStyle = glow;
+  c.fillRect(cx - r * 1.5, cy - r * 1.5, r * 3, r * 3);
+  c.globalAlpha = 0.85;
+  c.strokeStyle = '#7cc0ff';
+  c.lineWidth = 2;
+  for (let i = 0; i < 3; i++) {
+    c.save();
+    c.translate(cx, cy);
+    c.rotate((i * Math.PI) / 3 + t / 180);
+    c.beginPath();
+    c.ellipse(0, 0, r, r * 0.36, 0, 0, Math.PI * 2);
+    c.stroke();
+    c.restore();
   }
+  c.globalAlpha = 1;
+  c.beginPath();
+  c.arc(cx, cy, 5, 0, Math.PI * 2);
+  c.fillStyle = '#d6ecff';
+  c.fill();
+  c.restore();
+}
 
-  drawCrowd(ctx, 96, 74, t);
+/** The programme's name, up on the set behind him. Doubles as the title. */
+function setLogo(c, cx, y, t) {
+  const pulse = 0.82 + Math.sin(t / 50) * 0.08;
+  c.save();
+  c.textAlign = 'center';
+  // glow behind the letters
+  c.globalAlpha = pulse * 0.35;
+  const gl = c.createRadialGradient(cx, y - 7, 4, cx, y - 7, 150);
+  gl.addColorStop(0, 'rgba(140,200,255,0.85)');
+  gl.addColorStop(1, 'rgba(140,200,255,0)');
+  c.fillStyle = gl;
+  c.fillRect(cx - 160, y - 42, 320, 70);
+  c.globalAlpha = 1;
 
-  for (let y = 170; y < VIEW_H; y += 8) {
-    px(ctx, 0, y, VIEW_W, 8, ((y - 170) / 8) % 2 ? '#2c8f4a' : '#248040');
+  c.font = '26px "Press Start 2P", monospace';
+  c.fillStyle = '#061436';
+  c.fillText('GRANDSTAND', cx + 3, y + 3);
+  c.fillStyle = '#2f5fa8';
+  c.fillText('GRANDSTAND', cx + 1, y + 1);
+  c.fillStyle = '#ffd24a';
+  c.fillText('GRANDSTAND', cx, y);
+
+  c.font = '8px "Press Start 2P", monospace';
+  c.fillStyle = '#07152f';
+  c.fillText('TRIVIA ATHLETIC', cx + 1, y + 21);
+  c.fillStyle = '#bcd8f8';
+  c.fillText('TRIVIA ATHLETIC', cx, y + 20);
+  c.restore();
+}
+
+/** Bank of CRTs, each showing its own flickering nonsense. */
+function drawMonitorStack(c, x, y, t) {
+  const W = 58, H = 42;
+  for (let row = 0; row < 2; row++) {
+    for (let col = 0; col < 2; col++) {
+      const mx = x + col * (W + 4), my = y + row * (H + 4);
+      px(c, mx, my, W, H, '#1b1b26');
+      px(c, mx, my, W, 2, '#3a3a4e');
+      const sx = mx + 4, sy = my + 4, sw = W - 8, sh = H - 10;
+      const tint = ['#1f5e3a', '#5a2f2f', '#2c3f70', '#5a4a1f'][(row * 2 + col) % 4];
+      px(c, sx, sy, sw, sh, tint);
+      // a crowd-ish blur of moving blocks, so the screens look live
+      for (let i = 0; i < 7; i++) {
+        const bx = sx + (((i * 13 + Math.floor(t / 4) + row * 7) % sw));
+        px(c, bx, sy + 3 + ((i * 5) % (sh - 6)), 4, 3, highlight(tint, 1.3));
+      }
+      px(c, sx, sy + ((Math.floor(t / 2) * 3) % sh), sw, 1, 'rgba(255,255,255,0.16)');
+      px(c, mx + 2, my + H - 4, W - 4, 2, '#2a2a38');
+    }
   }
-  px(ctx, 0, 170, VIEW_W, 3, '#0d0a18');
+}
 
-  // floodlight cones
-  ctx.save();
-  ctx.globalAlpha = 0.1 + Math.sin(t / 40) * 0.025;
-  ctx.fillStyle = '#fff7d6';
-  ctx.beginPath(); ctx.moveTo(44, 62); ctx.lineTo(-40, VIEW_H); ctx.lineTo(200, VIEW_H); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(436, 62); ctx.lineTo(280, VIEW_H); ctx.lineTo(520, VIEW_H); ctx.closePath(); ctx.fill();
-  ctx.restore();
-  px(ctx, 36, 54, 16, 9, '#fdf3cd');
-  px(ctx, 428, 54, 16, 9, '#fdf3cd');
-  px(ctx, 42, 63, 3, 20, '#59617a');
-  px(ctx, 434, 63, 3, 20, '#59617a');
+/** The gallery: people at desks, still working while he talks. */
+function drawGallery(c, x, y, t) {
+  const SKIN = ['#e8b48a', '#7a4a21', '#f0c49b', '#5a3418', '#e8a878'];
+  const HAIR = ['#3a2a18', '#1a1a1a', '#6b5a3a', '#2a2018', '#9a9a9a'];
+  const TOP = ['#2f3a55', '#46324f', '#2c4a46', '#4a3a2c', '#38384a'];
+  for (let i = 0; i < 4; i++) {
+    const gx = x + 4 + i * 34;
+    const gy = y + 18 + (i % 2) * 7;
+    const lean = Math.sin(t / 38 + i * 2.1) > 0.75 ? 1 : 0;
+    px(c, gx + 2 + lean, gy + 6, 16, 16, TOP[i % 5]);          // shoulders
+    px(c, gx + 2 + lean, gy + 6, 5, 16, shadow(TOP[i % 5], 1));
+    px(c, gx + 6 + lean, gy - 4, 9, 10, SKIN[i % 5]);          // head
+    px(c, gx + 6 + lean, gy - 6, 9, 4, HAIR[i % 5]);           // hair
+    px(c, gx + 8 + lean, gy + 1, 2, 1, '#2a2436');             // a suggestion of a face
+    px(c, gx + 12 + lean, gy + 1, 2, 1, '#2a2436');
+  }
+  // the desk they are all sitting at, with monitor glow coming off it
+  px(c, x, y + 30, VIEW_W - x, 5, '#2a4272');
+  px(c, x, y + 30, VIEW_W - x, 2, '#4f73ad');
+  px(c, x, y + 35, VIEW_W - x, 24, '#101f3f');
+  for (let i = 0; i < 4; i++) {
+    const mx = x + 8 + i * 34;
+    px(c, mx, y + 21, 14, 11, '#16294d');
+    px(c, mx + 1, y + 22, 12, 8, i % 2 ? '#2f5f8f' : '#2f7f6f');
+    px(c, mx + 2, y + 23 + ((Math.floor(t / 6) + i) % 6), 10, 1, 'rgba(255,255,255,0.22)');
+  }
+}
+
+/** The desk the whole programme is presented from. */
+function drawDesk(c, y) {
+  const g = c.createLinearGradient(0, y, 0, VIEW_H);
+  g.addColorStop(0, '#2b3f6b');
+  g.addColorStop(0.18, '#1b2a4d');
+  g.addColorStop(1, '#0d1730');
+  c.fillStyle = g;
+  c.fillRect(0, y, VIEW_W, VIEW_H - y);
+  px(c, 0, y, VIEW_W, 3, '#5a7fc0');
+  px(c, 0, y + 3, VIEW_W, 2, '#16254a');
+  // a sheaf of running order on the desk
+  px(c, 300, y + 12, 44, 26, '#e8e6dd');
+  px(c, 300, y + 12, 44, 2, '#ffffff');
+  for (let i = 0; i < 4; i++) px(c, 305, y + 18 + i * 5, 32, 1, '#9aa0b0');
+  px(c, 118, y + 16, 30, 20, '#dcdad2');
+  px(c, 118, y + 16, 30, 2, '#ffffff');
 }
 
 function drawTitleWordmark(ctx, t) {
@@ -2268,6 +2300,20 @@ function drawHair(x, cx, top, s, feat, hair, halfAt) {
       px(x, cx - 3 * s, top, 5 * s, 2 * s, '#ffffff30');
       px(x, cx - halfAt(5) - s, top + 4 * s, 2 * s, 5 * s, hair.dark);
       break;
+    case 'anchor': {
+      // A presenter's hair: follows the curve of the skull with a side parting,
+      // rather than sitting on top like a hat. Rounded crown, neat sides.
+      const crownW = [4, 6, 7, 8, 8, 8];
+      for (let i = 0; i < crownW.length; i++) {
+        const hw = crownW[i] * s + (i > 2 ? s : 0);
+        px(x, cx - hw, crown - 2 * s + i * s, hw * 2, s, i < 2 ? hair.light : hair.base);
+      }
+      px(x, cx - 3 * s, crown - 2 * s, s, 5 * s, shadow(hair.base, 1.5));   // parting
+      px(x, cx + 2 * s, crown - 2 * s, 4 * s, s, hair.lightest);            // sheen
+      px(x, cx - halfAt(5) - s, top + 2 * s, 2 * s, 5 * s, hair.dark);      // sideburns
+      px(x, cx + halfAt(5) - s, top + 2 * s, 2 * s, 5 * s, hair.base);
+      break;
+    }
     case 'bowl':
       px(x, cx - 9 * s, crown - 3 * s, 18 * s, 9 * s, hair.base);
       px(x, cx - 9 * s, crown - 3 * s, 18 * s, 2 * s, hair.light);
@@ -2615,7 +2661,97 @@ function drawFace(ctx, f, ox, oy, size, opts = {}) {
 
 function clearSpriteCache() { spriteCache.clear(); portraitCache.clear(); }
 
-Object.assign(__exports, { SPRITE_W, SPRITE_H, PORTRAIT_W, PORTRAIT_H, POSE, HAIR, FACIAL, BROW, drawFighter, drawGroundShadow, getPortrait, drawPortrait, drawFace, clearSpriteCache });
+// ═══════════════════════════════════════════════════════════════════════════
+// THE PRESENTER — seated head-and-shoulders, for the studio set
+// ═══════════════════════════════════════════════════════════════════════════
+
+const PRESENTER_W = 60;
+const PRESENTER_H = 68;
+
+const presenterCache = new Map();
+
+/**
+ * A man in a suit behind a desk. Deliberately a different build from the
+ * fighters — no kit, no gear, shoulders that go off the bottom of the frame —
+ * so he reads as the person introducing the sport rather than one of the
+ * people doing it.
+ */
+function renderPresenter(p, mouthOpen) {
+  const { c, x } = surface(PRESENTER_W, PRESENTER_H);
+  const skin = ramp(p.skin || '#f0c49b');
+  const suit = ramp(p.suit || '#2b2b3a');
+  const shirt = ramp(p.shirt || '#d9dceb');
+  const tie = ramp(p.tie || '#7b3f6e');
+  const hair = ramp(p.hair || '#b9b2a4');
+  const feat = { hair: p.hairStyle || 'receding', facial: 'none', brow: 'raised', band: null };
+  const CX = PRESENTER_W / 2;
+
+  // ── shoulders: a wide trapezoid running off the bottom edge ──
+  const SH_Y = 42;
+  const rows = [];
+  for (let i = 0; i < PRESENTER_H - SH_Y; i++) rows.push(Math.round(11 + i * 1.25));
+  fillProfile(x, CX, SH_Y, rows, suit, 1, { shadeW: 7, lightW: 5, capTop: false });
+
+  // ── shirt wedge and lapels ──
+  px(x, CX - 7, SH_Y + 2, 14, PRESENTER_H - SH_Y - 2, shirt.base);
+  px(x, CX - 7, SH_Y + 2, 4, PRESENTER_H - SH_Y - 2, shirt.dark);
+  px(x, CX + 3, SH_Y + 2, 4, PRESENTER_H - SH_Y - 4, shirt.light);
+  for (let i = 0; i < 16; i++) {           // lapels angling outward
+    px(x, CX - 8 - i, SH_Y + 3 + i, 4, 2, suit.light);
+    px(x, CX + 5 + i, SH_Y + 3 + i, 4, 2, suit.dark);
+  }
+  // ── tie: knot, then the blade widening as it goes down ──
+  px(x, CX - 3, SH_Y + 3, 6, 5, tie.light);
+  px(x, CX - 2, SH_Y + 4, 3, 3, tie.lightest);
+  for (let i = 0; i < PRESENTER_H - SH_Y - 8; i++) {
+    const w = 5 + Math.floor(i / 4);
+    px(x, CX - Math.floor(w / 2), SH_Y + 8 + i, w, 1, i % 5 === 2 ? tie.dark : tie.base);
+  }
+
+  // ── collar over the neck join ──
+  px(x, CX - 9, SH_Y - 1, 7, 5, shirt.lightest);
+  px(x, CX + 2, SH_Y - 1, 7, 5, shirt.light);
+
+  // ── neck ──
+  px(x, CX - 6, 34, 12, 10, skin.base);
+  px(x, CX - 6, 34, 12, 5, shadow(skin.base, 1.5));
+
+  drawHead(x, CX, 2, skin, hair, feat, 2);
+
+  // Talking: a darker mouth, so the narration has something to sync to.
+  if (mouthOpen) {
+    px(x, CX - 5, 2 + 13 * 2, 10, 4, shadow(skin.base, 2.4));
+    px(x, CX - 4, 2 + 13 * 2 + 3, 8, 1, '#c87d7d');
+  }
+
+  inkOutline(x, PRESENTER_W, PRESENTER_H);
+  return c;
+}
+
+function drawPresenter(ctx, p, ox, oy, scale = 1, t = 0, talking = false) {
+  // ~3 frames a second of mouth movement reads as speech without being manic
+  const mouthOpen = talking && Math.floor(t / 10) % 2 === 0;
+  const key = `${p.id || 'host'}|${mouthOpen ? 1 : 0}`;
+  let img = presenterCache.get(key);
+  if (!img) { img = renderPresenter(p, mouthOpen); presenterCache.set(key, img); }
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, ox, oy, PRESENTER_W * scale, PRESENTER_H * scale);
+  ctx.restore();
+}
+
+/** Just the head, for the little talking-head chip beside his lines in the UI. */
+function drawPresenterFace(ctx, p, ox, oy, size) {
+  const key = `${p.id || 'host'}|0`;
+  let img = presenterCache.get(key);
+  if (!img) { img = renderPresenter(p, false); presenterCache.set(key, img); }
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, 12, 0, 36, 40, ox, oy, size, Math.round(size * (40 / 36)));
+  ctx.restore();
+}
+
+Object.assign(__exports, { SPRITE_W, SPRITE_H, PORTRAIT_W, PORTRAIT_H, POSE, HAIR, FACIAL, BROW, drawFighter, drawGroundShadow, getPortrait, drawPortrait, drawFace, clearSpriteCache, PRESENTER_W, PRESENTER_H, drawPresenter, drawPresenterFace });
 });
 
 // ─── engine/palette.js ───────────────────────────────────────────
@@ -3891,122 +4027,6 @@ function countBySport() {
 Object.assign(__exports, { SPORTS, QUESTIONS, availableSports, countBySport });
 });
 
-// ─── game/pvp.js ─────────────────────────────────────────────────
-__def("game/pvp.js", function (__exports, __req) {
-/**
- * GRANDSTAND — local hot-seat PvP.
- *
- * Two players, one device, pass it across. Symmetric: no block phase, you just
- * take it in turns to hit each other with a number. A "PASS THE DEVICE" screen
- * sits between turns so nobody reads the other's question over their shoulder.
- *
- * Online PvP is deliberately not here. See DESIGN.md "What's not built".
- */
-
-const { QUESTIONS } = __req("data/questions.js");
-const { makeRng } = __req("engine/rng.js");
-const { ANSWER_MS, SPEED_BONUS_MAX, CRIT_BONUS, COMBO_STEPS } = __req("game/battle.js");
-
-const PVP_HP = 140;
-const PVP_POWER = 24;
-
-const PVP_PHASE = {
-  HANDOVER: 'handover',
-  ANSWER: 'answer',
-  RESOLVE: 'resolve',
-  DONE: 'done',
-};
-
-class PvpMatch {
-  constructor(p1, p2, opts = {}) {
-    this.rng = makeRng(opts.seed || (Date.now() & 0xffffffff));
-    this.sports = opts.sports || [];
-    this.used = new Set();
-    this.bestOf = opts.bestOf || 1;
-    this.players = [
-      { ...p1, hp: PVP_HP, maxHp: PVP_HP, power: PVP_POWER, combo: 0, perfects: 0, answered: 0 },
-      { ...p2, hp: PVP_HP, maxHp: PVP_HP, power: PVP_POWER, combo: 0, perfects: 0, answered: 0 },
-    ];
-    this.turn = 0;             // index of whoever is on strike
-    this.round = 1;
-    this.phase = PVP_PHASE.HANDOVER;
-    this.question = null;
-    this.lastResult = null;
-    this.winner = null;
-  }
-
-  get active() { return this.players[this.turn]; }
-  get target() { return this.players[1 - this.turn]; }
-
-  pickQuestion() {
-    const filter = this.sports;
-    let pool = QUESTIONS.map((q, i) => ({ q, i }))
-      .filter(({ q }) => !filter.length || filter.includes(q.sport));
-    if (!pool.length) pool = QUESTIONS.map((q, i) => ({ q, i }));
-    let fresh = pool.filter(({ i }) => !this.used.has(i));
-    if (!fresh.length) { this.used.clear(); fresh = pool; }
-    const chosen = this.rng.pick(fresh);
-    this.used.add(chosen.i);
-    const order = this.rng.shuffle(chosen.q.options.map((_, i) => i));
-    return { ...chosen.q, index: chosen.i, options: order.map((i) => chosen.q.options[i]) };
-  }
-
-  /** Called after the handover screen is dismissed by the player taking over. */
-  beginTurn() {
-    this.question = this.pickQuestion();
-    this.askedAt = performance.now();
-    this.phase = PVP_PHASE.ANSWER;
-    return this.question;
-  }
-
-  values() { return this.question.options.map((o) => o.value); }
-
-  answer(optionIndex, elapsedMs) {
-    const opt = this.question.options[optionIndex];
-    const vals = this.values();
-    const max = Math.max(...vals), min = Math.min(...vals);
-    const elapsed = elapsedMs == null ? performance.now() - this.askedAt : elapsedMs;
-    const timedOut = elapsed >= ANSWER_MS;
-
-    const ratio = timedOut ? 0.15
-      : (max === min ? 1 : 0.25 + 0.75 * ((opt.value - min) / (max - min)));
-    const perfect = !timedOut && opt.value === max;
-    const speed = timedOut ? 0 : SPEED_BONUS_MAX * (1 - Math.min(1, elapsed / ANSWER_MS));
-
-    const me = this.active, them = this.target;
-    me.answered++;
-    if (perfect) { me.perfects++; me.combo++; } else { me.combo = 0; }
-
-    let dmg = me.power * ratio * (1 + speed) * COMBO_STEPS[Math.min(me.combo, COMBO_STEPS.length - 1)];
-    if (perfect) dmg *= 1 + CRIT_BONUS;
-    dmg = Math.max(1, Math.round(dmg));
-    them.hp = Math.max(0, them.hp - dmg);
-
-    this.lastResult = {
-      by: this.turn, option: opt, optionIndex, perfect, timedOut, damage: dmg,
-      correctValue: max, unit: this.question.unit, note: this.question.note,
-      combo: me.combo,
-    };
-    this.phase = PVP_PHASE.RESOLVE;
-    return this.lastResult;
-  }
-
-  advance() {
-    if (this.target.hp <= 0) {
-      this.winner = this.turn;
-      this.phase = PVP_PHASE.DONE;
-      return this.phase;
-    }
-    this.turn = 1 - this.turn;
-    if (this.turn === 0) this.round++;
-    this.phase = PVP_PHASE.HANDOVER;
-    return this.phase;
-  }
-}
-
-Object.assign(__exports, { PVP_HP, PVP_POWER, PVP_PHASE, PvpMatch });
-});
-
 // ─── game/state.js ───────────────────────────────────────────────
 __def("game/state.js", function (__exports, __req) {
 /**
@@ -4321,6 +4341,168 @@ function findCharacter(id) {
 }
 
 Object.assign(__exports, { CHARACTERS, findCharacter });
+});
+
+// ─── data/host.js ────────────────────────────────────────────────
+__def("data/host.js", function (__exports, __req) {
+/**
+ * GRANDSTAND — the host.
+ *
+ * He is the spine of the game. Every rung, every result and every ending is
+ * introduced by him, which is what turns a list of twelve fights into an
+ * afternoon of television. The register is the one every 40-something
+ * recognises: unhurried, faintly pompous, fond of a pause, treating a pub quiz
+ * as though it were the Olympic final.
+ *
+ * A pastiche of a job, not of a person — the name is a composite and no real
+ * broadcaster's marks appear anywhere in the game.
+ */
+
+const HOST = {
+  id: 'des',
+  name: 'DES RIDER',
+  role: 'Your Host For The Afternoon',
+  skin: '#f0c49b',
+  hair: '#b9b2a4',
+  hairStyle: 'anchor',
+  suit: '#2b2b3a',
+  shirt: '#d9dceb',
+  tie: '#7b3f6e',
+};
+
+/** Deterministic enough to feel authored, varied enough not to repeat. */
+let seq = 0;
+function pick(lines) {
+  if (!lines || !lines.length) return '';
+  seq = (seq * 1103515245 + 12345) & 0x7fffffff;
+  return lines[seq % lines.length];
+}
+
+const SCRIPT = {
+  // ── the opening titles ────────────────────────────────────────────────
+  title: [
+    'Good afternoon. Grandstand, and a full card for you today.',
+    'Welcome along. Twelve names between you and the trophy.',
+    'Afternoon all. The scores are coming in, and so are the questions.',
+    'Settle down, get a brew on. We start in a moment.',
+    'A packed programme today, and not one of them will go quietly.',
+  ],
+
+  // ── picking a fighter ─────────────────────────────────────────────────
+  select: [
+    'So. Who are we sending out?',
+    'Take your time. You will be living with this one all afternoon.',
+    'Pick carefully — they do not all fight the same way.',
+  ],
+
+  // ── the climb begins ──────────────────────────────────────────────────
+  runStart: (name) => [
+    `${name} it is. Twelve rungs, one trophy, let's see what happens.`,
+    `${name} steps out. Nervous? You should be.`,
+    `And we're off, with ${name} carrying the hopes of the nation. Or at least of this sofa.`,
+  ],
+
+  // ── arriving at a rung ────────────────────────────────────────────────
+  rung: {
+    1: [
+      'A gentle one to start. Enjoy it, because it does not last.',
+      'First up, and frankly a warm-up. Do not get comfortable.',
+      'We begin, as we always do, with someone you should beat.',
+    ],
+    2: [
+      'Right. This is where it starts to mean something.',
+      'A step up, and you can feel it in the room.',
+      'No more free afternoons. This one can play.',
+    ],
+    3: [
+      'A marquee name now, and the crowd knows it.',
+      'This is a proper test. Deep breath.',
+      'One of the big ones. Nobody climbs past this without a mark on them.',
+    ],
+    boss: [
+      'And so to the final. Everything you have, right now.',
+      'This is it. Thirty years of Saturday afternoons, all leading here.',
+      'The last one. Beat this and they will be talking about it in the pub for years.',
+    ],
+  },
+
+  physio: [
+    'Sensible. Get seen to, and go again.',
+    'The magic sponge. Never fails, never explained.',
+    'Take the treatment. There is no medal for limping.',
+  ],
+  bonus: [
+    'A little something from the club shop. Take it.',
+    'Programme, pin badge, and a spare trick up your sleeve.',
+    'Free of charge, and very much earned.',
+  ],
+
+  // ── results ───────────────────────────────────────────────────────────
+  win: [
+    'Oh, that is lovely. Absolutely lovely.',
+    'And that is how it is done. Take a bow.',
+    'Well. You will not see many better than that.',
+    'Comfortable in the end, and deservedly so.',
+  ],
+  winNarrow: [
+    'By the skin of your teeth, but they all count.',
+    'Ugly. Effective. Nobody asks how, they ask how many.',
+    'That was far closer than it needed to be. On we go.',
+  ],
+  loss: [
+    'Oh dear. Oh dear, oh dear.',
+    'Well, that is a setback, and no mistake.',
+    'Beaten, and beaten fairly. Dust yourself down.',
+    'Not your afternoon, that one. It happens to everybody.',
+  ],
+
+  // ── running on empty ──────────────────────────────────────────────────
+  lowEnergy: [
+    'You are running on fumes now. Choose carefully.',
+    'Legs have gone. One more, maybe two.',
+    'That is nearly the lot. Make it count.',
+  ],
+
+  // ── sign-offs ─────────────────────────────────────────────────────────
+  champion: [
+    'Champion of the ladder. What a way to spend an afternoon.',
+    'They said it could not be done. Mostly me. I was wrong.',
+    'And that is the trophy. Quite remarkable.',
+  ],
+  exhausted: [
+    'And that is all we have time for. The energy has gone.',
+    'We leave it there — nothing left in the tank.',
+    'Time beats everybody in the end. Same again next week?',
+  ],
+  quit: [
+    'Calling it there. Probably wise.',
+    'We shall leave it at that. Thanks for your company.',
+    'A sensible retirement. Not everyone manages one.',
+  ],
+};
+
+/** The right line for wherever the player currently is. */
+function lineForRung(rung) {
+  if (rung.kind === 'boss') return pick(SCRIPT.rung.boss);
+  if (rung.kind === 'physio') return pick(SCRIPT.physio);
+  if (rung.kind === 'bonus') return pick(SCRIPT.bonus);
+  const tier = rung.fighter ? rung.fighter.tier : 1;
+  return pick(SCRIPT.rung[Math.min(3, tier)] || SCRIPT.rung[1]);
+}
+
+function lineForResult(won, player) {
+  if (!won) return pick(SCRIPT.loss);
+  const narrow = player.hp / player.maxHp < 0.3;
+  return pick(narrow ? SCRIPT.winNarrow : SCRIPT.win);
+}
+
+function lineForEnding(outcome) {
+  if (outcome === 'champion') return pick(SCRIPT.champion);
+  if (outcome === 'energy') return pick(SCRIPT.exhausted);
+  return pick(SCRIPT.quit);
+}
+
+Object.assign(__exports, { HOST, pick, SCRIPT, lineForRung, lineForResult, lineForEnding });
 });
 __req("main.js");
 })();
