@@ -40,6 +40,8 @@ Source is plain ES modules — no bundler, no framework, no install needed to
 develop or play. `npm install` is only for the browser playtest.
 
 Starting a run is two taps: **START A DAY OUT**, pick a fighter, **FIGHT**.
+Winning carries you up to the next rung automatically; the left arrow takes you
+back down if you want a better star rating.
 If a friend sends you their ladder code, there's a disclosure on the select
 screen to type it in; leave it alone for a random ladder.
 

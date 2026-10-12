@@ -158,8 +158,17 @@ check(await page.evaluate(() => window.GRANDSTAND.run.ladder.get(1).stars) === 3
 
 await page.evaluate(() => document.querySelector('[data-act="back-to-ladder"]')?.click());
 await page.waitForTimeout(250);
-check(await page.evaluate(() => !document.querySelector('[data-act="rung-next"]').disabled),
-  'clearing rung 1 unlocks rung 2');
+const landedOn = await page.evaluate(() => window.GRANDSTAND.run.at);
+check(landedOn === 2, `winning carries you up the ladder (now on rung ${landedOn})`);
+check(await page.evaluate(() => window.GRANDSTAND.run.ladder.available(2)), 'rung 2 is unlocked');
+check(!(await page.isVisible('[data-act="end-day"]')) && !(await page.isVisible('.btn-row [data-act="codex"]')),
+  'ladder screen is down to one action');
+// and you can still drop back for a better star rating
+await page.click('[data-act="rung-prev"]');
+await page.waitForTimeout(200);
+check(await page.evaluate(() => window.GRANDSTAND.run.at) === 1, 'left arrow goes back for a rematch');
+await page.click('[data-act="rung-next"]');
+await page.waitForTimeout(200);
 
 console.log('\nCLIMBING');
 let fights = 1, restsTaken = 0;

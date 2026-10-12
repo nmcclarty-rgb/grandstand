@@ -332,12 +332,9 @@ function screenLadder() {
         ${rung.fighter ? `<p class="small">"${esc(rung.fighter.taunt)}"</p>` : ''}
       </div>
       <div class="btn-row">${action}</div>
-      <div class="btn-row">
-        <button class="small-btn" data-act="codex">ROSTER</button>
-        <button class="small-btn" data-act="end-day">END THE DAY</button>
-      </div>
       <p class="small dim">${r.player.nutmegs} nutmeg${r.player.nutmegs === 1 ? '' : 's'} left
-        · ${l.clearedCount()}/${RUNGS} rungs cleared</p>
+        · ${l.clearedCount()}/${RUNGS} rungs cleared
+        · <span class="dim">✕ above ends the day</span></p>
     </div>`);
 
   const fc = panel.querySelector('canvas.rungface');
@@ -607,7 +604,7 @@ function screenCodex() {
       <h2>THE ROSTER</h2>
       <p class="small dim">Affectionate fakes, all of them. Nobody real was harmed.</p>
       <div class="btn-grid">${cards}</div>
-      <div class="btn-row"><button data-act="${G.run && !G.run.over ? 'back-to-ladder' : 'title'}">BACK</button></div>
+      <div class="btn-row"><button data-act="${G.run && !G.run.over ? 'resume-ladder' : 'title'}">BACK</button></div>
     </div>`);
 
   for (const cv of panel.querySelectorAll('canvas.portrait')) {
@@ -663,6 +660,21 @@ function startRun() {
   paintHostFace();
   const box = panel.querySelector('.host-says');
   if (box) box.textContent = `\u201c${G.hostLine}\u201d`;
+}
+
+/**
+ * Clearing a rung moves you up to the next one.
+ *
+ * Standing on someone you have just beaten and having to press right is a tax
+ * on the common case: nearly everyone wants the next fight. Going back for a
+ * better star rating is the rarer choice, so that is the one that costs a
+ * button press — and the left arrow is right there.
+ */
+function stepUp() {
+  const r = G.run;
+  if (!r || r.over) return;
+  if (!r.rung.cleared) return;              // lost, or walked away — stay put
+  if (r.ladder.available(r.at + 1)) r.moveTo(r.at + 1);
 }
 
 function moveRung(delta) {
@@ -783,6 +795,7 @@ panel.addEventListener('click', (e) => {
       if (res) toast(res.kind === KIND.PHYSIO
         ? `PHYSIO — +${res.healed} CONDITION`
         : `CLUB SHOP — +${res.rep} REP, +1 NUTMEG`);
+      stepUp();
       updateHud(); screenLadder(); break;
     }
     case 'begin': sfx.confirm(); G.battle.begin(); screenQuestion(); break;
@@ -796,10 +809,12 @@ panel.addEventListener('click', (e) => {
       if (G.battle.useNutmeg()) { sfx.select(); toast('NUTMEG — one option gone'); screenQuestion(); }
       break;
     case 'advance': sfx.select(); advanceBattle(); break;
-    case 'back-to-ladder': G.battle = null; G.rung = null; screenLadder(); break;
-    case 'end-day':
-      if (confirm('End the day here and take your score?')) { G.run.end('quit'); screenResults(); }
+    case 'back-to-ladder':
+      G.battle = null; G.rung = null;
+      stepUp();
+      screenLadder();
       break;
+    case 'resume-ladder': screenLadder(); break;
     case 'results': screenResults(); break;
   }
 });

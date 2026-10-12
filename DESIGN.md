@@ -102,6 +102,14 @@ What the ladder buys that the dungeon didn't:
 - **The route is shareable.** A seed is now a specific run of twelve names, in
   order, which is a thing two people can actually compare.
 
+Winning moves you up a rung without being asked. Standing on someone you have
+just beaten and having to press right is a tax on the common case — nearly
+everyone wants the next fight. Going back for a better rating is the rarer
+choice, so that is the one that costs a press, and the left arrow is right
+there. The same goes for the ladder screen's buttons: it is down to a single
+action, because an end-the-day control already sits in the status bar and the
+roster is a thing you browse between runs, not during one.
+
 **Stars** do the job the dungeon's side rooms used to. Three per rung — one for
 winning, one for answering well, one for finishing in decent nick — and you can
 climb back down to improve a rating. That's the whole reason to move backwards,
