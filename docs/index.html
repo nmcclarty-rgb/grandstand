@@ -179,6 +179,23 @@
   .seed-box[open] > summary { margin-bottom: 8px; }
   .seed-box .txt { margin-bottom: 6px; }
 
+  /* ── treatment / club-shop choices ──────────────────────────── */
+  .treatment-list { display: flex; flex-direction: column; gap: 7px; }
+  .treatment {
+    display: flex; flex-direction: column; gap: 5px; text-align: left;
+    padding: 11px 12px;
+  }
+  .treatment.gamble { border-color: var(--gold); }
+  .t-name { font-family: var(--head); font-size: 9px; line-height: 1.5; }
+  .t-risk {
+    font-size: 7px; color: #171128; background: var(--gold);
+    padding: 2px 4px; border-radius: 3px; margin-left: 4px;
+  }
+  .t-blurb {
+    font-family: var(--body); font-size: 14px; line-height: 1.45;
+    color: var(--ink-dim); text-transform: none; letter-spacing: 0;
+  }
+
   /* ── the host ───────────────────────────────────────────────── */
   .host-line {
     display: flex; gap: 10px; align-items: flex-start;
@@ -374,7 +391,7 @@ const { drawFace, drawPresenterFace } = __req("engine/sprites.js");
 const { initAudio, sfx, setMuted, isMuted, playTrack, setMusicEnabled, isMusicEnabled } = __req("engine/audio.js");
 const { Battle, PHASE, ANSWER_MS } = __req("game/battle.js");
 const { KIND, RUNGS } = __req("game/ladder.js");
-const { Run, loadSave, recordRun, recordBeaten, savePrefs, wipeSave, makeSeedFrom, seedName, ENTER_COST, BATTLE_TURN_COST } = __req("game/state.js");
+const { Run, loadSave, recordRun, recordBeaten, savePrefs, wipeSave, restOptions, makeSeedFrom, seedName, ENTER_COST, BATTLE_TURN_COST } = __req("game/state.js");
 const { SPORTS, QUESTIONS } = __req("data/questions.js");
 const { CHARACTERS, findCharacter } = __req("data/characters.js");
 const { HOST, SCRIPT, pick, lineForRung, lineForResult, lineForEnding } = __req("data/host.js");
@@ -476,6 +493,12 @@ const hostBox = () => (G.hostLine ? `
       <p class="host-says">“${esc(G.hostLine)}”</p>
     </div>
   </div>` : '');
+
+/** Swap the host's words without rebuilding the screen under the player. */
+function repaintHostLine() {
+  const box = panel.querySelector('.host-says');
+  if (box) box.textContent = `\u201c${G.hostLine}\u201d`;
+}
 
 function paintHostFace() {
   for (const cv of panel.querySelectorAll('canvas.hostface')) {
@@ -640,9 +663,13 @@ function paintPickFaces() {
 
 // ── the ladder ─────────────────────────────────────────────────────────────
 function screenLadder() {
+  const r = G.run;
+  // Out of energy with nothing affordable and no restorative rung in reach is
+  // a dead end, not a game state. End the day and take the score.
+  if (r.isStuck()) { r.end('energy'); screenResults(); return; }
+
   G.screen = 'ladder';
   setHud(true);
-  const r = G.run;
   const rung = r.rung;
   // He introduces the rung you have walked to, and nags when you're spent.
   say(r.energy <= ENTER_COST * 2 && !rung.cleared ? pick(SCRIPT.lowEnergy) : lineForRung(rung));
@@ -656,7 +683,12 @@ function screenLadder() {
   if (rung.cleared && isRest) {
     action = `<button disabled>ALREADY TAKEN</button>`;
   } else if (isRest) {
-    action = `<button class="primary" data-act="rest">${rung.kind === KIND.PHYSIO ? 'SEE THE PHYSIO' : 'COLLECT'}</button>`;
+    // A choice, not a button to walk through.
+    action = restOptions(rung.kind).map((o) => `
+      <button class="treatment ${o.gamble ? 'gamble' : ''}" data-act="rest" data-opt="${o.id}">
+        <span class="t-name">${esc(o.name)}${o.gamble ? ' <span class="t-risk">GAMBLE</span>' : ''}</span>
+        <span class="t-blurb">${esc(o.blurb)}</span>
+      </button>`).join('');
   } else if (!affordable) {
     action = `<button disabled>NOT ENOUGH ENERGY (${ENTER_COST})</button>`;
   } else {
@@ -675,8 +707,8 @@ function screenLadder() {
        </div>`
     : `<div class="rung-name">${rung.kind === KIND.PHYSIO ? 'THE PHYSIO ROOM' : 'THE CLUB SHOP'}</div>
        <p class="small dim">${rung.kind === KIND.PHYSIO
-          ? 'Magic sponge, cold spray, back out you go. Restores over half your condition.'
-          : 'A match programme and a spare nutmeg. Take it, you have earned it.'}</p>`;
+          ? 'Strip lighting, a massage table and a man with opinions. Pick your treatment.'
+          : 'A trestle table of tat by the turnstiles. Take one thing.'}</p>`;
 
   show(`
     <div class="screen on">
@@ -694,7 +726,7 @@ function screenLadder() {
         ${who}
         ${rung.fighter ? `<p class="small">"${esc(rung.fighter.taunt)}"</p>` : ''}
       </div>
-      <div class="btn-row">${action}</div>
+      <div class="${isRest && !rung.cleared ? 'treatment-list' : 'btn-row'}">${action}</div>
       <p class="small dim">${r.player.nutmegs} nutmeg${r.player.nutmegs === 1 ? '' : 's'} left
         · ${l.clearedCount()}/${RUNGS} rungs cleared
         · <span class="dim">✕ above ends the day</span></p>
@@ -1040,8 +1072,7 @@ function startRun() {
   screenLadder();
   say(pick(SCRIPT.runStart(G.run.character.name)));
   paintHostFace();
-  const box = panel.querySelector('.host-says');
-  if (box) box.textContent = `\u201c${G.hostLine}\u201d`;
+  repaintHostLine();
 }
 
 /**
@@ -1173,13 +1204,18 @@ panel.addEventListener('click', (e) => {
     case 'rung-next': moveRung(1); break;
     case 'fight': sfx.confirm(); enterBattle(); break;
     case 'rest': {
-      const res = G.run.takeRest();
-      sfx.pickup();
-      if (res) toast(res.kind === KIND.PHYSIO
-        ? `PHYSIO — +${res.healed} CONDITION`
-        : `CLUB SHOP — +${res.rep} REP, +1 NUTMEG`);
+      const res = G.run.takeRest(btn.dataset.opt);
+      if (res) {
+        if (res.tone === 'bad') sfx.lose(); else if (res.tone === 'great') sfx.crit(); else sfx.pickup();
+        toast(res.text, 2400);
+        G.pendingHostLine = res.tone === 'bad' ? pick(SCRIPT.treatmentBad)
+                          : res.tone === 'great' ? pick(SCRIPT.treatmentGreat)
+                          : null;
+      }
       stepUp();
-      updateHud(); screenLadder(); break;
+      updateHud(); screenLadder();
+      if (G.pendingHostLine) { say(G.pendingHostLine); G.pendingHostLine = null; repaintHostLine(); }
+      break;
     }
     case 'answer': doAnswer(+btn.dataset.i); break;
     case 'nutmeg':
@@ -4689,8 +4725,88 @@ const ENTER_COST = 10;         // walking out to face someone
 const BATTLE_TURN_COST = 1;    // per exchange
 const WIN_REFUND = 6;
 const LOSS_PENALTY = 18;
-const PHYSIO_HEAL = 0.55;      // fraction of max condition restored
 const BONUS_REP = 250;
+
+/**
+ * The treatment room. A single "press to be healed" button was a rung you
+ * walked through rather than played, so it is now a decision: a safe heal, a
+ * trade of health for stamina, or a gamble that is better than both when it
+ * lands and worse than either when it doesn't.
+ */
+const TREATMENTS = [
+  {
+    id: 'sponge',
+    name: 'THE MAGIC SPONGE',
+    blurb: 'Cold water, no questions asked. Restores over half your condition.',
+    apply(run) {
+      const before = run.player.hp;
+      run.player.hp = Math.min(run.player.maxHp, run.player.hp + Math.round(run.player.maxHp * 0.55));
+      return { tone: 'good', text: `MAGIC SPONGE — +${run.player.hp - before} CONDITION` };
+    },
+  },
+  {
+    id: 'deepheat',
+    name: 'DEEP HEAT AND A SIT DOWN',
+    blurb: 'Less of a repair job, but you get your breath back. Some condition, and energy.',
+    apply(run) {
+      const before = run.player.hp;
+      run.player.hp = Math.min(run.player.maxHp, run.player.hp + Math.round(run.player.maxHp * 0.25));
+      run.energy = Math.min(run.maxEnergy, run.energy + 18);
+      return { tone: 'good', text: `DEEP HEAT — +${run.player.hp - before} CONDITION, +18 ENERGY` };
+    },
+  },
+  {
+    id: 'injection',
+    name: 'WHATEVER IS IN THAT SYRINGE',
+    blurb: 'Nobody asks. Usually you come back brand new. Sometimes you come back worse.',
+    gamble: true,
+    apply(run) {
+      const before = run.player.hp;
+      if (Math.random() < 0.6) {
+        run.player.hp = run.player.maxHp;
+        return { tone: 'great', text: `BANG — FULL CONDITION (+${run.player.hp - before})` };
+      }
+      run.player.hp = Math.min(run.player.maxHp, run.player.hp + Math.round(run.player.maxHp * 0.12));
+      run.spendEnergy(8);
+      return { tone: 'bad', text: `IT'S GONE COLD — +${run.player.hp - before} CONDITION, -8 ENERGY` };
+    },
+  },
+];
+
+/** The club shop. Same idea: three different things to want. */
+const SHOP_ITEMS = [
+  {
+    id: 'programme',
+    name: 'THE MATCH PROGRAMME',
+    blurb: 'Worth something to the right collector. Straight rep.',
+    apply(run) {
+      const gain = Math.round(BONUS_REP * (run.player.perk.repMult || 1));
+      run.rep += gain;
+      return { tone: 'good', text: `MATCH PROGRAMME — +${gain} REP` };
+    },
+  },
+  {
+    id: 'nutmegs',
+    name: 'TWO SPARE NUTMEGS',
+    blurb: 'Two more chances to turn a question you do not know into a coin flip.',
+    apply(run) {
+      run.player.nutmegs += 2;
+      return { tone: 'good', text: 'NUTMEGS — +2' };
+    },
+  },
+  {
+    id: 'lucozade',
+    name: 'A CRATE OF LUCOZADE',
+    blurb: 'Energy. Which is to say: another fight, maybe two.',
+    apply(run) {
+      const before = run.energy;
+      run.energy = Math.min(run.maxEnergy, run.energy + 26);
+      return { tone: 'good', text: `LUCOZADE — +${run.energy - before} ENERGY` };
+    },
+  },
+];
+
+const restOptions = (kind) => (kind === KIND.PHYSIO ? TREATMENTS : SHOP_ITEMS);
 
 const SAVE_KEY = 'grandstand.save.v2';
 
@@ -4740,6 +4856,19 @@ class Run {
 
   canAfford(cost = ENTER_COST) { return this.energy >= cost; }
 
+  /**
+   * Out of energy but not yet "over" is a dead end: the player sits on the
+   * ladder with every button disabled and no way forward. Running out should
+   * end the day, not freeze it. A free restorative rung you can still walk to
+   * keeps the day alive, so check for one before calling it.
+   */
+  isStuck() {
+    if (this.over) return false;
+    if (this.canAfford(ENTER_COST)) return false;
+    return !this.ladder.rungs.some((r) =>
+      !r.cleared && (r.kind === KIND.PHYSIO || r.kind === KIND.BONUS) && this.ladder.available(r.n));
+  }
+
   spendEnergy(n) {
     this.energy = Math.max(0, this.energy - n);
     if (this.energy <= 0 && !this.over) this.end('energy');
@@ -4762,24 +4891,16 @@ class Run {
     return true;
   }
 
-  /** Physio and bonus rungs resolve on arrival rather than in a fight. */
-  takeRest() {
+  /** Take one of the options on a physio or club-shop rung. */
+  takeRest(optionId) {
     const r = this.rung;
-    if (r.kind === KIND.PHYSIO) {
-      const before = this.player.hp;
-      this.player.hp = Math.min(this.player.maxHp,
-        this.player.hp + Math.round(this.player.maxHp * PHYSIO_HEAL));
-      r.cleared = true; r.stars = Math.max(r.stars, 3);
-      return { kind: KIND.PHYSIO, healed: this.player.hp - before };
-    }
-    if (r.kind === KIND.BONUS) {
-      const gain = Math.round(BONUS_REP * (this.player.perk.repMult || 1));
-      this.rep += gain;
-      this.player.nutmegs++;
-      r.cleared = true; r.stars = Math.max(r.stars, 3);
-      return { kind: KIND.BONUS, rep: gain, nutmegs: 1 };
-    }
-    return null;
+    const options = restOptions(r.kind);
+    if (!options) return null;
+    const choice = options.find((o) => o.id === optionId) || options[0];
+    const result = choice.apply(this);
+    r.cleared = true;
+    r.stars = Math.max(r.stars, 3);
+    return { kind: r.kind, choice, ...result };
   }
 
   finishBattle(rung, battle, won) {
@@ -4888,7 +5009,7 @@ function seedName(seed) {
   return `${WORDS[seed % WORDS.length]}-${(seed >> 8) % 90 + 10}`;
 }
 
-Object.assign(__exports, { START_ENERGY, ENTER_COST, BATTLE_TURN_COST, WIN_REFUND, LOSS_PENALTY, PHYSIO_HEAL, BONUS_REP, Run, loadSave, recordRun, recordBeaten, savePrefs, wipeSave, makeSeedFrom, seedName });
+Object.assign(__exports, { START_ENERGY, ENTER_COST, BATTLE_TURN_COST, WIN_REFUND, LOSS_PENALTY, BONUS_REP, TREATMENTS, SHOP_ITEMS, restOptions, Run, loadSave, recordRun, recordBeaten, savePrefs, wipeSave, makeSeedFrom, seedName });
 });
 
 // ─── data/characters.js ──────────────────────────────────────────
@@ -5068,6 +5189,17 @@ const SCRIPT = {
     'A little something from the club shop. Take it.',
     'Programme, pin badge, and a spare trick up your sleeve.',
     'Free of charge, and very much earned.',
+  ],
+
+  treatmentGreat: [
+    'Whatever that was, it has worked. Look at him go.',
+    'Brand new. I shall ask no further questions.',
+    'Transformed. Genuinely transformed.',
+  ],
+  treatmentBad: [
+    'Oh, that has not taken at all. That is worse.',
+    'Well. That is the risk you run, and you have run it.',
+    'He has gone a funny colour. Let us move on.',
   ],
 
   // ── results ───────────────────────────────────────────────────────────

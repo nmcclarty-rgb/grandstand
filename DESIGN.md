@@ -110,6 +110,29 @@ there. The same goes for the ladder screen's buttons: it is down to a single
 action, because an end-the-day control already sits in the status bar and the
 roster is a thing you browse between runs, not during one.
 
+### Rest rungs are decisions too
+
+The treatment room began as one button that healed you, which made it a rung
+you walked through rather than played. It is now three: a safe heal, a trade of
+health for stamina, and a gamble that gives you a full tank 60% of the time and
+costs you energy the rest. The club shop works the same way — rep, nutmegs or
+energy — and those three pull in genuinely different directions: score,
+survivability, or more fights.
+
+The gamble is the interesting one, because it is the only place in the game
+where the player takes a risk that isn't a question. At 60/40 it is correct to
+take when you are badly hurt and wrong when you are nearly full, which is a
+real decision rather than a coin you flip for fun.
+
+### Running out is an ending, not a wall
+
+Energy ran the run down, but the run only *ended* at exactly zero. Land on 7
+with fights costing 10 and you were alive, on the ladder, with every button
+disabled and nothing to press — a dead end dressed up as a game state. A run
+now ends the moment you cannot afford a fight and no restorative rung is still
+in reach, and goes straight to the scorecard. Reachability matters: a physio
+three rungs up you can't get to is not a lifeline.
+
 **Stars** do the job the dungeon's side rooms used to. Three per rung — one for
 winning, one for answering well, one for finishing in decent nick — and you can
 climb back down to improve a rating. That's the whole reason to move backwards,

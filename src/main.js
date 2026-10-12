@@ -17,7 +17,7 @@ import { initAudio, sfx, setMuted, isMuted,
          playTrack, setMusicEnabled, isMusicEnabled } from './engine/audio.js';
 import { Battle, PHASE, ANSWER_MS } from './game/battle.js';
 import { KIND, RUNGS } from './game/ladder.js';
-import { Run, loadSave, recordRun, recordBeaten, savePrefs, wipeSave,
+import { Run, loadSave, recordRun, recordBeaten, savePrefs, wipeSave, restOptions,
          makeSeedFrom, seedName, ENTER_COST, BATTLE_TURN_COST } from './game/state.js';
 import { SPORTS, QUESTIONS } from './data/questions.js';
 import { CHARACTERS, findCharacter } from './data/characters.js';
@@ -120,6 +120,12 @@ const hostBox = () => (G.hostLine ? `
       <p class="host-says">“${esc(G.hostLine)}”</p>
     </div>
   </div>` : '');
+
+/** Swap the host's words without rebuilding the screen under the player. */
+function repaintHostLine() {
+  const box = panel.querySelector('.host-says');
+  if (box) box.textContent = `\u201c${G.hostLine}\u201d`;
+}
 
 function paintHostFace() {
   for (const cv of panel.querySelectorAll('canvas.hostface')) {
@@ -284,9 +290,13 @@ function paintPickFaces() {
 
 // ── the ladder ─────────────────────────────────────────────────────────────
 function screenLadder() {
+  const r = G.run;
+  // Out of energy with nothing affordable and no restorative rung in reach is
+  // a dead end, not a game state. End the day and take the score.
+  if (r.isStuck()) { r.end('energy'); screenResults(); return; }
+
   G.screen = 'ladder';
   setHud(true);
-  const r = G.run;
   const rung = r.rung;
   // He introduces the rung you have walked to, and nags when you're spent.
   say(r.energy <= ENTER_COST * 2 && !rung.cleared ? pick(SCRIPT.lowEnergy) : lineForRung(rung));
@@ -300,7 +310,12 @@ function screenLadder() {
   if (rung.cleared && isRest) {
     action = `<button disabled>ALREADY TAKEN</button>`;
   } else if (isRest) {
-    action = `<button class="primary" data-act="rest">${rung.kind === KIND.PHYSIO ? 'SEE THE PHYSIO' : 'COLLECT'}</button>`;
+    // A choice, not a button to walk through.
+    action = restOptions(rung.kind).map((o) => `
+      <button class="treatment ${o.gamble ? 'gamble' : ''}" data-act="rest" data-opt="${o.id}">
+        <span class="t-name">${esc(o.name)}${o.gamble ? ' <span class="t-risk">GAMBLE</span>' : ''}</span>
+        <span class="t-blurb">${esc(o.blurb)}</span>
+      </button>`).join('');
   } else if (!affordable) {
     action = `<button disabled>NOT ENOUGH ENERGY (${ENTER_COST})</button>`;
   } else {
@@ -319,8 +334,8 @@ function screenLadder() {
        </div>`
     : `<div class="rung-name">${rung.kind === KIND.PHYSIO ? 'THE PHYSIO ROOM' : 'THE CLUB SHOP'}</div>
        <p class="small dim">${rung.kind === KIND.PHYSIO
-          ? 'Magic sponge, cold spray, back out you go. Restores over half your condition.'
-          : 'A match programme and a spare nutmeg. Take it, you have earned it.'}</p>`;
+          ? 'Strip lighting, a massage table and a man with opinions. Pick your treatment.'
+          : 'A trestle table of tat by the turnstiles. Take one thing.'}</p>`;
 
   show(`
     <div class="screen on">
@@ -338,7 +353,7 @@ function screenLadder() {
         ${who}
         ${rung.fighter ? `<p class="small">"${esc(rung.fighter.taunt)}"</p>` : ''}
       </div>
-      <div class="btn-row">${action}</div>
+      <div class="${isRest && !rung.cleared ? 'treatment-list' : 'btn-row'}">${action}</div>
       <p class="small dim">${r.player.nutmegs} nutmeg${r.player.nutmegs === 1 ? '' : 's'} left
         · ${l.clearedCount()}/${RUNGS} rungs cleared
         · <span class="dim">✕ above ends the day</span></p>
@@ -684,8 +699,7 @@ function startRun() {
   screenLadder();
   say(pick(SCRIPT.runStart(G.run.character.name)));
   paintHostFace();
-  const box = panel.querySelector('.host-says');
-  if (box) box.textContent = `\u201c${G.hostLine}\u201d`;
+  repaintHostLine();
 }
 
 /**
@@ -817,13 +831,18 @@ panel.addEventListener('click', (e) => {
     case 'rung-next': moveRung(1); break;
     case 'fight': sfx.confirm(); enterBattle(); break;
     case 'rest': {
-      const res = G.run.takeRest();
-      sfx.pickup();
-      if (res) toast(res.kind === KIND.PHYSIO
-        ? `PHYSIO — +${res.healed} CONDITION`
-        : `CLUB SHOP — +${res.rep} REP, +1 NUTMEG`);
+      const res = G.run.takeRest(btn.dataset.opt);
+      if (res) {
+        if (res.tone === 'bad') sfx.lose(); else if (res.tone === 'great') sfx.crit(); else sfx.pickup();
+        toast(res.text, 2400);
+        G.pendingHostLine = res.tone === 'bad' ? pick(SCRIPT.treatmentBad)
+                          : res.tone === 'great' ? pick(SCRIPT.treatmentGreat)
+                          : null;
+      }
       stepUp();
-      updateHud(); screenLadder(); break;
+      updateHud(); screenLadder();
+      if (G.pendingHostLine) { say(G.pendingHostLine); G.pendingHostLine = null; repaintHostLine(); }
+      break;
     }
     case 'answer': doAnswer(+btn.dataset.i); break;
     case 'nutmeg':

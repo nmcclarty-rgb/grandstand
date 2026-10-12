@@ -213,8 +213,16 @@ for (let i = 0; i < 14; i++) {
   const frontier = await page.evaluate(() => window.GRANDSTAND.run.ladder.frontier());
   if (!(await goToRung(page, frontier))) break;
   if (await page.isVisible('[data-act="rest"]')) {
-    await page.click('[data-act="rest"]');
-    await page.waitForTimeout(250);
+    const opts = await page.evaluate(() =>
+      [...document.querySelectorAll('[data-act="rest"]')].map((b) => b.dataset.opt));
+    if (restsTaken === 0) {
+      check(opts.length === 3, `the rest rung offers a choice of ${opts.length}`);
+      check(await page.isVisible('.treatment.gamble'), 'one of them is a gamble');
+      await shot(page, '09-rest-choice');
+    }
+    // take a different option each time, so all three paths get exercised
+    await page.click(`[data-act="rest"][data-opt="${opts[restsTaken % opts.length]}"]`);
+    await page.waitForTimeout(300);
     restsTaken++;
     continue;
   }
@@ -231,6 +239,15 @@ for (let i = 0; i < 14; i++) {
 check(fights > 3, `played ${fights} fights in one day`);
 check(restsTaken > 0, `took ${restsTaken} rest rung(s)`);
 await shot(page, '08-ladder-progress');
+
+// Being alive but unable to afford anything used to leave the player staring
+// at a screen of disabled buttons.
+const stranded = await page.evaluate(() => {
+  const G = window.GRANDSTAND;
+  if (!G.run || G.run.over) return 'run already ended';
+  return G.run.isStuck() ? 'STUCK ON LADDER' : 'ok';
+});
+check(stranded !== 'STUCK ON LADDER', `no dead end on the ladder (${stranded})`);
 
 if (!(await page.isVisible('[data-act="league"]'))) {
   await page.evaluate(() => { window.GRANDSTAND.run.end('quit'); });

@@ -178,6 +178,23 @@
   .seed-box[open] > summary { margin-bottom: 8px; }
   .seed-box .txt { margin-bottom: 6px; }
 
+  /* ── treatment / club-shop choices ──────────────────────────── */
+  .treatment-list { display: flex; flex-direction: column; gap: 7px; }
+  .treatment {
+    display: flex; flex-direction: column; gap: 5px; text-align: left;
+    padding: 11px 12px;
+  }
+  .treatment.gamble { border-color: var(--gold); }
+  .t-name { font-family: var(--head); font-size: 9px; line-height: 1.5; }
+  .t-risk {
+    font-size: 7px; color: #171128; background: var(--gold);
+    padding: 2px 4px; border-radius: 3px; margin-left: 4px;
+  }
+  .t-blurb {
+    font-family: var(--body); font-size: 14px; line-height: 1.45;
+    color: var(--ink-dim); text-transform: none; letter-spacing: 0;
+  }
+
   /* ── the host ───────────────────────────────────────────────── */
   .host-line {
     display: flex; gap: 10px; align-items: flex-start;

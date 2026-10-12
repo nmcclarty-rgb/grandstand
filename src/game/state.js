@@ -25,8 +25,88 @@ export const ENTER_COST = 10;         // walking out to face someone
 export const BATTLE_TURN_COST = 1;    // per exchange
 export const WIN_REFUND = 6;
 export const LOSS_PENALTY = 18;
-export const PHYSIO_HEAL = 0.55;      // fraction of max condition restored
 export const BONUS_REP = 250;
+
+/**
+ * The treatment room. A single "press to be healed" button was a rung you
+ * walked through rather than played, so it is now a decision: a safe heal, a
+ * trade of health for stamina, or a gamble that is better than both when it
+ * lands and worse than either when it doesn't.
+ */
+export const TREATMENTS = [
+  {
+    id: 'sponge',
+    name: 'THE MAGIC SPONGE',
+    blurb: 'Cold water, no questions asked. Restores over half your condition.',
+    apply(run) {
+      const before = run.player.hp;
+      run.player.hp = Math.min(run.player.maxHp, run.player.hp + Math.round(run.player.maxHp * 0.55));
+      return { tone: 'good', text: `MAGIC SPONGE — +${run.player.hp - before} CONDITION` };
+    },
+  },
+  {
+    id: 'deepheat',
+    name: 'DEEP HEAT AND A SIT DOWN',
+    blurb: 'Less of a repair job, but you get your breath back. Some condition, and energy.',
+    apply(run) {
+      const before = run.player.hp;
+      run.player.hp = Math.min(run.player.maxHp, run.player.hp + Math.round(run.player.maxHp * 0.25));
+      run.energy = Math.min(run.maxEnergy, run.energy + 18);
+      return { tone: 'good', text: `DEEP HEAT — +${run.player.hp - before} CONDITION, +18 ENERGY` };
+    },
+  },
+  {
+    id: 'injection',
+    name: 'WHATEVER IS IN THAT SYRINGE',
+    blurb: 'Nobody asks. Usually you come back brand new. Sometimes you come back worse.',
+    gamble: true,
+    apply(run) {
+      const before = run.player.hp;
+      if (Math.random() < 0.6) {
+        run.player.hp = run.player.maxHp;
+        return { tone: 'great', text: `BANG — FULL CONDITION (+${run.player.hp - before})` };
+      }
+      run.player.hp = Math.min(run.player.maxHp, run.player.hp + Math.round(run.player.maxHp * 0.12));
+      run.spendEnergy(8);
+      return { tone: 'bad', text: `IT'S GONE COLD — +${run.player.hp - before} CONDITION, -8 ENERGY` };
+    },
+  },
+];
+
+/** The club shop. Same idea: three different things to want. */
+export const SHOP_ITEMS = [
+  {
+    id: 'programme',
+    name: 'THE MATCH PROGRAMME',
+    blurb: 'Worth something to the right collector. Straight rep.',
+    apply(run) {
+      const gain = Math.round(BONUS_REP * (run.player.perk.repMult || 1));
+      run.rep += gain;
+      return { tone: 'good', text: `MATCH PROGRAMME — +${gain} REP` };
+    },
+  },
+  {
+    id: 'nutmegs',
+    name: 'TWO SPARE NUTMEGS',
+    blurb: 'Two more chances to turn a question you do not know into a coin flip.',
+    apply(run) {
+      run.player.nutmegs += 2;
+      return { tone: 'good', text: 'NUTMEGS — +2' };
+    },
+  },
+  {
+    id: 'lucozade',
+    name: 'A CRATE OF LUCOZADE',
+    blurb: 'Energy. Which is to say: another fight, maybe two.',
+    apply(run) {
+      const before = run.energy;
+      run.energy = Math.min(run.maxEnergy, run.energy + 26);
+      return { tone: 'good', text: `LUCOZADE — +${run.energy - before} ENERGY` };
+    },
+  },
+];
+
+export const restOptions = (kind) => (kind === KIND.PHYSIO ? TREATMENTS : SHOP_ITEMS);
 
 const SAVE_KEY = 'grandstand.save.v2';
 
@@ -76,6 +156,19 @@ export class Run {
 
   canAfford(cost = ENTER_COST) { return this.energy >= cost; }
 
+  /**
+   * Out of energy but not yet "over" is a dead end: the player sits on the
+   * ladder with every button disabled and no way forward. Running out should
+   * end the day, not freeze it. A free restorative rung you can still walk to
+   * keeps the day alive, so check for one before calling it.
+   */
+  isStuck() {
+    if (this.over) return false;
+    if (this.canAfford(ENTER_COST)) return false;
+    return !this.ladder.rungs.some((r) =>
+      !r.cleared && (r.kind === KIND.PHYSIO || r.kind === KIND.BONUS) && this.ladder.available(r.n));
+  }
+
   spendEnergy(n) {
     this.energy = Math.max(0, this.energy - n);
     if (this.energy <= 0 && !this.over) this.end('energy');
@@ -98,24 +191,16 @@ export class Run {
     return true;
   }
 
-  /** Physio and bonus rungs resolve on arrival rather than in a fight. */
-  takeRest() {
+  /** Take one of the options on a physio or club-shop rung. */
+  takeRest(optionId) {
     const r = this.rung;
-    if (r.kind === KIND.PHYSIO) {
-      const before = this.player.hp;
-      this.player.hp = Math.min(this.player.maxHp,
-        this.player.hp + Math.round(this.player.maxHp * PHYSIO_HEAL));
-      r.cleared = true; r.stars = Math.max(r.stars, 3);
-      return { kind: KIND.PHYSIO, healed: this.player.hp - before };
-    }
-    if (r.kind === KIND.BONUS) {
-      const gain = Math.round(BONUS_REP * (this.player.perk.repMult || 1));
-      this.rep += gain;
-      this.player.nutmegs++;
-      r.cleared = true; r.stars = Math.max(r.stars, 3);
-      return { kind: KIND.BONUS, rep: gain, nutmegs: 1 };
-    }
-    return null;
+    const options = restOptions(r.kind);
+    if (!options) return null;
+    const choice = options.find((o) => o.id === optionId) || options[0];
+    const result = choice.apply(this);
+    r.cleared = true;
+    r.stars = Math.max(r.stars, 3);
+    return { kind: r.kind, choice, ...result };
   }
 
   finishBattle(rung, battle, won) {

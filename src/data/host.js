@@ -90,6 +90,17 @@ export const SCRIPT = {
     'Free of charge, and very much earned.',
   ],
 
+  treatmentGreat: [
+    'Whatever that was, it has worked. Look at him go.',
+    'Brand new. I shall ask no further questions.',
+    'Transformed. Genuinely transformed.',
+  ],
+  treatmentBad: [
+    'Oh, that has not taken at all. That is worse.',
+    'Well. That is the risk you run, and you have run it.',
+    'He has gone a funny colour. Let us move on.',
+  ],
+
   // ── results ───────────────────────────────────────────────────────────
   win: [
     'Oh, that is lovely. Absolutely lovely.',
