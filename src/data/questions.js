@@ -39,12 +39,82 @@ function flip(prompt) {
   return out;
 }
 
-const Q = (sport, most, unit, opts, note = '') => ({
+/**
+ * Where to go to check a figure. These are the standard reference works for
+ * each sport rather than deep links, because a link rots and a name does not.
+ */
+export const SOURCE_HINTS = {
+  football:   'RSSSF; official league and club record pages; FIFA/UEFA tournament archives',
+  boxing:     'BoxRec fight records',
+  athletics:  'World Athletics records and results database',
+  cricket:    'ESPNcricinfo Statsguru',
+  snooker:    'WST (World Snooker Tour) records; CueTracker',
+  darts:      'PDC and WDF/BDO tournament archives; Darts Database',
+  golf:       'R&A and Masters/PGA official championship records',
+  tennis:     'ATP / WTA records; Wimbledon and Roland Garros archives',
+  motorsport: 'FIA / Formula One official statistics; Motorsport Stats',
+  rugby:      'World Rugby statistics; ESPN Scrum; RFL records',
+  olympics:   'Olympedia; IOC official results',
+  telly:      'BBC Genome (Radio Times listings); BFI records',
+  racing:     'Racing Post archive; British Horseracing Authority records',
+  cycling:    'ProCyclingStats; UCI records',
+};
+
+/**
+ * How likely a figure is to be wrong or to drift, used to prioritise checking.
+ *
+ *   low    definitional — scoring values, team sizes, rules. These do not move.
+ *   med    a closed record held by a retired player. Wrong or right, but stable.
+ *   high   explicitly approximate, or a figure that can still change.
+ *
+ * Anything can be overridden per question; this is only the default.
+ */
+const DEFINITIONAL_UNITS = new Set([
+  'points', 'number', 'players', 'balls', 'laps', 'par', 'under par', 'darts',
+  'segments', 'minutes', 'hurdles', 'events', 'rings', 'metres', 'furlongs',
+  'kilometres', 'pounds', 'rounds', 'runners', 'frames',
+]);
+
+/**
+ * Figures attached to these people can still change, so they need re-checking
+ * periodically rather than once. Keeping the list here rather than tagging
+ * each question means retiring someone is a one-line edit.
+ */
+const STILL_COMPETING = [
+  "Ronnie O'Sullivan", 'Michael van Gerwen', 'Novak Djokovic', 'Erling Haaland',
+  'Gordon Elliott', 'Rohit Sharma', 'Ben Stokes', 'Eliud Kipchoge', 'Judd Trump',
+];
+
+function defaultRisk(unit, note, opts) {
+  if (opts.some(([label]) => STILL_COMPETING.some((n) => label.includes(n)))) return 'high';
+  if (/approx|roughly|as of|give or take/i.test(note)) return 'high';
+  if (unit === 'the year') return 'low';
+  if (DEFINITIONAL_UNITS.has(unit)) return 'low';
+  return 'med';
+}
+
+/** FNV-1a, so an id is stable across reordering but changes when content does. */
+function contentId(sport, unit, opts) {
+  const key = `${sport}|${unit}|${opts.map(([l, v]) => `${l}=${v}`).sort().join('|')}`;
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < key.length; i++) {
+    h ^= key.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return `${sport}-${h.toString(36)}`;
+}
+
+const Q = (sport, most, unit, opts, note = '', meta = {}) => ({
+  // Derived from the content, so editing a question invalidates any sign-off
+  // against it rather than silently carrying the old one forward.
+  id: contentId(sport, unit, opts),
   sport,
   most,
   least: flip(most),
   unit,
   note,
+  src: meta.src || SOURCE_HINTS[sport] || '',
+  risk: meta.risk || defaultRisk(unit, note, opts),
   options: opts.map(([label, value]) => ({ label, value })),
 });
 

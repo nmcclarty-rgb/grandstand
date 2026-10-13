@@ -8,6 +8,7 @@
     "start": "python3 -m http.server 8777",
     "build": "node tools/bundle.mjs",
     "validate": "node tools/validate.mjs",
+    "checklist": "node tools/checklist.mjs",
     "balance": "node tools/balance.mjs",
     "playtest": "node tools/playtest.mjs",
     "check": "npm run validate && npm run balance && npm run build"

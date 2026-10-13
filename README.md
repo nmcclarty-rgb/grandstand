@@ -146,8 +146,31 @@ below.
 
 ## Keeping the bank honest
 
-**The question bank has not been fact-checked by a human.** It was written from
-memory and needs a verification pass before this goes anywhere near players.
+**The question bank has not been fact-checked.** It was written from memory and
+needs a verification pass before this goes anywhere near players. There is now
+a system for doing that:
+
+```bash
+npm run checklist              # writes verification/checklist.{md,csv}
+npm run checklist -- --summary # just the state of play
+```
+
+Every question carries a stable `id`, a suggested `src` (the standard reference
+work for its sport) and a `risk` rating. The checklist is ordered by risk, so
+the top of it is the part that matters:
+
+| risk | what it means | count |
+|---|---|---|
+| **high** | can still change, or already flagged approximate | 15 |
+| **med** | a closed record held by a retired player — stable, but unchecked | 106 |
+| **low** | definitional (scoring values, team sizes) or a well-known date | 84 |
+
+Sign-off goes in `src/data/verified.json`, keyed by question id. **Ids are
+derived from question content**, so correcting a number automatically drops
+that question back onto the checklist rather than leaving a stale tick against
+it — and `validate.mjs` warns about any sign-off that no longer matches a live
+question. Verification can't silently go out of date.
+
 Two principles are baked in and worth keeping:
 
 1. **Prefer retired players and closed records.** A bank full of active players
@@ -166,6 +189,7 @@ years on air) and say so in their note. Those are the ones to check first.
 
 ```bash
 npm run validate   # content checks: ties, units, prompt direction, coverage
+npm run checklist  # regenerate the fact-checking checklist
 npm run balance    # simulate whole ladder climbs at four skill levels
 npm run build      # regenerate the single-file docs/index.html
 npm run playtest   # drive a real browser through a whole run
@@ -209,6 +233,7 @@ docs/index.html         the whole game as one file (generated — edit src/)
 src/
   main.js               boot, screens, input, the frame loop
   data/questions.js     205 questions across 14 sports — the content engine
+  data/verified.json    fact-check sign-off, keyed by question id
   data/roster.js        22 opponents
   data/characters.js    8 playable fighters and their perks
   data/host.js          Des Rider, and everything he says
@@ -221,7 +246,8 @@ src/
   game/ladder.js        the twelve rungs
   game/battle.js        turn-based combat, the damage model, perks
   game/state.js         run state, scoring, localStorage
-tools/                  validate · balance · bundle · playtest
+verification/           generated fact-checking checklist (md + csv)
+tools/                  validate · balance · bundle · playtest · checklist
                         artcheck.html · arenacheck.html
 ```
 

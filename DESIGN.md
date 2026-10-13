@@ -368,7 +368,37 @@ Rough targets from here:
   is now at 12 or more and `validate.mjs` fails below 8 and warns below 12; the
   floor should keep rising as the bank grows.
 
-Expanding it proved the tooling's worth more than anything else has. Adding
+### Making verification tractable
+
+Saying "this needs fact-checking" in a README achieves nothing; it is a note to
+nobody. So the bank now carries the machinery to actually get it done.
+
+Every question has three new fields. A **stable id** derived from its own
+content. A **source hint** — the standard reference work for that sport, named
+rather than linked, because a link rots and a name does not. And a **risk
+rating**, assigned automatically: definitional questions (scoring values, team
+sizes) are low, closed records held by retired players are medium, and anything
+either flagged approximate in its own note or attached to someone still
+competing is high. That last rule reads a short list of active names, so
+retiring someone is a one-line edit.
+
+`tools/checklist.mjs` turns that into a tick-box list ordered by risk, as
+markdown and as CSV. It will not be finished in one sitting, so the top of it
+has to be the part that matters.
+
+The detail that makes the scheme worth having is that **ids are derived from
+content**. Sign-off lives in `verified.json` keyed by id, so correcting a
+number changes its id and automatically drops that question back onto the
+checklist — and `validate.mjs` warns about any sign-off left pointing at
+nothing. A verification scheme that can silently go out of date is worse than
+none, because it tells you the bank is clean when it isn't.
+
+What it cannot do is check anything. That still needs a person with a
+reference work, and it is still the largest open risk in the project.
+
+### What the expansion taught us
+
+Expanding the bank proved the tooling's worth more than anything else has. Adding
 ~110 questions in one go produced, immediately and automatically: three ties
 for the top or bottom value, six prompts that didn't say which way round they
 were asking, and five questions that duplicated existing ones outright. Every

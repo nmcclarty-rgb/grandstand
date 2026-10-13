@@ -114,6 +114,26 @@ for (const c of CHARACTERS) {
 }
 console.log(`  ${CHARACTERS.length} fighters, ${CHARACTERS.filter((c) => Object.keys(c.perk || {}).length).length} with perks`);
 
+console.log(`\nVERIFICATION`);
+// A sign-off is keyed by a content-derived id, so an entry that no longer
+// matches any question means that question was edited after being checked.
+// Silently carrying the old tick forward is exactly the failure this scheme
+// exists to prevent, so say so loudly.
+const verified = JSON.parse(readFileSync(new URL('../src/data/verified.json', import.meta.url), 'utf8'));
+const liveIds = new Set(QUESTIONS.map((q) => q.id));
+const signOffs = Object.keys(verified).filter((k) => k !== '_README');
+const orphaned = signOffs.filter((id) => !liveIds.has(id));
+const checked = signOffs.filter((id) => liveIds.has(id)).length;
+
+for (const id of orphaned) {
+  warn(`sign-off "${id}" matches no current question — it was edited after checking, and is back on the checklist`);
+}
+const pc = Math.round((checked / QUESTIONS.length) * 100);
+console.log(`  ${checked}/${QUESTIONS.length} questions checked against a source (${pc}%)`);
+const highLeft = QUESTIONS.filter((q) => q.risk === 'high' && !liveIds.has(q.id) === false && !signOffs.includes(q.id)).length;
+if (highLeft) console.log(`  ${highLeft} of the ${QUESTIONS.filter((q) => q.risk === 'high').length} high-risk ones are still outstanding`);
+if (checked === 0) console.log('  nothing checked yet — run: node tools/checklist.mjs');
+
 console.log(`\nARENAS`);
 // Every sport a fighter can have needs a backdrop, or that fight falls back to
 // a generic pitch and the whole point of the per-sport arenas is lost.

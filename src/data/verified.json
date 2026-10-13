@@ -1,0 +1,3 @@
+{
+  "_README": "Sign-off record for the question bank. Keys are question ids (see tools/checklist.mjs). A question's id is derived from its content, so editing a question invalidates its sign-off automatically rather than silently carrying it forward. Add entries as: \"<id>\": { \"by\": \"initials\", \"on\": \"YYYY-MM-DD\", \"source\": \"where you checked\", \"note\": \"optional\" }"
+}
