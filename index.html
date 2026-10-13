@@ -18,6 +18,7 @@
     --ink:      #ece7fb;
     --ink-dim:  #a79cc9;
     --gold:     #ffd24a;
+    --teal:     #5eead4;
     --green:    #5ad47f;
     --red:      #ff7a6e;
     --blue:     #6fb3f5;
@@ -115,6 +116,12 @@
   .dim { color: var(--ink-dim); }
   .small { font-size: 13px; }
   .epithet { font-size: 12px; color: var(--ink-dim); font-style: italic; }
+  /* Edition ("track") labelling: the second button on the title screen and the
+     headings that keep the two rosters apart. */
+  .track { color: var(--gold); letter-spacing: .04em; text-transform: uppercase; }
+  h3.track { font-size: 10px; margin: 14px 0 6px; }
+  p.tight { margin: -4px 0 8px; }
+  button.edition { border-color: var(--teal, #5eead4); color: var(--teal, #5eead4); }
 
   /* ── buttons ────────────────────────────────────────────────── */
   button {

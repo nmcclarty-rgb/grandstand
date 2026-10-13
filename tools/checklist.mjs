@@ -25,7 +25,10 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { QUESTIONS, SPORTS } from '../src/data/questions.js';
+import { SPORTS } from '../src/data/questions.js';
+import { EDITIONS } from '../src/data/editions.js';
+
+const QUESTIONS = EDITIONS.flatMap((e) => e.questions.map((q) => ({ ...q, edition: e.id })));
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, 'verification');
@@ -89,26 +92,30 @@ prefer **retired players and closed records** over active ones, and never allow
 
 `;
 
-let csv = 'id,risk,sport,unit,prompt,option_1,value_1,option_2,value_2,option_3,value_3,source_hint\n';
+let csv = 'id,edition,risk,sport,unit,prompt,option_1,value_1,option_2,value_2,option_3,value_3,source_hint\n';
 
 for (const risk of ['high', 'med', 'low']) {
+  // Grouped by edition as well as sport: the '90s bank is all football, and
+  // merging it into the classic football section would hide which one a
+  // sign-off belongs to.
   const group = outstanding.filter((q) => q.risk === risk)
-    .sort((a, b) => a.sport.localeCompare(b.sport));
+    .sort((a, b) => (a.edition + a.sport).localeCompare(b.edition + b.sport));
   if (!group.length) continue;
 
   md += `\n## ${RISK_LABEL[risk]}\n\n${group.length} outstanding.\n`;
-  let sport = null;
+  let section = null;
   for (const q of group) {
-    if (q.sport !== sport) {
-      sport = q.sport;
-      md += `\n### ${SPORTS[sport] ? SPORTS[sport].name : sport}\n\n`;
+    if (q.edition + q.sport !== section) {
+      section = q.edition + q.sport;
+      const sportName = SPORTS[q.sport] ? SPORTS[q.sport].name : q.sport;
+      md += `\n### ${sportName}${q.edition === 'classic' ? '' : ` — ${q.edition}`}\n\n`;
       md += `*Suggested source: ${q.src}*\n\n`;
     }
     md += `- [ ] \`${q.id}\` — **${esc(q.most)}** *(${esc(q.unit)})*\n`;
     for (const o of q.options) md += `    - ${esc(o.label)} — **${o.value}**\n`;
     if (q.note) md += `    - <sub>note shown to the player: ${esc(q.note)}</sub>\n`;
 
-    const cells = [q.id, q.risk, q.sport, q.unit, q.most];
+    const cells = [q.id, q.edition, q.risk, q.sport, q.unit, q.most];
     for (const o of q.options) cells.push(o.label, o.value);
     cells.push(q.src);
     csv += cells.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',') + '\n';

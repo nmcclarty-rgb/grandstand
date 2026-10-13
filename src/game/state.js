@@ -10,6 +10,7 @@
  */
 
 import { Ladder, KIND, awardStars, RUNGS } from './ladder.js';
+import { findEdition, DEFAULT_EDITION } from '../data/editions.js';
 import { findCharacter } from '../data/characters.js';
 import { hashSeed } from '../engine/rng.js';
 
@@ -83,12 +84,15 @@ export const restOptions = (kind) => (kind === KIND.PHYSIO ? TREATMENTS : null);
 const SAVE_KEY = 'grandstand.save.v2';
 
 export class Run {
-  constructor({ seed, sports = [], characterId = 'ringer', name = 'YOU' } = {}) {
+  constructor({ seed, sports = [], characterId = 'ringer', name = 'YOU',
+                edition = DEFAULT_EDITION } = {}) {
     this.seed = seed || (Math.random() * 0xffffffff) >>> 0;
     this.sports = sports;
     this.name = name;
+    this.editionId = edition;
+    this.edition = findEdition(edition);
     this.character = findCharacter(characterId);
-    this.ladder = new Ladder(this.seed, { sports });
+    this.ladder = new Ladder(this.seed, { sports, edition });
 
     const c = this.character;
     this.player = {
@@ -122,6 +126,8 @@ export class Run {
     this.outcome = null;         // 'energy' | 'champion' | 'quit'
     this.startedAt = Date.now();
   }
+
+  get questions() { return this.edition.questions; }
 
   get accuracy() { return this.answered ? this.perfects / this.answered : 0; }
   get rung() { return this.ladder.get(this.at); }

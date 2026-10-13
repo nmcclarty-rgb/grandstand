@@ -36,10 +36,10 @@ const { Run, ENTER_COST, BATTLE_TURN_COST } = await import('../src/game/state.js
 
 // How far up the ladder does a given skill level get before the energy runs out?
 
-function climb(skill, answerMs, charId, trials = 300) {
+function climb(skill, answerMs, charId, trials = 300, edition = 'classic') {
   let cleared = 0, champions = 0, stars = 0, fights = 0;
   for (let t = 0; t < trials; t++) {
-    const run = new Run({ seed: t * 7919 + 11, characterId: charId });
+    const run = new Run({ seed: t * 7919 + 11, characterId: charId, edition });
     let guard = 0;
     while (!run.over && guard++ < 60) {
       const n = run.ladder.frontier();
@@ -49,7 +49,8 @@ function climb(skill, answerMs, charId, trials = 300) {
       if (!run.canAfford(ENTER_COST)) { run.end('energy'); break; }
       run.spendEnergy(ENTER_COST);
       const b = new Battle(run.player, rung.fighter, {
-        level: rung.level, usedQuestions: run.usedQuestions, seed: (run.seed ^ (rung.n * 104729)) >>> 0,
+        level: rung.level, questions: run.questions, usedQuestions: run.usedQuestions,
+        seed: (run.seed ^ (rung.n * 104729)) >>> 0,
       });
       b.begin(); fights++;
       let g2 = 0;
@@ -133,6 +134,18 @@ const LEVELS = [
 ];
 for (const [label, skill, ms] of LEVELS) {
   const r = climb(skill, ms, 'ringer');
+  console.log(label.padEnd(26) + r.rungs.toFixed(1).padStart(8)
+    + (r.champ * 100).toFixed(0).padStart(10) + '%'
+    + r.stars.toFixed(1).padStart(9) + r.fights.toFixed(1).padStart(8));
+}
+
+// A second edition has its own roster and a much smaller bank, so its curve
+// has to be checked separately — a 52-question bank repeats sooner, which
+// flatters a player who remembers the last one.
+console.log("\nFULL CLIMBS — PREMIER LEAGUE '90s");
+console.log('%s', 'SKILL'.padEnd(26) + 'RUNGS/12  CHAMPION%  STARS/36  FIGHTS');
+for (const [label, skill, ms] of LEVELS) {
+  const r = climb(skill, ms, 'ringer', 300, 'prem90s');
   console.log(label.padEnd(26) + r.rungs.toFixed(1).padStart(8)
     + (r.champ * 100).toFixed(0).padStart(10) + '%'
     + r.stars.toFixed(1).padStart(9) + r.fights.toFixed(1).padStart(8));

@@ -70,6 +70,8 @@ export class Battle {
     this.level = opts.level || 1;
     this.sports = opts.sports || [];
     this.used = opts.usedQuestions || new Set();
+    // The edition supplies its own bank; classic falls back to the main one.
+    this.bank = opts.questions && opts.questions.length ? opts.questions : QUESTIONS;
     this.pvp = !!opts.pvp;
 
     const scale = 1 + (this.level - 1) * 0.20;
@@ -103,8 +105,8 @@ export class Battle {
     const matches = (q) =>
       (!filter || filter.length === 0 || filter.includes(q.sport));
 
-    let pool = QUESTIONS.map((q, i) => ({ q, i })).filter(({ q }) => matches(q));
-    if (pool.length === 0) pool = QUESTIONS.map((q, i) => ({ q, i }));
+    let pool = this.bank.map((q, i) => ({ q, i })).filter(({ q }) => matches(q));
+    if (pool.length === 0) pool = this.bank.map((q, i) => ({ q, i }));
 
     // Half the time, lean into the opponent's own discipline — fighting Tank
     // Bruno should feel like a boxing quiz.

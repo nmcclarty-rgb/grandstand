@@ -104,7 +104,7 @@ function contentId(sport, unit, opts) {
   return `${sport}-${h.toString(36)}`;
 }
 
-const Q = (sport, most, unit, opts, note = '', meta = {}) => ({
+export const makeQuestion = (sport, most, unit, opts, note = '', meta = {}) => ({
   // Derived from the content, so editing a question invalidates any sign-off
   // against it rather than silently carrying the old one forward.
   id: contentId(sport, unit, opts),
@@ -117,6 +117,8 @@ const Q = (sport, most, unit, opts, note = '', meta = {}) => ({
   risk: meta.risk || defaultRisk(unit, note, opts),
   options: opts.map(([label, value]) => ({ label, value })),
 });
+
+const Q = makeQuestion;
 
 export const SPORTS = {
   football:   { name: 'FOOTBALL',   short: 'FTB', colour: '#4ade80', icon: 'ball' },

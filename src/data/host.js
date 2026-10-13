@@ -48,6 +48,26 @@ export const SCRIPT = {
     'Pick carefully — they do not all fight the same way.',
   ],
 
+  /**
+   * An edition gets its own couple of lines where it is worth it. Des is the
+   * thread through the whole thing, so a new track that he never acknowledges
+   * feels like a different programme.
+   */
+  edition: {
+    prem90s: {
+      select: [
+        'The nineties, then. Shirts you could see from space. Who is going out?',
+        'Eight seasons, three champions. Pick someone who was watching.',
+        'Nothing but the Premier League today. Choose well.',
+      ],
+      start: [
+        'Kick-off at three, highlights at ten. Off we go.',
+        'Right. Back pass to the keeper is out, and so are you if you get these wrong.',
+        'Twelve of them, all from the decade. Mind the pillar.',
+      ],
+    },
+  },
+
   // ── the climb begins ──────────────────────────────────────────────────
   runStart: (name) => [
     `${name} it is. Twelve rungs, one trophy, let's see what happens.`,

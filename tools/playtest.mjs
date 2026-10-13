@@ -15,7 +15,8 @@ import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 // Pure data, no DOM — safe to import here so the expected counts can never
 // drift from the roster itself.
-import { ROSTER } from '../src/data/roster.js';
+import { ALL_FIGHTERS } from '../src/data/roster.js';
+import { findEdition } from '../src/data/editions.js';
 
 const BASE = process.argv.find((a) => a.startsWith('http') || a.startsWith('file:')) || 'http://localhost:8777';
 const shotsFlag = process.argv.indexOf('--shots');
@@ -289,8 +290,65 @@ await page.click('[data-act="codex"]');
 await page.waitForTimeout(400);
 await shot(page, '10-roster');
 const portraits = await page.evaluate(() => document.querySelectorAll('canvas.portrait').length);
-check(portraits === ROSTER.length, `all ${ROSTER.length} roster portraits drawn (found ${portraits})`);
+check(portraits === ALL_FIGHTERS.length,
+  `all ${ALL_FIGHTERS.length} roster portraits drawn, both editions (found ${portraits})`);
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// THE '90s TRACK
+//
+// A second edition is only real if the ladder, the questions and the backdrop
+// all come from it. Checking the title button alone would pass on a run that
+// quietly served snooker questions in front of a floodlit pitch.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log("\nPREMIER LEAGUE '90s");
+await page.click('[data-act="title"]');
+await page.waitForTimeout(250);
+check(await page.isVisible('[data-act="go-select"][data-ed="prem90s"]'),
+  "the '90s track is offered on the title screen");
+
+await page.click('[data-act="go-select"][data-ed="prem90s"]');
+await page.waitForTimeout(400);
+check(await page.evaluate(() => window.GRANDSTAND.setup.edition) === 'prem90s',
+  'picking the track carries it into character select');
+await shot(page, '11-90s-select');
+
+await page.click('[data-act="pick"][data-id="ringer"]');
+await page.waitForTimeout(200);
+await page.click('[data-act="start-run"]');
+await page.waitForTimeout(700);
+await shot(page, '12-90s-ladder');
+
+const ladder90 = await page.evaluate(() => {
+  const r = window.GRANDSTAND.run;
+  return {
+    edition: r.editionId,
+    bank: r.questions.length,
+    editions: [...new Set(r.ladder.rungs.filter((x) => x.fighter).map((x) => x.fighter.edition))],
+    venue: r.ladder.get(1).venue,
+  };
+});
+check(ladder90.edition === 'prem90s', `the run knows its track (${ladder90.edition})`);
+check(ladder90.editions.length === 1 && ladder90.editions[0] === 'prem90s',
+  `every opponent on the ladder is a '90s player (${ladder90.editions.join(', ')})`);
+const bank90 = findEdition('prem90s').questions.length;
+check(ladder90.bank === bank90, `the '90s bank is in play (${ladder90.bank} of ${bank90} questions)`);
+check(/[A-Z]/.test(ladder90.venue) && ladder90.venue !== 'THE REC',
+  `the track brings its own venues (${ladder90.venue})`);
+
+await page.click('[data-act="fight"]');
+await page.waitForTimeout(3600);
+await shot(page, '13-90s-fight');
+const fight90 = await page.evaluate(() => {
+  const g = window.GRANDSTAND;
+  return { arena: g.scene.sport, sport: g.battle.question?.sport, foe: g.battle.foe.name };
+});
+check(fight90.arena === 'prem90s', `the floodlit arena is drawn (${fight90.arena})`);
+check(fight90.sport === 'football', `the questions are football only (${fight90.sport})`);
+check(/[A-Z]/.test(fight90.foe), `fighting a '90s player (${fight90.foe})`);
+
+const r90 = await playFight(page, 1);
+check(r90.finished, "a '90s fight plays to a finish");
 
 console.log('');
 if (problems.length) { console.error('PAGE PROBLEMS:'); problems.forEach((p) => console.error('  ' + p)); failures += problems.length; }

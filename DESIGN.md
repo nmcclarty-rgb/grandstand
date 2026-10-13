@@ -311,6 +311,47 @@ is much more intrusive than a bleep, and plenty of people want one without the
 other — particularly the audience for this, who may well be playing with the
 actual football on in the background.
 
+## 5b. Editions
+
+**An edition is a different game with the same rules, not a filter.**
+
+The obvious way to ship "Premier League '90s" is a checkbox that keeps only
+football questions. That gives you Dixie Dean, Just Fontaine and the 1966 World
+Cup alongside Tony Yeboya, which is not the thing the name promises. So an
+edition carries its own question bank, its own roster, its own venue names and
+its own backdrop, and `src/data/editions.js` is the only place that knows about
+any of it. The ladder, the battle system and the UI all read from there, so a
+third track is a data file and a roster, not a change to the engine.
+
+Three things turned out to matter:
+
+**It needs its own roster.** A '90s track where you fight a snooker player is
+immediately a mode rather than a game. `roster.js` tags every fighter with an
+`edition`, and `byTier`/`bosses` take one.
+
+**It needs its own backdrop.** Reusing the football arena would have worked and
+would have been forgettable. The `prem90s` arena is a separate set: lattice
+floodlight pylons, mown stripes converging on the far touchline, perimeter
+hoardings nobody could read from the terraces, and the roof stanchion you did
+not get a refund for.
+
+**The bank has to be big enough for a whole climb.** A full twelve-rung day
+burns about seventy questions. The first draft of the '90s bank was 52, which
+meant `pickQuestion` exhausted the pool and wrapped round inside a single run —
+the player sees the same question twice in an afternoon, which reads as a bug
+whatever the intent. It went to 101. The rule, for the next edition: **a bank
+smaller than about a hundred is a demo, not a track.**
+
+The balance curve was checked separately rather than assumed. `balance.mjs`
+simulates a full climb per edition, and the '90s track lands at 53% champion
+for a decent dad against 58% on the classic ladder — close enough to leave
+alone, and a touch harder for the honest reason that a football-only bank has
+no soft sports to fall back on.
+
+Des Rider gets a couple of lines per edition. He is the thread through the
+whole thing, and a new track he never acknowledges feels like a different
+programme.
+
 ## 6. What's deliberately not built
 
 **PvP, for now.** A hot-seat mode was built and has been removed at the

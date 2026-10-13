@@ -14,6 +14,7 @@
 
 import { makeRng } from '../engine/rng.js';
 import { byTier, bosses } from '../data/roster.js';
+import { findEdition, DEFAULT_EDITION } from '../data/editions.js';
 
 export const RUNGS = 12;
 
@@ -53,6 +54,8 @@ export class Ladder {
     this.seed = seed;
     this.rng = makeRng(seed);
     this.sports = opts.sports || [];
+    this.editionId = opts.edition || DEFAULT_EDITION;
+    this.edition = findEdition(this.editionId);
     this.rungs = [];
     this.build();
   }
@@ -62,8 +65,9 @@ export class Ladder {
     const inFilter = (f) =>
       !this.sports.length || f.sport === 'any' || this.sports.includes(f.sport);
     const pool = (tier) => {
-      const filtered = byTier(tier).filter(inFilter);
-      return filtered.length ? filtered : byTier(tier);
+      const all = byTier(tier, this.editionId);
+      const filtered = all.filter(inFilter);
+      return filtered.length ? filtered : all;
     };
 
     // Draw without replacement inside a tier where we can, so one climb does
@@ -88,11 +92,14 @@ export class Ladder {
       const tier = n <= 3 ? 1 : n <= 7 ? 2 : 3;
       const level = n <= 3 ? 1 : n <= 6 ? 2 : n <= 9 ? 3 : 4;
 
-      const fighter = kind === KIND.BOSS ? rng.pick(bosses())
+      const fighter = kind === KIND.BOSS ? rng.pick(bosses(this.editionId))
                     : kind === KIND.FIGHT ? take(tier) : null;
-      const venue = kind === KIND.BOSS ? BOSS_VENUE
+      // An edition can carry its own venue names; otherwise the venue follows
+      // the opponent's sport.
+      const venue = kind === KIND.BOSS ? (this.edition.venues ? this.edition.venues[this.edition.venues.length - 1] : BOSS_VENUE)
                   : kind === KIND.PHYSIO ? PHYSIO_VENUE
                   : kind === KIND.WATER ? WATER_VENUE
+                  : this.edition.venues ? this.edition.venues[i % this.edition.venues.length]
                   : SPORT_VENUE[fighter.sport] || 'THE REC';
 
       this.rungs.push({

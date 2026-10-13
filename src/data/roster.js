@@ -16,7 +16,10 @@
 
 export const BUILD = { LEAN: 'lean', NORMAL: 'normal', HEAVY: 'heavy' };
 
-const F = (o) => ({ tier: 1, guile: 0.5, speed: 2, build: BUILD.NORMAL, ...o });
+const F = (o) => ({ tier: 1, guile: 0.5, speed: 2, build: BUILD.NORMAL, edition: 'classic', ...o });
+
+/** Shorthand for the Premier League '90s roster. */
+const P = (o) => F({ ...o, sport: 'football', edition: 'prem90s' });
 
 export const ROSTER = [
   // ── Tier 1: the warm-up acts ─────────────────────────────────────────
@@ -205,6 +208,136 @@ export const ROSTER = [
   }),
 ];
 
+// ═══════════════════════════════════════════════════════════════════════════
+// THE PREMIER LEAGUE '90s EDITION
+//
+// Affectionate fakes again, of the men who filled Saturday afternoons between
+// the breakaway in 1992 and the turn of the century. Shirts you could see from
+// space, and a back pass you were suddenly not allowed to pick up.
+// ═══════════════════════════════════════════════════════════════════════════
+
+export const ROSTER_90S = [
+  // ── Tier 1 ───────────────────────────────────────────────────────────
+  P({
+    id: 'yeboya', name: 'TONY YEBOYA', epithet: 'Hits Them On The Drop',
+    tier: 1, hp: 72, power: 15, guile: 0.44, speed: 2,
+    build: BUILD.NORMAL, gear: 'ball', hair: 'bald', facial: 'none', brow: 'angry',
+    palette: { skin: '#5a3418', kit: '#f4f4f6', trim: '#f0d060', hair: '#1a1a1a' },
+    taunt: 'I do not pass it. I do not control it. I hit it.',
+    defeat: 'That one dipped under the bar. Yours did not.',
+  }),
+  P({
+    id: 'aspirin', name: 'FAUSTINO ASPIRIN', epithet: 'Nobody Knows What Happens Next',
+    tier: 1, hp: 68, power: 16, guile: 0.38, speed: 3,
+    build: BUILD.LEAN, gear: 'ball', hair: 'curly', facial: 'stubble', brow: 'raised',
+    palette: { skin: '#6b4226', kit: '#1a1a20', trim: '#f4f4f6', hair: '#1a1a1a' },
+    taunt: 'Even I am not sure what I am about to do.',
+    defeat: 'Brilliant one week. This week, apparently, not.',
+  }),
+  P({
+    id: 'letissue', name: 'MATT LE TISSUE', epithet: 'Has Not Run Since 1991',
+    tier: 1, hp: 78, power: 14, guile: 0.62, speed: 1,
+    build: BUILD.HEAVY, gear: 'ball', hair: 'bowl', facial: 'none', brow: 'neutral',
+    palette: { skin: '#f0c49b', kit: '#c9303c', trim: '#f4f4f6', hair: '#3a2a18' },
+    taunt: 'I will stand here. You bring it to me.',
+    defeat: 'Forty-seven out of forty-eight. Today was the forty-eighth.',
+  }),
+  P({
+    id: 'smikel', name: 'PETER SMIKEL', epithet: 'Enormous, And Furious About It',
+    tier: 1, hp: 96, power: 12, guile: 0.48, speed: 1,
+    build: BUILD.HEAVY, gear: 'gloves', hair: 'receding', facial: 'none', brow: 'angry',
+    palette: { skin: '#f3cba4', kit: '#1f7a4a', trim: '#111827', hair: '#d8d2c0' },
+    taunt: 'YOU. BACK. NOW. *waves arms*',
+    defeat: 'That is going in the net and someone is getting shouted at.',
+  }),
+
+  // ── Tier 2 ───────────────────────────────────────────────────────────
+  P({
+    id: 'furdinand', name: 'LES FURDINAND', epithet: 'Up And Still Going Up',
+    tier: 2, hp: 100, power: 19, guile: 0.56, speed: 2,
+    build: BUILD.NORMAL, gear: 'ball', hair: 'bald', facial: 'none', brow: 'neutral',
+    palette: { skin: '#5a3418', kit: '#1a1a20', trim: '#f4f4f6', hair: '#1a1a1a' },
+    taunt: 'Put it in the air. I will be there when it comes down.',
+    defeat: 'Beaten in the air. That does not happen often.',
+  }),
+  P({
+    id: 'right', name: 'IAN RIGHT', epithet: 'Grin Like A Floodlight',
+    tier: 2, hp: 96, power: 21, guile: 0.54, speed: 3,
+    build: BUILD.LEAN, gear: 'ball', hair: 'spiky', facial: 'none', brow: 'raised',
+    palette: { skin: '#6b4226', kit: '#c9303c', trim: '#f4f4f6', hair: '#1a1a1a' },
+    taunt: 'Ian Right, Right, Right!',
+    defeat: 'Fair play. Come here. *hugs you anyway*',
+  }),
+  P({
+    id: 'zolo', name: 'GIANFRANCO ZOLO', epithet: 'Five Foot Six Of Problem',
+    tier: 2, hp: 92, power: 20, guile: 0.68, speed: 3,
+    build: BUILD.LEAN, gear: 'ball', hair: 'curly', facial: 'none', brow: 'raised',
+    palette: { skin: '#e8b48a', kit: '#1d4ed8', trim: '#f0d060', hair: '#2a2018' },
+    taunt: 'You are much bigger than me. It will not help.',
+    defeat: 'Bravo. Genuinely, bravo.',
+  }),
+  P({
+    id: 'klinsdive', name: 'JURGEN KLINSDIVE', epithet: 'Celebrates The Accusation',
+    tier: 2, hp: 98, power: 20, guile: 0.60, speed: 3,
+    build: BUILD.NORMAL, gear: 'ball', hair: 'flattop', facial: 'none', brow: 'neutral',
+    palette: { skin: '#f3cba4', kit: '#f4f4f6', trim: '#1e3a8a', hair: '#d8c070' },
+    taunt: 'You think I will go down. Watch how well I do it.',
+    defeat: '*slides forty yards on his front, applauds you*',
+  }),
+  P({
+    id: 'bergkamper', name: 'DENNIS BERGKAMPER', epithet: 'Will Not Fly, Will Not Rush',
+    tier: 2, hp: 102, power: 20, guile: 0.72, speed: 2,
+    build: BUILD.NORMAL, gear: 'ball', hair: 'anchor', facial: 'none', brow: 'neutral',
+    palette: { skin: '#f6d5ae', kit: '#c9303c', trim: '#1a1a20', hair: '#b08040' },
+    taunt: 'One touch to kill it. One to turn you. One to finish.',
+    defeat: 'That was the better goal. I am allowed to say so.',
+  }),
+
+  // ── Tier 3 ───────────────────────────────────────────────────────────
+  P({
+    id: 'shearwater', name: 'ALAN SHEARWATER', epithet: 'One Arm Up, Nothing Else Needed',
+    tier: 3, hp: 142, power: 25, guile: 0.64, speed: 2,
+    build: BUILD.HEAVY, gear: 'ball', hair: 'anchor', facial: 'none', brow: 'angry',
+    palette: { skin: '#f0c49b', kit: '#1a1a20', trim: '#f4f4f6', hair: '#6b5a3a' },
+    taunt: 'Thirty-four in a season. Twice. Off you go.',
+    defeat: '*raises one arm anyway, out of habit*',
+  }),
+  P({
+    id: 'cantina', name: 'ERIC CANTINA', epithet: 'The Collar Stays Up',
+    tier: 3, hp: 136, power: 26, guile: 0.70, speed: 3,
+    build: BUILD.NORMAL, gear: 'ball', hair: 'bald', facial: 'stubble', brow: 'raised',
+    palette: { skin: '#e8b48a', kit: '#c9303c', trim: '#f4f4f6', hair: '#1a1a1a' },
+    taunt: 'When the seagulls follow the trawler, it is because they think sardines will be thrown into the sea.',
+    defeat: 'I have said my piece. I shall go now.',
+  }),
+  P({
+    id: 'keene', name: 'ROY KEENE', epithet: 'Has Already Decided About You',
+    tier: 3, hp: 134, power: 27, guile: 0.66, speed: 3,
+    build: BUILD.NORMAL, gear: 'ball', hair: 'spiky', facial: 'stubble', brow: 'angry',
+    palette: { skin: '#f3cba4', kit: '#c9303c', trim: '#1a1a20', hair: '#2a2018' },
+    taunt: 'Fail to prepare. You know the rest.',
+    defeat: 'Not good enough. Me, I mean. Not you.',
+  }),
+
+  // ── Bosses ───────────────────────────────────────────────────────────
+  P({
+    id: 'hairdryer', name: 'THE HAIRDRYER', epithet: 'Squeaky Bum Time',
+    tier: 4, hp: 196, power: 26, guile: 0.74, speed: 3, boss: true,
+    build: BUILD.NORMAL, gear: 'clipboard', hair: 'anchor', facial: 'none', brow: 'angry',
+    palette: { skin: '#f0c49b', kit: '#1a1a20', trim: '#c9303c', hair: '#c0bab0' },
+    taunt: 'You have three minutes. I have watched better in the reserves.',
+    defeat: 'Football, eh. Bloody hell.',
+  }),
+  P({
+    id: 'sheepskin', name: 'THE SHEEPSKIN COAT', epithet: 'Has Seen Every Goal Since 1971',
+    tier: 4, hp: 210, power: 27, guile: 0.78, speed: 3, boss: true,
+    build: BUILD.HEAVY, gear: 'mic', hair: 'anchor', facial: 'none', brow: 'raised',
+    palette: { skin: '#f3cba4', kit: '#8a6a3a', trim: '#e8dcc0', hair: '#d8d2c0' },
+    taunt: 'And it is live, and it is Saturday, and you are in a lot of trouble.',
+    defeat: 'Well. You will not see that again for a very long time.',
+  }),
+];
+
 export const PLAYER_KITS = [
   { id: 'sunday', name: 'SUNDAY LEAGUE', palette: { skin: '#f3cba4', kit: '#1d4ed8', trim: '#facc15', hair: '#4b2e13' } },
   { id: 'away',   name: 'AWAY STRIP',    palette: { skin: '#7a4a21', kit: '#f8fafc', trim: '#dc2626', hair: '#111827' } },
@@ -212,12 +345,17 @@ export const PLAYER_KITS = [
   { id: 'retro',  name: 'RETRO SHELLSUIT', palette: { skin: '#f6d5ae', kit: '#c026d3', trim: '#22d3ee', hair: '#78350f' } },
 ];
 
-export function byTier(tier) {
-  return ROSTER.filter((f) => f.tier === tier && !f.boss);
+/** Every fighter in the game, across all editions. */
+export const ALL_FIGHTERS = [...ROSTER, ...ROSTER_90S];
+
+const ofEdition = (edition) => ALL_FIGHTERS.filter((f) => f.edition === edition);
+
+export function byTier(tier, edition = 'classic') {
+  return ofEdition(edition).filter((f) => f.tier === tier && !f.boss);
 }
-export function bosses() {
-  return ROSTER.filter((f) => f.boss);
+export function bosses(edition = 'classic') {
+  return ofEdition(edition).filter((f) => f.boss);
 }
 export function findFighter(id) {
-  return ROSTER.find((f) => f.id === id);
+  return ALL_FIGHTERS.find((f) => f.id === id);
 }

@@ -10,8 +10,13 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { QUESTIONS, SPORTS, countBySport } from '../src/data/questions.js';
-import { ROSTER, bosses, byTier } from '../src/data/roster.js';
+import { SPORTS, countBySport } from '../src/data/questions.js';
+import { ALL_FIGHTERS as ROSTER, bosses, byTier } from '../src/data/roster.js';
+import { EDITIONS } from '../src/data/editions.js';
+
+// Every check below runs over every edition's bank at once: a tie or an
+// undirected prompt is just as broken in the '90s bank as in the classic one.
+const QUESTIONS = EDITIONS.flatMap((e) => e.questions);
 import { CHARACTERS } from '../src/data/characters.js';
 import { PERK_KEYS } from '../src/game/battle.js';
 import { Ladder, RUNGS } from '../src/game/ladder.js';
@@ -86,13 +91,16 @@ for (const f of ROSTER) {
   if (f.hp <= 0 || f.power <= 0) fail(`${id}: non-positive hp/power`);
   if (f.sport !== 'any' && !SPORTS[f.sport]) fail(`${id}: unknown sport "${f.sport}"`);
 }
-for (const tier of [1, 2, 3]) {
-  const n = byTier(tier).length;
-  console.log(`  tier ${tier}: ${n}`);
-  if (n < 3) fail(`tier ${tier} has only ${n} fighters — runs will feel repetitive`);
+for (const ed of EDITIONS) {
+  console.log(`  ${ed.id}: ${ed.questions.length} questions`);
+  for (const tier of [1, 2, 3]) {
+    const n = byTier(tier, ed.id).length;
+    if (n < 3) fail(`${ed.id} tier ${tier} has only ${n} fighters — runs will feel repetitive`);
+    console.log(`    tier ${tier}: ${n}`);
+  }
+  if (bosses(ed.id).length < 1) fail(`${ed.id}: no bosses`);
+  console.log(`    bosses: ${bosses(ed.id).length}`);
 }
-console.log(`  bosses: ${bosses().length}`);
-if (bosses().length < 1) fail('no bosses');
 
 console.log(`\nPLAYABLE CHARACTERS (${CHARACTERS.length})`);
 const cids = new Set();

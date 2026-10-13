@@ -175,11 +175,81 @@ const ARENAS = {
   telly:      { sky: ['#0b1f52', '#13327d'], ground: '#2b3f6b', alt: '#25375f', crowd: false, props: propsTelly },
   racing:     { sky: ['#5a86c4', '#a8c3e2'], ground: '#4f9a4a', alt: '#458a42', crowd: true,  props: propsRacing },
   cycling:    { sky: ['#1d1832', '#332a52'], ground: '#9a6a3c', alt: '#8a5e35', crowd: true,  props: propsCycling },
+  prem90s:    { sky: ['#0d1026', '#1e2a52'], ground: '#2f9850', alt: '#268842', crowd: true,  props: propsPrem90s },
   any:        { sky: ['#120f24', '#2a2148'], ground: '#2c8f4a', alt: '#248040', crowd: true,  props: propsArena },
 };
 
 // ── set dressing ──────────────────────────────────────────────────────────
 const HZ = 150;
+
+/**
+ * The Premier League '90s arena: a midweek floodlit ground with a mown pitch,
+ * perimeter hoardings and the roof stanchion nobody got a refund for.
+ *
+ * Drawn as its own arena rather than reusing the football one because the
+ * decade had a look: lattice pylons, four stands that did not match, and
+ * stripes mown in by someone who took it personally.
+ */
+function propsPrem90s(c, t) {
+  // ── mown stripes, converging towards the far touchline ──
+  c.save();
+  for (let i = 0; i < 10; i++) {
+    if (i % 2) continue;
+    const tl = 240 + (i - 5) * 30, tr = tl + 30;
+    const bl = 240 + (i - 5) * 56, br = bl + 56;
+    c.fillStyle = 'rgba(255,255,255,0.055)';
+    c.beginPath();
+    c.moveTo(tl, HZ); c.lineTo(tr, HZ); c.lineTo(br, VIEW_H); c.lineTo(bl, VIEW_H);
+    c.closePath(); c.fill();
+  }
+  c.restore();
+
+  // halfway line and the centre circle, seen flat-on
+  c.strokeStyle = 'rgba(223,243,228,0.72)'; c.lineWidth = 2;
+  c.beginPath(); c.arc(240, 228, 72, Math.PI, 0); c.stroke();
+  px(c, 239, HZ + 6, 3, VIEW_H - HZ, 'rgba(223,243,228,0.5)');
+
+  // ── stand roof, and the pillar in front of your seat ──
+  px(c, 0, 40, VIEW_W, 16, '#120e22');
+  px(c, 0, 54, VIEW_W, 3, '#2a2142');
+  for (const sx of [86, 240, 394]) {
+    px(c, sx, 56, 4, HZ - 60, 'rgba(10,8,18,0.62)');
+  }
+
+  // ── perimeter hoardings: eight boards, nothing you could read from the Kop ──
+  const BOARD = ['#b2342f', '#1f4f9c', '#1f7a42', '#c9a227', '#2b2b3a', '#8b2f6a'];
+  for (let i = 0; i < 8; i++) {
+    const bx = i * 60;
+    px(c, bx, HZ + 4, 59, 15, BOARD[i % BOARD.length]);
+    px(c, bx, HZ + 4, 59, 2, 'rgba(255,255,255,0.22)');
+    px(c, bx + 7, HZ + 9, 45, 4, 'rgba(255,255,255,0.68)');
+  }
+  px(c, 0, HZ + 19, VIEW_W, 2, '#0d0a18');
+
+  // ── floodlight pylons: lattice tower, lamp rack, and the haze off it ──
+  for (const base of [46, 420]) {
+    const top = 18, bot = HZ - 26;
+    for (let y = top + 22; y < bot; y += 6) {
+      const w = 7 + ((y - top) / (bot - top)) * 11;
+      px(c, base - w / 2, y, w, 2, '#191430');                 // horizontal brace
+    }
+    px(c, base - 9, top + 20, 3, bot - top - 20, '#241d38');   // legs
+    px(c, base + 6, top + 20, 3, bot - top - 20, '#241d38');
+    px(c, base - 17, top + 2, 34, 19, '#1b1630');              // lamp rack
+    px(c, base - 17, top, 34, 3, '#2e2648');
+    for (let ly = 0; ly < 3; ly++) {
+      for (let lx = 0; lx < 5; lx++) {
+        const flick = ((lx * 7 + ly * 13 + ((t * 2) | 0)) % 23) === 0;
+        px(c, base - 14 + lx * 6, top + 5 + ly * 5, 4, 3, flick ? '#fffdf0' : '#ffe9a8');
+      }
+    }
+    const glow = c.createRadialGradient(base, top + 12, 4, base, top + 12, 92);
+    glow.addColorStop(0, 'rgba(255,240,190,0.30)');
+    glow.addColorStop(1, 'rgba(255,240,190,0)');
+    c.fillStyle = glow;
+    c.fillRect(base - 92, top - 80, 184, 184);
+  }
+}
 
 function propsFootball(c, t) {
   // goal at the back, penalty arc on the deck

@@ -19,10 +19,11 @@ import { Battle, PHASE, ANSWER_MS } from './game/battle.js';
 import { KIND, RUNGS } from './game/ladder.js';
 import { Run, loadSave, recordRun, recordBeaten, savePrefs, wipeSave, restOptions,
          makeSeedFrom, seedName, ENTER_COST, BATTLE_TURN_COST, WATER_ENERGY } from './game/state.js';
-import { SPORTS, QUESTIONS } from './data/questions.js';
+import { SPORTS } from './data/questions.js';
+import { EDITIONS, DEFAULT_EDITION, findEdition } from './data/editions.js';
 import { CHARACTERS, findCharacter } from './data/characters.js';
 import { HOST, SCRIPT, pick, lineForRung, lineForResult, lineForEnding } from './data/host.js';
-import { ROSTER, findFighter } from './data/roster.js';
+import { ALL_FIGHTERS, byTier, findFighter } from './data/roster.js';
 
 const $ = (id) => document.getElementById(id);
 const panel = $('panel');
@@ -50,6 +51,7 @@ const G = {
 
 const save = loadSave();
 G.setup.character = save.lastCharacter || 'ringer';
+G.setup.edition = save.lastEdition || DEFAULT_EDITION;
 G.setup.name = save.lastName || 'YOU';
 setMuted(!!save.muted);
 setMusicEnabled(save.music !== false);
@@ -161,9 +163,12 @@ function screenTitle() {
       ${hostBox()}
       <p class="dim small">A turn-based sports-quiz RPG. Every answer is a whole
       number, and the number is how hard you hit.</p>
+      ${EDITIONS.map((ed, i) => `
       <div class="btn-row">
-        <button class="primary" data-act="go-select">START A DAY OUT</button>
+        <button class="${i === 0 ? 'primary' : 'edition'}" data-act="go-select"
+                data-ed="${ed.id}">${esc(ed.id === 'classic' ? 'START A DAY OUT' : ed.name)}</button>
       </div>
+      <p class="dim small tight">${esc(ed.tagline)} · ${ed.questions.length} questions</p>`).join('')}
       <div class="btn-row">
         <button data-act="league">LEAGUE TABLE</button>
         <button data-act="codex">THE ROSTER</button>
@@ -171,8 +176,8 @@ function screenTitle() {
       <div class="btn-row">
         <button data-act="howto">HOW TO PLAY</button>
       </div>
-      <p class="dim small">${esc(best)} · ${QUESTIONS.length} questions ·
-        ${ROSTER.length} opponents · ${CHARACTERS.length} fighters</p>
+      <p class="dim small">${esc(best)} · ${ALL_FIGHTERS.length} opponents ·
+        ${CHARACTERS.length} fighters</p>
     </div>`);
   layout();
 }
@@ -233,6 +238,7 @@ function screenSelect() {
   G.screen = 'select';
   setHud(false);
   const c = findCharacter(G.setup.character);
+  const ed = findEdition(G.setup.edition);
   const grid = CHARACTERS.map((ch) => `
     <button class="pick ${ch.id === G.setup.character ? 'on' : ''}" data-act="pick" data-id="${ch.id}">
       <canvas class="pickface" data-cid="${ch.id}" width="42" height="42"></canvas>
@@ -246,10 +252,11 @@ function screenSelect() {
   if (c.perk.comboBoost) perkLines.push('Combos build a rung early');
   if (c.perk.glassJaw) perkLines.push(`Takes ${Math.round((c.perk.glassJaw - 1) * 100)}% extra damage`);
 
-  say(pick(SCRIPT.select));
+  say(pick(SCRIPT.edition[ed.id]?.select || SCRIPT.select));
   show(`
     <div class="screen on">
       ${hostBox()}
+      <p class="small track">${esc(ed.name)} · ${esc(ed.tagline)}</p>
       <div class="pick-grid">${grid}</div>
       <div class="card gold">
         <h2 style="font-size:11px">${esc(c.name)}</h2>
@@ -614,7 +621,7 @@ function screenLeague() {
         <tbody>${rows}</tbody>
       </table>
       <p class="small dim">${s.totalRuns} day${s.totalRuns === 1 ? '' : 's'} out ·
-        ${s.beaten.length}/${ROSTER.length} of the roster beaten. Saved on this device only.</p>
+        ${s.beaten.length}/${ALL_FIGHTERS.length} of the roster beaten. Saved on this device only.</p>
       <div class="btn-row">
         <button data-act="title">BACK</button>
         ${s.league.length ? '<button data-act="wipe">WIPE THE RECORD</button>' : ''}
@@ -625,7 +632,7 @@ function screenLeague() {
 function screenCodex() {
   G.screen = 'codex';
   const s = loadSave();
-  const cards = ROSTER.map((f) => {
+  const card = (f) => {
     const beaten = s.beaten.includes(f.id);
     return `
       <div class="card ${beaten ? 'green' : ''}">
@@ -640,13 +647,22 @@ function screenCodex() {
           TIER ${f.tier} · ${f.hp} COND · ${f.power} POWER ·
           ${Math.round(f.guile * 100)}% ACCURATE${beaten ? ' · <span style="color:var(--green)">BEATEN</span>' : ''}</div>
       </div>`;
+  };
+
+  // One section per edition, so the '90s lot do not get mixed in with the
+  // snooker players.
+  const sections = EDITIONS.map((ed) => {
+    const lot = ALL_FIGHTERS.filter((f) => f.edition === ed.id);
+    if (!lot.length) return '';
+    return `<h3 class="track">${esc(ed.name)}</h3>
+            <div class="btn-grid">${lot.map(card).join('')}</div>`;
   }).join('');
 
   show(`
     <div class="screen on">
       <h2>THE ROSTER</h2>
       <p class="small dim">Affectionate fakes, all of them. Nobody real was harmed.</p>
-      <div class="btn-grid">${cards}</div>
+      ${sections}
       <div class="btn-row"><button data-act="${G.run && !G.run.over ? 'resume-ladder' : 'title'}">BACK</button></div>
     </div>`);
 
@@ -693,13 +709,16 @@ function worstIndex() {
 
 function startRun() {
   const seed = makeSeedFrom(G.setup.seed);
-  G.run = new Run({ seed, sports: G.setup.sports, characterId: G.setup.character, name: G.setup.name });
+  G.run = new Run({ seed, sports: G.setup.sports, characterId: G.setup.character,
+                   name: G.setup.name, edition: G.setup.edition });
   G.battle = null; G.rung = null;
-  savePrefs({ lastCharacter: G.setup.character, lastName: G.setup.name });
+  savePrefs({ lastCharacter: G.setup.character, lastName: G.setup.name,
+              lastEdition: G.setup.edition });
   G.camX = rungPos(1).x - VIEW_W / 2;
   sfx.whistle();
   screenLadder();
-  say(pick(SCRIPT.runStart(G.run.character.name)));
+  const edLines = SCRIPT.edition[G.run.editionId]?.start;
+  say(pick(edLines || SCRIPT.runStart(G.run.character.name)));
   paintHostFace();
   repaintHostLine();
 }
@@ -738,10 +757,11 @@ function enterBattle() {
   sfx.encounter();
   say(rung.kind === 'boss' ? pick(SCRIPT.rung.boss) : '');
   G.scene.venue = rung.venue;
-  G.scene.sport = rung.fighter.sport;
+  G.scene.sport = r.edition.arena || rung.fighter.sport;
   G.battle = new Battle(r.player, rung.fighter, {
     level: rung.level,
     sports: G.setup.sports,
+    questions: r.questions,
     usedQuestions: r.usedQuestions,
     seed: (r.seed ^ (rung.n * 104729)) >>> 0,
   });
@@ -815,7 +835,10 @@ panel.addEventListener('click', (e) => {
   switch (btn.dataset.act) {
     case 'title': sfx.back(); screenTitle(); break;
     case 'howto': sfx.select(); screenHowTo(); break;
-    case 'go-select': sfx.confirm(); screenSelect(); break;
+    case 'go-select':
+      // The title screen's edition buttons each carry their track.
+      if (btn.dataset.ed) G.setup.edition = btn.dataset.ed;
+      sfx.confirm(); screenSelect(); break;
     case 'pick':
       G.setup.seed = $('seedin')?.value || G.setup.seed;
       G.setup.character = btn.dataset.id; sfx.select(); screenSelect(); break;
@@ -956,7 +979,9 @@ function frame() {
     case 'select':
       drawSelectScene(ctx, {
         player: findCharacter(G.setup.character),
-        foe: ROSTER[0],
+        // the first opponent of the chosen track, so the versus panel
+        // never shows a snooker player on the '90s ladder
+        foe: byTier(1, G.setup.edition)[0],
         hint: 'TAP A FIGHTER BELOW',
       }, G.t);
       break;
