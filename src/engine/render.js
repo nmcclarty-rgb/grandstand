@@ -173,6 +173,8 @@ const ARENAS = {
   rugby:      { sky: ['#4f7cc0', '#8fb0d8'], ground: '#3a9450', alt: '#328446', crowd: true,  props: propsRugby },
   olympics:   { sky: ['#1f2b40', '#46608c'], ground: '#b24a2c', alt: '#a04227', crowd: true,  props: propsOlympics },
   telly:      { sky: ['#0b1f52', '#13327d'], ground: '#2b3f6b', alt: '#25375f', crowd: false, props: propsTelly },
+  racing:     { sky: ['#5a86c4', '#a8c3e2'], ground: '#4f9a4a', alt: '#458a42', crowd: true,  props: propsRacing },
+  cycling:    { sky: ['#1d1832', '#332a52'], ground: '#9a6a3c', alt: '#8a5e35', crowd: true,  props: propsCycling },
   any:        { sky: ['#120f24', '#2a2148'], ground: '#2c8f4a', alt: '#248040', crowd: true,  props: propsArena },
 };
 
@@ -365,6 +367,43 @@ function propsTelly(c, t) {
   }
   px(c, 0, 210, VIEW_W, 4, '#5a7fc0');
   px(c, 0, 214, VIEW_W, VIEW_H - 214, '#16254a');
+}
+
+function propsRacing(c, t) {
+  // running rail, a birch fence, and the stands away in the distance
+  px(c, 0, HZ - 36, VIEW_W, 20, '#d8d3c4');        // distant grandstand
+  px(c, 0, HZ - 36, VIEW_W, 3, '#8d8575');
+  for (let x = 6; x < VIEW_W; x += 24) px(c, x, HZ - 31, 14, 10, '#6e6a60');
+
+  px(c, 150, HZ - 6, 180, 20, '#4a3a22');          // the fence
+  px(c, 150, HZ - 10, 180, 6, '#2f6b35');
+  px(c, 150, HZ - 13, 180, 4, '#3f8a42');
+  px(c, 150, HZ + 12, 180, 3, '#d9d4c6');
+
+  for (let x = 0; x < VIEW_W; x += 34) {           // rail and posts
+    px(c, x, 196, 5, 26, '#f1f3f6');
+    px(c, x, 196, 5, 3, '#ffffff');
+  }
+  px(c, 0, 198, VIEW_W, 4, '#f1f3f6');
+  px(c, 0, 210, VIEW_W, 3, '#dfe3e9');
+}
+
+function propsCycling(c, t) {
+  // velodrome: pine boards, the blue cote d'azur and the black measurement line
+  for (let y = HZ; y < VIEW_H; y += 4) {
+    px(c, 0, y, VIEW_W, 2, y % 8 === 0 ? '#a8763f' : '#916037');
+  }
+  px(c, 0, HZ, VIEW_W, 5, '#6d4826');
+  px(c, 0, 190, VIEW_W, 3, '#1a1424');             // black line
+  px(c, 0, 206, VIEW_W, 4, '#c9303c');             // sprinters' line
+  px(c, 0, 236, VIEW_W, 8, '#2f7fae');             // cote d'azur
+  px(c, 0, 236, VIEW_W, 2, '#49a0d0');
+  // banking suggested by the rail curving away at both edges
+  c.save();
+  c.strokeStyle = '#d8d2c4'; c.lineWidth = 3;
+  c.beginPath(); c.moveTo(-10, HZ + 26); c.quadraticCurveTo(90, HZ + 4, 190, HZ + 2); c.stroke();
+  c.beginPath(); c.moveTo(VIEW_W + 10, HZ + 26); c.quadraticCurveTo(390, HZ + 4, 290, HZ + 2); c.stroke();
+  c.restore();
 }
 
 function propsArena(c, t) {

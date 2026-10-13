@@ -1539,6 +1539,8 @@ const ARENAS = {
   rugby:      { sky: ['#4f7cc0', '#8fb0d8'], ground: '#3a9450', alt: '#328446', crowd: true,  props: propsRugby },
   olympics:   { sky: ['#1f2b40', '#46608c'], ground: '#b24a2c', alt: '#a04227', crowd: true,  props: propsOlympics },
   telly:      { sky: ['#0b1f52', '#13327d'], ground: '#2b3f6b', alt: '#25375f', crowd: false, props: propsTelly },
+  racing:     { sky: ['#5a86c4', '#a8c3e2'], ground: '#4f9a4a', alt: '#458a42', crowd: true,  props: propsRacing },
+  cycling:    { sky: ['#1d1832', '#332a52'], ground: '#9a6a3c', alt: '#8a5e35', crowd: true,  props: propsCycling },
   any:        { sky: ['#120f24', '#2a2148'], ground: '#2c8f4a', alt: '#248040', crowd: true,  props: propsArena },
 };
 
@@ -1731,6 +1733,43 @@ function propsTelly(c, t) {
   }
   px(c, 0, 210, VIEW_W, 4, '#5a7fc0');
   px(c, 0, 214, VIEW_W, VIEW_H - 214, '#16254a');
+}
+
+function propsRacing(c, t) {
+  // running rail, a birch fence, and the stands away in the distance
+  px(c, 0, HZ - 36, VIEW_W, 20, '#d8d3c4');        // distant grandstand
+  px(c, 0, HZ - 36, VIEW_W, 3, '#8d8575');
+  for (let x = 6; x < VIEW_W; x += 24) px(c, x, HZ - 31, 14, 10, '#6e6a60');
+
+  px(c, 150, HZ - 6, 180, 20, '#4a3a22');          // the fence
+  px(c, 150, HZ - 10, 180, 6, '#2f6b35');
+  px(c, 150, HZ - 13, 180, 4, '#3f8a42');
+  px(c, 150, HZ + 12, 180, 3, '#d9d4c6');
+
+  for (let x = 0; x < VIEW_W; x += 34) {           // rail and posts
+    px(c, x, 196, 5, 26, '#f1f3f6');
+    px(c, x, 196, 5, 3, '#ffffff');
+  }
+  px(c, 0, 198, VIEW_W, 4, '#f1f3f6');
+  px(c, 0, 210, VIEW_W, 3, '#dfe3e9');
+}
+
+function propsCycling(c, t) {
+  // velodrome: pine boards, the blue cote d'azur and the black measurement line
+  for (let y = HZ; y < VIEW_H; y += 4) {
+    px(c, 0, y, VIEW_W, 2, y % 8 === 0 ? '#a8763f' : '#916037');
+  }
+  px(c, 0, HZ, VIEW_W, 5, '#6d4826');
+  px(c, 0, 190, VIEW_W, 3, '#1a1424');             // black line
+  px(c, 0, 206, VIEW_W, 4, '#c9303c');             // sprinters' line
+  px(c, 0, 236, VIEW_W, 8, '#2f7fae');             // cote d'azur
+  px(c, 0, 236, VIEW_W, 2, '#49a0d0');
+  // banking suggested by the rail curving away at both edges
+  c.save();
+  c.strokeStyle = '#d8d2c4'; c.lineWidth = 3;
+  c.beginPath(); c.moveTo(-10, HZ + 26); c.quadraticCurveTo(90, HZ + 4, 190, HZ + 2); c.stroke();
+  c.beginPath(); c.moveTo(VIEW_W + 10, HZ + 26); c.quadraticCurveTo(390, HZ + 4, 290, HZ + 2); c.stroke();
+  c.restore();
 }
 
 function propsArena(c, t) {
@@ -2866,6 +2905,11 @@ function drawGear(x, gear, CX, W, armX, bob, pose, cols) {
       px(x, CX - 8, 3 + bob, 6, 3, h.lightest);
       break;
     }
+    case 'whip':
+      px(x, handX - 1, handY - 14, 2, 20, '#3a2a1c');
+      px(x, handX - 1, handY - 14, 1, 20, '#5c4430');
+      px(x, handX - 2, handY + 5, 4, 4, '#1a1424');
+      break;
     case 'baton':
       px(x, handX - 1, handY, 10, 4, trim.base);
       px(x, handX - 1, handY, 10, 1, trim.lightest);
@@ -3203,6 +3247,8 @@ const SPORT_VENUE = {
   rugby:      'THE RECREATION GROUND',
   olympics:   'THE OLYMPIC STADIUM',
   telly:      'THE STUDIO',
+  racing:     'THE RACECOURSE',
+  cycling:    'THE VELODROME',
 };
 const PHYSIO_VENUE = 'THE TREATMENT ROOM';
 const WATER_VENUE = 'THE WATER BREAK';
@@ -3467,6 +3513,23 @@ const ROSTER = [
     palette: { skin: '#f0c49b', kit: '#facc15', trim: '#1f2937', hair: '#92400e' },
     taunt: 'I will make eighteen pars and you will hate every one of them.',
     defeat: 'I\'d like to thank the press. From the heart of my bottom.',
+  }),
+
+  F({
+    id: 'canter', name: 'WILLIE CANTER', epithet: 'Five Foot Nothing, All Elbows',
+    sport: 'racing', tier: 2, hp: 92, power: 20, guile: 0.61, speed: 3,
+    build: BUILD.LEAN, gear: 'whip', hair: 'flattop', facial: 'none', brow: 'angry',
+    palette: { skin: '#f0c49b', kit: '#e0b040', trim: '#16a34a', hair: '#9a6a3c' },
+    taunt: 'I have done eight stone four since Tuesday. Try me.',
+    defeat: 'Beaten a length and a half. No excuses.',
+  }),
+  F({
+    id: 'boardroom', name: 'CHRIS BOARDROOM', epithet: 'Four Kilometres, Eyes Shut',
+    sport: 'cycling', tier: 2, hp: 98, power: 19, guile: 0.69, speed: 3,
+    build: BUILD.LEAN, gear: 'helmet', hair: 'bald', facial: 'none', brow: 'neutral',
+    palette: { skin: '#f3cba4', kit: '#1f2937', trim: '#5eead4', hair: '#4b2e13' },
+    taunt: 'I have done the numbers. You are four seconds down already.',
+    defeat: 'The data says you were better. The data is never wrong.',
   }),
 
   // ── Tier 3: the marquee names ────────────────────────────────────────
@@ -4329,6 +4392,8 @@ const FLIP = [
   [/\bHIGHEST\b/g, 'LOWEST'],
   [/\bOLDEST\b/g, 'YOUNGEST'],
   [/\bLONGEST\b/g, 'SHORTEST'],
+  [/\bFURTHEST\b/g, 'SHORTEST'],
+  [/\bDEEPEST\b/g, 'SHALLOWEST'],
 ];
 
 function flip(prompt) {
@@ -4361,6 +4426,8 @@ const SPORTS = {
   rugby:      { name: 'RUGBY',      short: 'RGB', colour: '#60a5fa', icon: 'oval' },
   olympics:   { name: 'OLYMPICS',   short: 'OLY', colour: '#f472b6', icon: 'rings' },
   telly:      { name: 'SATURDAY TV',short: 'TV',  colour: '#22d3ee', icon: 'telly' },
+  racing:     { name: 'HORSE RACING',short: 'HRS', colour: '#c084a0', icon: 'horse' },
+  cycling:    { name: 'CYCLING',    short: 'CYC', colour: '#5eead4', icon: 'bike' },
 };
 
 const QUESTIONS = [
@@ -4681,7 +4748,361 @@ const QUESTIONS = [
   Q('telly', 'Which of these is the BIGGEST number?', 'number',
     [['Teams in the original It\'s a Knockout final', 4], ['Gladiators in the original line-up', 10], ['Panels on A Question of Sport', 2]],
     'It\'s a Knockout: grown adults in foam suits, falling over. Peak Britain.'),
+  // ═══ SECOND WAVE ═══════════════════════════════════════════════════════
+  // Added to broaden the bank. Same rules as everything above: retired
+  // players and closed records wherever possible, no ties, and a note that
+  // teaches you something even when you get it wrong.
+
+  // ───────────────────────────── FOOTBALL ─────────────────────────────
+  Q('football', 'Who scored the MOST goals at World Cup finals for England?', 'goals',
+    [['Gary Lineker', 10], ['Geoff Hurst', 5], ['Bobby Charlton', 4]],
+    'Lineker 10, and the Golden Boot in 1986.'),
+  Q('football', 'Who made the MOST Premier League assists?', 'assists',
+    [['Ryan Giggs', 162], ['Cesc Fàbregas', 111], ['Wayne Rooney', 103]],
+    'Giggs 162. Twenty-three seasons of it.'),
+  Q('football', 'Who scored MORE European Cup / Champions League goals?', 'goals',
+    [['Raúl', 71], ['Ruud van Nistelrooy', 56], ['Thierry Henry', 50]],
+    'Raúl 71, a record that stood until the Ronaldo-Messi era.'),
+  Q('football', 'Who scored the MOST goals in a single Premier League season?', 'goals',
+    [['Erling Haaland (2022-23)', 36], ['Alan Shearer (1994-95)', 34], ['Luis Suárez (2013-14)', 31]],
+    'Haaland 36 in a 38-game season. Shearer and Cole got 34 in 42.'),
+  Q('football', 'Which of these happened MOST recently?', 'the year',
+    [['The Premier League is founded', 1992], ['The first World Cup', 1930], ['The Football League is founded', 1888]],
+    'The Football League came first, in 1888, with twelve clubs.'),
+  Q('football', 'Which of these is the BIGGEST number?', 'number',
+    [['Players per side', 11], ['Minutes in a half', 45], ['Officials on the pitch', 3]],
+    'Forty-five each way, and four minutes of stoppage that feels like twelve.'),
+  Q('football', 'Who won the MOST England caps for the women\'s team?', 'caps',
+    [['Fara Williams', 172], ['Jill Scott', 161], ['Karen Carney', 144]],
+    'Fara Williams, 172 caps, and nobody outside the game knows her name.'),
+  Q('football', 'Who won MORE Ballon d\'Or awards?', 'awards',
+    [['Lionel Messi', 8], ['Cristiano Ronaldo', 5], ['Michel Platini', 3]],
+    'Platini won three in a row, 1983 to 1985.'),
+  Q('football', 'Who scored MORE goals at European Championship finals?', 'goals',
+    [['Cristiano Ronaldo', 14], ['Michel Platini', 9], ['Alan Shearer', 7]],
+    'Platini got all nine in one tournament, in 1984.'),
+  Q('football', 'Who managed MORE matches in charge of England?', 'matches',
+    [['Walter Winterbottom', 139], ['Gareth Southgate', 102], ['Bobby Robson', 95]],
+    'Winterbottom managed England for sixteen years and also picked the youth teams.'),
+
+  // ────────────────────────────── BOXING ──────────────────────────────
+  Q('boxing', 'Which of these is the BIGGEST number of rounds?', 'rounds',
+    [['A championship fight before 1988', 15], ['A championship fight today', 12], ['An Olympic bout', 3]],
+    'Fifteen rounds went after 1982, when the Duk-koo Kim fight changed the sport.'),
+  Q('boxing', 'Which weight limit is the HIGHEST?', 'pounds',
+    [['Cruiserweight', 200], ['Welterweight', 147], ['Flyweight', 112]],
+    'Eight stone for a flyweight. Fourteen and change for a cruiserweight.'),
+  Q('boxing', 'Who retired with MORE career wins?', 'wins',
+    [['Joe Louis', 66], ['Rocky Marciano', 49], ['Henry Cooper', 40]],
+    'Our \'Enry: 40 wins, and one left hook that put Ali on the floor.'),
+  Q('boxing', 'Who won Olympic gold MOST recently?', 'the year',
+    [['George Foreman', 1968], ['Joe Frazier', 1964], ['Cassius Clay', 1960]],
+    'Three heavyweight champions, three consecutive Games.'),
+  Q('boxing', 'Who recorded MORE career knockouts?', 'KOs',
+    [['Mike Tyson', 44], ['Rocky Marciano', 43], ['Lennox Lewis', 32]],
+    'Marciano: 43 knockouts from 49 fights, and never beaten.'),
+  Q('boxing', 'Who held a world title for MORE total days?', 'days',
+    [['Joe Louis', 4382], ['Larry Holmes', 2601], ['Muhammad Ali', 1965]],
+    'Louis held the heavyweight title for nearly twelve years.'),
+
+  // ───────────────────────────── ATHLETICS ────────────────────────────
+  Q('athletics', 'Which race is the LONGEST — in metres?', 'metres',
+    [['The marathon', 42195], ['The 10,000m', 10000], ['The 1500m', 1500]],
+    '42.195km, a distance fixed in 1908 so the race could finish at the royal box.'),
+  Q('athletics', 'Which has the MOST events?', 'events',
+    [['Decathlon', 10], ['Heptathlon', 7], ['Modern pentathlon', 5]],
+    'Two days, ten events, and the 1500m last when your legs have gone.'),
+  Q('athletics', 'Which world record was set MOST recently?', 'the year',
+    [['Jonathan Edwards, triple jump', 1995], ['Mike Powell, long jump', 1991], ['Bob Beamon, long jump', 1968]],
+    'Beamon\'s jump stood for 23 years. Edwards\' has stood for thirty.'),
+  Q('athletics', 'Who won MORE Olympic 100m titles?', 'titles',
+    [['Usain Bolt', 3], ['Carl Lewis', 2], ['Linford Christie', 1]],
+    'Bolt won it three Games running. Nobody else has managed that.'),
+  Q('athletics', 'Who won MORE Olympic gold medals in the 1980s?', 'golds',
+    [['Carl Lewis', 6], ['Daley Thompson', 2], ['Steve Ovett', 1]],
+    'Lewis won four in Los Angeles alone, matching Jesse Owens.'),
+  Q('athletics', 'Who threw the javelin FURTHEST — in metres, rounded?', 'metres',
+    [['Jan Železný', 98], ['Fatima Whitbread', 77], ['Tessa Sanderson', 73]],
+    'Železný\'s 98.48m from 1996 is still the men\'s record.'),
+
+  // ────────────────────────────── CRICKET ─────────────────────────────
+  Q('cricket', 'Which of these is the BIGGEST number?', 'number',
+    [['Overs in a T20 innings', 20], ['Players per side', 11], ['Balls in an over', 6]],
+    'Twenty overs, a hundred and twenty balls, and three hours in the pub after.'),
+  Q('cricket', 'Who took MORE catches in Test cricket as a fielder?', 'catches',
+    [['Rahul Dravid', 210], ['Jacques Kallis', 200], ['Mark Waugh', 181]],
+    'Dravid at slip: 210 catches and almost none of them difficult-looking.'),
+  Q('cricket', 'Who scored MORE one-day international runs?', 'runs',
+    [['Sachin Tendulkar', 18426], ['Kumar Sangakkara', 14234], ['Ricky Ponting', 13704]],
+    'Tendulkar also made the first ODI double hundred, at 36.'),
+  Q('cricket', 'Who took MORE wickets in a single Test match?', 'wickets',
+    [['Jim Laker, 1956', 19], ['Sydney Barnes, 1913', 17], ['Narendra Hirwani, 1988', 16]],
+    'Laker took 19 of the 20 available at Old Trafford. Tony Lock got the other one.'),
+  Q('cricket', 'Which is the HIGHEST individual one-day international score?', 'runs',
+    [['Rohit Sharma', 264], ['Virender Sehwag', 219], ['Chris Gayle', 215]],
+    'Rohit Sharma 264 off 173 balls, which is simply not a cricket score.'),
+  Q('cricket', 'Which of these happened MOST recently?', 'the year',
+    [['The first T20 World Cup', 2007], ['The first Cricket World Cup', 1975], ['The first Test match', 1877]],
+    'Australia beat England in the first Test. They have been at it ever since.'),
+
+  // ────────────────────────────── SNOOKER ─────────────────────────────
+  Q('snooker', 'Which ball is worth the MOST?', 'points',
+    [['Black', 7], ['Pink', 6], ['Blue', 5]],
+    'Red one, then your colour, then back to the reds.'),
+  Q('snooker', 'Which of these happened MOST recently?', 'the year',
+    [['Taylor beats Davis on the final black', 1985], ['The Crucible hosts its first final', 1977], ['The first World Championship', 1927]],
+    'Eighteen and a half million people watched that black go in, past midnight.'),
+  Q('snooker', 'Which of these is the BIGGEST number?', 'number',
+    [['Frames in a World Championship final', 35], ['Reds on the table', 15], ['Colours on the table', 6]],
+    'Best of 35, over two days, and it still goes to the last frame.'),
+  Q('snooker', 'Who was OLDEST when they first won the world title?', 'years old',
+    [['Ray Reardon', 37], ['Steve Davis', 23], ['Stephen Hendry', 21]],
+    'Hendry at 21 is still the youngest. Reardon won his first at 37 and four more after.'),
+  Q('snooker', 'Who won MORE World Championships in total?', 'titles',
+    [['Steve Davis', 6], ['Alex Higgins', 2], ['Dennis Taylor', 1]],
+    'Davis won six of the nine finals in the eighties and lost one of the others on the final black.'),
+  Q('snooker', 'Which of these is the BIGGEST break?', 'points',
+    [['A maximum', 147], ['Clearing the colours', 27], ['Black off the spot, once', 7]],
+    'Fifteen reds, fifteen blacks, then all six colours.'),
+  Q('snooker', 'Who won MORE Masters titles?', 'titles',
+    [['Ronnie O\'Sullivan', 7], ['Stephen Hendry', 6], ['Paul Hunter', 3]],
+    'Hunter won three Masters finals from 0-6, 5-7 and 2-5 down, and died at 27.'),
+
+  // ─────────────────────────────── DARTS ──────────────────────────────
+  Q('darts', 'Which of these is the BIGGEST number?', 'points',
+    [['The starting score in a leg', 501], ['The maximum three-dart score', 180], ['The highest checkout', 170]],
+    'Five hundred and one, straight start, double to finish.'),
+  Q('darts', 'Which of these scores the MOST?', 'points',
+    [['Treble twenty', 60], ['Bullseye', 50], ['Outer bull', 25]],
+    'Treble twenty is the most, which is why nobody aims anywhere else.'),
+  Q('darts', 'Which of these happened MOST recently?', 'the year',
+    [['The first PDC World Championship', 1994], ['Lowe\'s televised nine-darter', 1984], ['The first BDO World Championship', 1978]],
+    'The 1994 split gave darts two world champions for a decade.'),
+  Q('darts', 'Who won MORE World Matchplay titles?', 'titles',
+    [['Phil Taylor', 16], ['Michael van Gerwen', 3], ['Rod Harrington', 2]],
+    'Sixteen Matchplays. Taylor won the first one and then most of the rest.'),
+  Q('darts', 'Which of these is the BIGGEST score?', 'points',
+    [['The maximum with three darts', 180], ['Three treble nineteens', 171], ['The highest checkout', 170]],
+    'One hundred and eiiiiighty.'),
+  Q('darts', 'Which of these is the BIGGEST number?', 'number',
+    [['Beds on a dartboard', 20], ['Rings including both bulls', 6], ['Darts in a throw', 3]],
+    'Twenty numbers, arranged to punish anyone aiming carelessly at the twenty.'),
+  Q('darts', 'Who reached MORE world finals?', 'finals',
+    [['Phil Taylor', 21], ['Eric Bristow', 10], ['Raymond van Barneveld', 6]],
+    'Twenty-one finals, sixteen of them won.'),
+  Q('darts', 'Which of these needs the MOST darts?', 'darts',
+    [['A perfect leg', 9], ['A 170 checkout', 3], ['Double top from 40', 1]],
+    'One dart at double twenty, and the walk back is the longest part.'),
+
+  // ─────────────────────────────── GOLF ───────────────────────────────
+  Q('golf', 'Which hole is the LONGEST — by par?', 'par',
+    [['A par five', 5], ['A par four', 4], ['A par three', 3]],
+    'Three shots to the green, two putts, and a lie about the drive.'),
+  Q('golf', 'Which of these is the BIGGEST number?', 'number',
+    [['Players in a Ryder Cup team', 12], ['Majors in a year', 4], ['Years between Ryder Cups', 2]],
+    'Twelve a side, three days, and more tears than any other event in golf.'),
+  Q('golf', 'Which of these happened MOST recently?', 'the year',
+    [['The first Masters', 1934], ['The first Ryder Cup', 1927], ['The first Open Championship', 1860]],
+    'The Open is the oldest, first played at Prestwick over three rounds in one day.'),
+  Q('golf', 'Who won MORE majors?', 'majors',
+    [['Jack Nicklaus', 18], ['Gary Player', 9], ['Arnold Palmer', 7]],
+    'The Big Three won 34 majors between them.'),
+  Q('golf', 'Who won MORE Masters titles?', 'green jackets',
+    [['Jack Nicklaus', 6], ['Tiger Woods', 5], ['Arnold Palmer', 4]],
+    'Nicklaus won his sixth in 1986, aged 46.'),
+  Q('golf', 'Who won MORE Open Championships?', 'Opens',
+    [['Harry Vardon', 6], ['Peter Thomson', 5], ['Nick Faldo', 3]],
+    'Vardon won six between 1896 and 1914.'),
+  Q('golf', 'Which course has hosted The Open MOST times?', 'times',
+    [['St Andrews', 30], ['Prestwick', 24], ['Muirfield', 16]],
+    'Prestwick hosted the first twelve Opens and has not had one since 1925.'),
+
+  // ─────────────────────────────── TENNIS ─────────────────────────────
+  Q('tennis', 'Which of these is the BIGGEST number?', 'number',
+    [['Games needed to win a set', 6], ['Sets to win a men\'s major final', 3], ['Grand slams in a year', 4]],
+    'Six games, three sets, four majors, one very long season.'),
+  Q('tennis', 'Which of these happened MOST recently?', 'the year',
+    [['The tie-break arrives at Wimbledon', 1971], ['The Open era begins', 1968], ['The first Wimbledon', 1877]],
+    'Before 1968, professionals were barred from the majors.'),
+  Q('tennis', 'Who won MORE French Open titles?', 'titles',
+    [['Rafael Nadal', 14], ['Björn Borg', 6], ['Ivan Lendl', 3]],
+    'Fourteen Roland Garros titles. He lost four matches there in twenty years.'),
+  Q('tennis', 'Who spent MORE weeks at world number one?', 'weeks',
+    [['Roger Federer', 310], ['Pete Sampras', 286], ['Ivan Lendl', 270]],
+    'Federer held it for 237 consecutive weeks at one stretch.'),
+  Q('tennis', 'Who won MORE career singles titles?', 'titles',
+    [['Martina Navratilova', 167], ['Chris Evert', 157], ['Steffi Graf', 107]],
+    'Navratilova also won 177 doubles titles, which is a career on its own.'),
+  Q('tennis', 'Who won MORE Wimbledon singles titles?', 'titles',
+    [['Martina Navratilova', 9], ['Roger Federer', 8], ['Pete Sampras', 7]],
+    'Nine, including six in a row from 1982.'),
+  Q('tennis', 'Who won MORE Australian Open singles titles?', 'titles',
+    [['Novak Djokovic', 10], ['Roger Federer', 6], ['Andre Agassi', 4]],
+    'Ten titles in Melbourne, on a surface that suits him better than anyone.'),
+
+  // ───────────────────────────── MOTORSPORT ───────────────────────────
+  Q('motorsport', 'Which of these happened MOST recently?', 'the year',
+    [['Mansell wins the Formula One title', 1992], ['Mansell wins IndyCar', 1993], ['The first Formula One world championship', 1950]],
+    'Mansell won F1, left, and won IndyCar at the first attempt.'),
+  Q('motorsport', 'Which of these is the BIGGEST number?', 'number',
+    [['Laps of the Indianapolis 500', 200], ['Laps of the Monaco Grand Prix', 78], ['Hours at Le Mans', 24]],
+    'Two hundred laps of a two-and-a-half mile oval.'),
+  Q('motorsport', 'Who took MORE Formula One pole positions?', 'poles',
+    [['Michael Schumacher', 68], ['Ayrton Senna', 65], ['Alain Prost', 33]],
+    'Senna took 65 poles from 161 starts, which is a strike rate nobody matches.'),
+  Q('motorsport', 'Who won MORE Monaco Grands Prix?', 'wins',
+    [['Ayrton Senna', 6], ['Graham Hill', 5], ['Alain Prost', 4]],
+    'Senna won it five years running, 1989 to 1993.'),
+  Q('motorsport', 'Who started MORE Formula One races?', 'starts',
+    [['Rubens Barrichello', 322], ['Michael Schumacher', 306], ['Nigel Mansell', 187]],
+    'Barrichello started more races than anyone and never won a title.'),
+  Q('motorsport', 'Who won MORE British Grands Prix?', 'wins',
+    [['Jim Clark', 5], ['Nigel Mansell', 4], ['Stirling Moss', 2]],
+    'Clark won five, in an era when finishing at all was an achievement.'),
+
+  // ─────────────────────────────── RUGBY ──────────────────────────────
+  Q('rugby', 'Which of these happened MOST recently?', 'the year',
+    [['England win the World Cup', 2003], ['Rugby union turns professional', 1995], ['The first Rugby World Cup', 1987]],
+    'Union was amateur until 1995. Eight years later England were world champions.'),
+  Q('rugby', 'Which of these is the BIGGEST number in rugby league?', 'number',
+    [['Players per side', 13], ['Points for a try', 4], ['Points for a goal', 2]],
+    'League kept the four-point try when union went to five.'),
+  Q('rugby', 'Who won MORE Wales caps?', 'caps',
+    [['JPR Williams', 55], ['Gareth Edwards', 53], ['Barry John', 25]],
+    'Edwards played 53 consecutive Tests and never missed one.'),
+  Q('rugby', 'Who scored MORE points in Rugby World Cup matches?', 'points',
+    [['Jonny Wilkinson', 277], ['Gavin Hastings', 227], ['Michael Lynagh', 195]],
+    'Wilkinson across four tournaments, and only one of those kicks gets remembered.'),
+  Q('rugby', 'Which is the BIGGEST number of minutes?', 'minutes',
+    [['A full match', 80], ['Each half', 40], ['Half-time', 10]],
+    'Eighty minutes, and the last ten are where it is usually decided.'),
+  Q('rugby', 'Which of these is worth the MOST points?', 'points',
+    [['A try in rugby league', 4], ['A drop goal in rugby union', 3], ['A conversion', 2]],
+    'League kept the four-point try. Union moved to five in 1992.'),
+  Q('rugby', 'Which of these is the BIGGEST number?', 'number',
+    [['Players in a union side', 15], ['Players in a league side', 13], ['Players in a sevens side', 7]],
+    'Fewer players, more running, and far more honest about it.'),
+
+  // ────────────────────────────── OLYMPICS ────────────────────────────
+  Q('olympics', 'Which of these is the BIGGEST number?', 'number',
+    [['Medals awarded per event', 3], ['Olympic rings', 5], ['Years between Games', 4]],
+    'Five rings, five inhabited continents, one of the best logos ever drawn.'),
+  Q('olympics', 'Which Games were held MOST recently?', 'the year',
+    [['London', 2012], ['Barcelona', 1992], ['The first modern Olympics, Athens', 1896]],
+    'London has hosted three times: 1908, 1948 and 2012.'),
+  Q('olympics', 'At which Games did Great Britain win the MOST golds?', 'golds',
+    [['London 2012', 29], ['Rio 2016', 27], ['Atlanta 1996', 1]],
+    'From one gold in Atlanta to twenty-nine in London, via a lot of lottery funding.'),
+  Q('olympics', 'Which of these was first held MOST recently?', 'the year',
+    [['The Paralympics', 1960], ['The Winter Olympics', 1924], ['The modern Olympics', 1896]],
+    'Rome 1960 is counted as the first Paralympic Games.'),
+  Q('olympics', 'Who won MORE Olympic medals of any colour?', 'medals',
+    [['Michael Phelps', 28], ['Larisa Latynina', 18], ['Bradley Wiggins', 8]],
+    'Wiggins is Britain\'s most decorated Olympian across two very different sports.'),
+  Q('olympics', 'Who won MORE Olympic gold medals for Great Britain?', 'golds',
+    [['Jason Kenny', 7], ['Chris Hoy', 6], ['Steve Redgrave', 5]],
+    'All three on a bike except Redgrave, who did it the hard way, five Games running.'),
+
+  // ────────────────────────── SATURDAY TELLY ──────────────────────────
+  Q('telly', 'Which of these started MOST recently?', 'the year',
+    [['Ski Sunday', 1978], ['A Question of Sport', 1970], ['Match of the Day', 1964]],
+    'Match of the Day began on BBC Two with 20,000 viewers watching.'),
+  Q('telly', 'Which of these started MOST recently?', 'the year',
+    [['Gladiators', 1992], ['Bullseye', 1981], ['It\'s a Knockout', 1966]],
+    'Contenders, ready. Gladiators, ready.'),
+  Q('telly', 'Which of these is the BIGGEST number?', 'number',
+    [['Darts thrown for Bully\'s Special Prize', 6], ['Panels on A Question of Sport', 2], ['Captains per team', 1]],
+    '"Look at what you could have won."'),
+  Q('telly', 'Who presented A Question of Sport for MORE years?', 'years',
+    [['David Coleman', 18], ['Sue Barker', 24], ['Dickie Davies', 0]],
+    'Sue Barker presented it for 24 years. Dickie Davies was ITV, and never did.'),
+  Q('telly', 'Which of these ran for MORE years?', 'years',
+    [['Grandstand', 49], ['World of Sport', 20], ['It\'s a Knockout', 16]],
+    'Grandstand ran from 1958 to 2007. Saturday afternoons were never the same after.'),
+  Q('telly', 'Which of these happened MOST recently?', 'the year',
+    [['Italia 90 and Gazza\'s tears', 1990], ['Eddie the Eagle at the Winter Olympics', 1988], ['Torvill and Dean win Olympic gold', 1984]],
+    'Three moments that put non-fans in front of the telly.'),
+  Q('telly', 'Which of these is the BIGGEST number?', 'number',
+    [['Perfect sixes for Torvill and Dean', 9], ['Events in a Gladiators final', 8], ['Members of a Question of Sport team', 2]],
+    'Nine sixes out of nine for artistic impression. The scoreboard could not show a ten.'),
+
+  // ───────────────────────────── HORSE RACING ─────────────────────────
+  Q('racing', 'Who won the Grand National MORE times?', 'wins',
+    [['Red Rum', 3], ['Tiger Roll', 2], ['West Tip', 1]],
+    'Red Rum won three and was second in the other two. Nothing else is close.'),
+  Q('racing', 'Which of these is the BIGGEST number?', 'number',
+    [['Fences in the Grand National', 30], ['Maximum runners in the Grand National', 40], ['English Classics', 5]],
+    'Thirty fences over two circuits, and Becher\'s Brook twice.'),
+  Q('racing', 'Who rode MORE Derby winners?', 'wins',
+    [['Lester Piggott', 9], ['Willie Carson', 4], ['Frankie Dettori', 2]],
+    'Piggott won his first Derby at 18 and his last at 47.'),
+  Q('racing', 'Who won MORE Cheltenham Gold Cups?', 'wins',
+    [['Golden Miller', 5], ['Arkle', 3], ['Desert Orchid', 1]],
+    'Golden Miller won five in a row in the 1930s and the National as well.'),
+  Q('racing', 'Which of these is the BIGGEST number?', 'number',
+    [['Winners Dettori rode at Ascot in one day, 1996', 7], ['Races on a typical card', 6], ['English Classics for fillies', 3]],
+    'Seven from seven. The accumulator cost the bookmakers a reported £30 million.'),
+  Q('racing', 'Which of these happened MOST recently?', 'the year',
+    [['Red Rum\'s third National', 1977], ['Dettori\'s Magnificent Seven', 1996], ['The first Grand National', 1839]],
+    'The first National was won by a horse called Lottery.'),
+  Q('racing', 'Who won MORE jockeys\' championships?', 'titles',
+    [['Gordon Richards', 26], ['Pat Eddery', 11], ['Frankie Dettori', 3]],
+    'Richards was champion jockey 26 times and knighted for it.'),
+  Q('racing', 'Which of these is the BIGGEST number?', 'number',
+    [['Furlongs in the Derby', 12], ['Furlongs in a mile', 8], ['Races in the Triple Crown', 3]],
+    'A mile and a half at Epsom, downhill, round a corner, in June.'),
+  Q('racing', 'Which race is run over the LONGEST distance?', 'furlongs',
+    [['The Grand National', 34], ['The Cheltenham Gold Cup', 26], ['The Derby', 12]],
+    'Four miles and two furlongs at Aintree, over thirty fences.'),
+  Q('racing', 'Who trained MORE Grand National winners?', 'wins',
+    [['Fred Rimell', 4], ['Gordon Elliott', 3], ['Jenny Pitman', 2]],
+    'Pitman was the first woman to train a National winner, with Corbiere in 1983.'),
+  Q('racing', 'Which of these is the BIGGEST field?', 'runners',
+    [['The Grand National', 40], ['The Derby', 12], ['A novice chase', 8]],
+    'Forty runners, thirty fences, and almost nobody picks the winner.'),
+  Q('racing', 'Which of these is the BIGGEST number?', 'number',
+    [['Red Rum\'s Grand National wins', 3], ['Red Rum\'s Grand National seconds', 2], ['Red Rum\'s Cheltenham Gold Cups', 0]],
+    'Three wins, two seconds, five consecutive Nationals. He never fell.'),
+
+  // ─────────────────────────────── CYCLING ────────────────────────────
+  Q('cycling', 'Who won MORE Tours de France?', 'wins',
+    [['Eddy Merckx', 5], ['Chris Froome', 4], ['Bradley Wiggins', 1]],
+    'Wiggins was the first Briton to win it, in 2012, and won Olympic gold days later.'),
+  Q('cycling', 'Which of these is the BIGGEST number?', 'number',
+    [['Stages in a modern Tour de France', 21], ['Riders per team', 8], ['Grand Tours in a season', 3]],
+    'Twenty-one stages, three weeks, two rest days.'),
+  Q('cycling', 'Who won MORE Tour de France stages?', 'stages',
+    [['Eddy Merckx', 34], ['Bernard Hinault', 28], ['André Leducq', 25]],
+    'Merckx won 34 stages and the overall five times, which is why they called him the Cannibal.'),
+  Q('cycling', 'Who won MORE Olympic gold medals?', 'golds',
+    [['Jason Kenny', 7], ['Chris Hoy', 6], ['Laura Kenny', 5]],
+    'The Kennys have twelve Olympic golds between them, which is a remarkable mantelpiece.'),
+  Q('cycling', 'Which of these happened MOST recently?', 'the year',
+    [['Wiggins wins the Tour de France', 2012], ['Boardman takes the hour record', 1996], ['The first Tour de France', 1903]],
+    'The first Tour was organised to sell newspapers, and it worked.'),
+  Q('cycling', 'Who held the hour record MOST recently of these three?', 'the year',
+    [['Chris Boardman', 1996], ['Graeme Obree', 1993], ['Eddy Merckx', 1972]],
+    'Obree built his bike partly from washing-machine parts.'),
+  Q('cycling', 'Which of these is the BIGGEST number?', 'number',
+    [['Length of an Olympic velodrome, in metres', 250], ['Riders in a team pursuit', 4], ['Laps in a team pursuit', 16]],
+    'Two hundred and fifty metres of Siberian pine, banked at 42 degrees.'),
+  Q('cycling', 'Who won MORE world track championships?', 'titles',
+    [['Chris Hoy', 11], ['Victoria Pendleton', 9], ['Bradley Wiggins', 6]],
+    'Hoy won eleven world titles across three different sprint events.'),
+  Q('cycling', 'Which Tour de France jersey was introduced MOST recently?', 'the year',
+    [['The yellow jersey', 1919], ['The green points jersey', 1953], ['The polka-dot climbers\' jersey', 1975]],
+    'Yellow because the organising newspaper was printed on yellow paper.'),
+  Q('cycling', 'Who won MORE Monument classics?', 'wins',
+    [['Eddy Merckx', 19], ['Roger De Vlaeminck', 11], ['Sean Kelly', 9]],
+    'Kelly was the best one-day rider Ireland ever produced, and nearly won a Tour.'),
+  Q('cycling', 'Which of these is the LONGEST — in kilometres?', 'kilometres',
+    [['Milan-San Remo', 298], ['Paris-Roubaix', 257], ['The Tour of Flanders', 270]],
+    'Milan-San Remo is the longest one-day race on the calendar.'),
+  Q('cycling', 'Who won MORE British national road race titles?', 'titles',
+    [['Mark Cavendish', 2], ['Bradley Wiggins', 1], ['Chris Froome', 0]],
+    'Froome never won the British road race title, which says something about the course.'),
 ];
+
 
 /** All sports that actually have questions, in display order. */
 function availableSports() {
@@ -4694,7 +5115,6 @@ function countBySport() {
   for (const q of QUESTIONS) counts[q.sport] = (counts[q.sport] || 0) + 1;
   return counts;
 }
-
 Object.assign(__exports, { SPORTS, QUESTIONS, availableSports, countBySport });
 });
 

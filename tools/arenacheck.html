@@ -12,9 +12,10 @@
 import { drawBattleScene, VIEW_W, VIEW_H } from '../src/engine/render.js';
 import { ROSTER } from '../src/data/roster.js';
 import { CHARACTERS } from '../src/data/characters.js';
+import { SPORTS as SPORT_DEFS } from '../src/data/questions.js';
 
-const SPORTS = ['football','boxing','athletics','cricket','snooker','darts',
-                'golf','tennis','motorsport','rugby','olympics','telly','any'];
+// Derived, so adding a sport can never silently leave it out of this page.
+const SPORTS = [...Object.keys(SPORT_DEFS), 'any'];
 const out = document.getElementById('out');
 for (const sport of SPORTS) {
   const d = document.createElement('div'); d.className = 'cell';

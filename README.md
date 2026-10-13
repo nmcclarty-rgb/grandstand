@@ -208,8 +208,8 @@ index.html              dev shell, all the CSS, the arcade chrome
 docs/index.html         the whole game as one file (generated — edit src/)
 src/
   main.js               boot, screens, input, the frame loop
-  data/questions.js     98 questions — the content engine
-  data/roster.js        20 opponents
+  data/questions.js     205 questions across 14 sports — the content engine
+  data/roster.js        22 opponents
   data/characters.js    8 playable fighters and their perks
   data/host.js          Des Rider, and everything he says
   engine/render.js      canvas: select screen, ladder, battle, title

@@ -13,6 +13,9 @@
 
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
+// Pure data, no DOM — safe to import here so the expected counts can never
+// drift from the roster itself.
+import { ROSTER } from '../src/data/roster.js';
 
 const BASE = process.argv.find((a) => a.startsWith('http') || a.startsWith('file:')) || 'http://localhost:8777';
 const shotsFlag = process.argv.indexOf('--shots');
@@ -285,7 +288,8 @@ await page.waitForTimeout(200);
 await page.click('[data-act="codex"]');
 await page.waitForTimeout(400);
 await shot(page, '10-roster');
-check(await page.evaluate(() => document.querySelectorAll('canvas.portrait').length) === 20, 'all 20 roster portraits drawn');
+const portraits = await page.evaluate(() => document.querySelectorAll('canvas.portrait').length);
+check(portraits === ROSTER.length, `all ${ROSTER.length} roster portraits drawn (found ${portraits})`);
 
 
 console.log('');

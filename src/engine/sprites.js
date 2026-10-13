@@ -490,6 +490,11 @@ function drawGear(x, gear, CX, W, armX, bob, pose, cols) {
       px(x, CX - 8, 3 + bob, 6, 3, h.lightest);
       break;
     }
+    case 'whip':
+      px(x, handX - 1, handY - 14, 2, 20, '#3a2a1c');
+      px(x, handX - 1, handY - 14, 1, 20, '#5c4430');
+      px(x, handX - 2, handY + 5, 4, 4, '#1a1424');
+      break;
     case 'baton':
       px(x, handX - 1, handY, 10, 4, trim.base);
       px(x, handX - 1, handY, 10, 1, trim.lightest);

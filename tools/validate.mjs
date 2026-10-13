@@ -21,7 +21,7 @@ let warnings = 0;
 const fail = (msg) => { console.error(`  ✗ ${msg}`); errors++; };
 const warn = (msg) => { console.warn(`  ! ${msg}`); warnings++; };
 
-const DIRECTION = /MOST|FEWEST|MORE|FEWER|BIGGEST|SMALLEST|HIGHEST|LOWEST|OLDEST|YOUNGEST|EARLIEST|SHORTEST|LONGEST/;
+const DIRECTION = /MOST|FEWEST|MORE|FEWER|BIGGEST|SMALLEST|HIGHEST|LOWEST|OLDEST|YOUNGEST|EARLIEST|SHORTEST|LONGEST|FURTHEST|DEEPEST|SHALLOWEST/;
 
 console.log(`\nQUESTIONS (${QUESTIONS.length})`);
 QUESTIONS.forEach((q, i) => {
@@ -64,8 +64,10 @@ for (const sport of Object.keys(SPORTS)) {
   const n = counts[sport] || 0;
   const bar = '█'.repeat(Math.min(n, 30));
   console.log(`  ${SPORTS[sport].name.padEnd(12)} ${String(n).padStart(3)} ${bar}`);
-  // Below this, a single-sport run repeats questions inside one afternoon.
-  if (n < 5) fail(`${sport}: only ${n} questions — a single-sport run would repeat badly`);
+  // Below this a single-sport run repeats inside one afternoon. The floor has
+  // been raised as the bank grew; it should keep rising.
+  if (n < 8) fail(`${sport}: only ${n} questions — a single-sport run would repeat badly`);
+  else if (n < 12) warn(`${sport}: ${n} questions — thin if single-sport runs ever ship`);
 }
 
 console.log(`\nROSTER (${ROSTER.length})`);

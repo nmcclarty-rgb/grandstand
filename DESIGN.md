@@ -356,17 +356,26 @@ but it is a conversation, not a patch.
 
 Not the combat maths, and not the art. **The question bank.**
 
-98 questions is a demo. A player doing 7 fights a day at ~8 questions a fight
-sees ~56 in a session — more than half the bank in one sitting. The repeat is
-noticeable on day two.
+The bank is at **205 across 14 sports**, up from 98. A player doing ~9 fights a
+day at ~8 questions a fight sees about 70 in a session, so a single sitting no
+longer shows you most of it — which was the state it was in before.
 
-Rough targets:
+Rough targets from here:
 
-- **500** to stop within-session repeats being obvious
+- **500** to stop within-session repeats being obvious across several sittings
 - **2,000+** for a game someone plays for a month
-- **Per-sport minimum of ~80**, or the sport filters are a trap: picking
-  "darts only" currently gives you five questions and a bad time. `validate.mjs`
-  warns below a floor for exactly this reason.
+- **Per-sport minimum of ~80** before single-sport runs can ship. Every sport
+  is now at 12 or more and `validate.mjs` fails below 8 and warns below 12; the
+  floor should keep rising as the bank grows.
+
+Expanding it proved the tooling's worth more than anything else has. Adding
+~110 questions in one go produced, immediately and automatically: three ties
+for the top or bottom value, six prompts that didn't say which way round they
+were asking, and five questions that duplicated existing ones outright. Every
+one of those is invisible on the page and obvious in a fight. That is the
+argument for `validate.mjs` in one paragraph — content is where this game will
+break, and the only defence that scales is a machine that reads all of it every
+time.
 
 That's a content job, not an engineering one, and it's the thing to cost
 properly before anything else. The format is deliberately cheap to write to —

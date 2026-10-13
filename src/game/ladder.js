@@ -37,6 +37,8 @@ export const SPORT_VENUE = {
   rugby:      'THE RECREATION GROUND',
   olympics:   'THE OLYMPIC STADIUM',
   telly:      'THE STUDIO',
+  racing:     'THE RACECOURSE',
+  cycling:    'THE VELODROME',
 };
 export const PHYSIO_VENUE = 'THE TREATMENT ROOM';
 export const WATER_VENUE = 'THE WATER BREAK';

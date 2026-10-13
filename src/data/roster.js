@@ -119,6 +119,23 @@ export const ROSTER = [
     defeat: 'I\'d like to thank the press. From the heart of my bottom.',
   }),
 
+  F({
+    id: 'canter', name: 'WILLIE CANTER', epithet: 'Five Foot Nothing, All Elbows',
+    sport: 'racing', tier: 2, hp: 92, power: 20, guile: 0.61, speed: 3,
+    build: BUILD.LEAN, gear: 'whip', hair: 'flattop', facial: 'none', brow: 'angry',
+    palette: { skin: '#f0c49b', kit: '#e0b040', trim: '#16a34a', hair: '#9a6a3c' },
+    taunt: 'I have done eight stone four since Tuesday. Try me.',
+    defeat: 'Beaten a length and a half. No excuses.',
+  }),
+  F({
+    id: 'boardroom', name: 'CHRIS BOARDROOM', epithet: 'Four Kilometres, Eyes Shut',
+    sport: 'cycling', tier: 2, hp: 98, power: 19, guile: 0.69, speed: 3,
+    build: BUILD.LEAN, gear: 'helmet', hair: 'bald', facial: 'none', brow: 'neutral',
+    palette: { skin: '#f3cba4', kit: '#1f2937', trim: '#5eead4', hair: '#4b2e13' },
+    taunt: 'I have done the numbers. You are four seconds down already.',
+    defeat: 'The data says you were better. The data is never wrong.',
+  }),
+
   // ── Tier 3: the marquee names ────────────────────────────────────────
   F({
     id: 'tank', name: 'TANK BRUNO', epithet: 'The Bermondsey Bulldozer',
