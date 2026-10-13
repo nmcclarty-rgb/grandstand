@@ -234,7 +234,7 @@ src/
   main.js               boot, screens, input, the frame loop
   data/editions.js      the tracks: which bank, which roster, which backdrop
   data/questions.js     205 questions across 14 sports — the content engine
-  data/questions90s.js  101 questions, Premier League 1992-2000
+  data/questions90s.js  97 questions, Premier League 1992-2000
   data/verified.json    fact-check sign-off, keyed by question id
   data/roster.js        36 opponents across both editions
   data/characters.js    8 playable fighters and their perks

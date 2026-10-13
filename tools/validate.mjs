@@ -75,6 +75,55 @@ for (const sport of Object.keys(SPORTS)) {
   else if (n < 12) warn(`${sport}: ${n} questions — thin if single-sport runs ever ship`);
 }
 
+// ── giveaway labels ───────────────────────────────────────────────────────
+//
+// "Which scoreline had the MOST goals? Arsenal 1-0 Parma / Liverpool 4-3
+// Newcastle" is not a sport question. The answer is printed in the option and
+// the player just adds up. The same trap catches any label that states its own
+// figure. Years are stripped first, because "Shearer, 1994-95" naming a season
+// is fine — it is context, not the answer.
+const strip = (s) => String(s).replace(/\b(19|20)\d\d\b/g, ' ');
+const nums = (s) => (strip(s).match(/\d+/g) || []).map(Number);
+// Two years in one label is its own giveaway when the answer is the gap
+// between them: "Blackburn, 1914 to 1995" is a subtraction, not a question.
+const yearSpan = (label, value) => {
+  const ys = (String(label).match(/\b(19|20)\d\d\b/g) || []).map(Number);
+  return ys.length >= 2 && Math.abs(Math.max(...ys) - Math.min(...ys)) === value;
+};
+let giveaways = 0;
+for (const q of QUESTIONS) {
+  const tells = q.options.filter((o) => {
+    const n = nums(o.label);
+    if (!n.length) return false;
+    return n.includes(o.value) || n.reduce((a, b) => a + b, 0) === o.value;
+  }).length + q.options.filter((o) => {
+    return yearSpan(o.label, o.value);
+  }).length;
+  // One coincidence is noise; two or more means the label is doing the work.
+  if (tells >= 2) {
+    fail(`"${q.most}": the answer is readable off the labels — ${q.options.map((o) => o.label).join(' / ')}`);
+    giveaways++;
+  }
+}
+// ── labels have to stand alone ────────────────────────────────────────────
+//
+// Option order is shuffled at runtime, so a label that leans on another one
+// ("Seasons he was top scorer") can be shown before the man is named. The
+// player then reads a dangling pronoun. Names only.
+let danglers = 0;
+for (const q of QUESTIONS) {
+  for (const o of q.options) {
+    if (/\b(he|his|him|she|her|they|their|them)\b/i.test(o.label)) {
+      fail(`"${q.most}": option "${o.label}" refers to another option — options are shuffled`);
+      danglers++;
+    }
+  }
+}
+
+console.log(`\nGIVEAWAY CHECK`);
+console.log(`  ${QUESTIONS.length} questions scanned, ${giveaways} answerable without knowing anything`);
+console.log(`  ${danglers} option label(s) leaning on another option`);
+
 console.log(`\nROSTER (${ROSTER.length})`);
 const ids = new Set();
 for (const f of ROSTER) {

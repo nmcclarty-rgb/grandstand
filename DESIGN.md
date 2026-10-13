@@ -335,18 +335,56 @@ floodlight pylons, mown stripes converging on the far touchline, perimeter
 hoardings nobody could read from the terraces, and the roof stanchion you did
 not get a refund for.
 
-**The bank has to be big enough for a whole climb.** A full twelve-rung day
-burns about seventy questions. The first draft of the '90s bank was 52, which
-meant `pickQuestion` exhausted the pool and wrapped round inside a single run —
-the player sees the same question twice in an afternoon, which reads as a bug
-whatever the intent. It went to 101. The rule, for the next edition: **a bank
-smaller than about a hundred is a demo, not a track.**
+**The bank has to be good, which is a different problem from big.** The first
+draft was 101 questions and it was bad. Measured rather than eyeballed, 46% of
+it was *"which of these happened MOST recently?"* — seven near-identical "who
+joined this club first" questions, three relegation-year questions, six "club
+moments" questions. That is a timeline test wearing a football shirt, and it is
+what you get when you need volume and year-recall is the cheapest question to
+write.
+
+It was cut to 97 with year-recall at 10%, and rebuilt around the format the
+whole game was pitched on: **three players a man of a certain age has opinions
+about, one countable figure, and an answer he is probably wrong about.** Who
+scored more Premier League goals — Andy Cole, Robbie Fowler or Teddy
+Sheringham? Most people say Fowler. It is Cole, by 24.
+
+Two things fell out of this worth keeping:
+
+*Measure the bank, do not read it.* The 46% was invisible while writing and
+obvious in one line of script. Composition is a property of a bank, not of any
+question in it, so no amount of careful authoring finds it.
+
+*Career totals beat era splits.* "Goals in the 1990s" needs someone to split a
+career and cannot be checked against anything; career Premier League totals are
+on the league's own all-time tables. The edition stays '90s because the players
+and the events are.
+
+A whole twelve-rung climb asks about 35 questions, so even the 52 of the first
+draft would never have repeated inside one day. The size was never the problem.
 
 The balance curve was checked separately rather than assumed. `balance.mjs`
 simulates a full climb per edition, and the '90s track lands at 53% champion
 for a decent dad against 58% on the classic ladder — close enough to leave
 alone, and a touch harder for the honest reason that a football-only bank has
 no soft sports to fall back on.
+
+### Two question shapes that are not questions
+
+Both shipped before anyone noticed, and both are now failed by `validate.mjs`
+rather than left to review.
+
+**The answer printed in the label.** *"Which scoreline had the MOST goals?
+Arsenal 1-0 Parma / Liverpool 4-3 Newcastle"* — you add up the numbers in front
+of you. No sport required. The check strips years, then fails any question where
+two or more labels contain a number equal to their own value, or summing to it.
+It also fails a label naming two years whose gap is the answer, because
+*"Blackburn, 1914 to 1995"* is a subtraction.
+
+**A label that leans on another label.** Option order is shuffled at runtime, so
+*"Seasons he was top scorer"* can appear before the man is named and the player
+reads a dangling pronoun. Labels have to stand alone; the check fails any
+personal pronoun in one.
 
 Des Rider gets a couple of lines per edition. He is the thread through the
 whole thing, and a new track he never acknowledges feels like a different
