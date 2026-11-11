@@ -109,3 +109,8 @@ h3 { font: 800 13px/1 system-ui; letter-spacing: .12em; text-transform: uppercas
 
 /* a Blind Five card shows career totals, so the stat figure is the whole row: make room for it */
 .stats li span { gap: 0; }
+
+.rolling { display: inline-block; min-width: 9ch; font: 900 28px/1 Impact, "Arial Narrow Bold", sans-serif; letter-spacing: .05em; color: #fff; text-transform: uppercase; }
+.rolling.landed { min-width: 0; color: var(--gold); }
+
+#s-say { min-height: 1.6em; }

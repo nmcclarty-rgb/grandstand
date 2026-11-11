@@ -1,8 +1,8 @@
 // BLIND FIVE: a budget draft against a bot, on the Sticker Season career cards.
 //
-//   1. Roll which attribute is being counted: goals, assists, appearances or discipline.
-//   2. Pick a five-a-side team. £10 each, five rounds; each round the wheel names a position and a board of eight players of that
+//   1. Pick a five-a-side team. £10 each, five rounds; each round the wheel names a position and a board of eight players of that
 //      position is shown with NAMES AND PRICES ONLY: no stats, no club, no overall. You and the bot take turns to pick one.
+//   2. Roll which attribute is being counted: goals, assists, appearances or discipline. NOT KNOWN until the teams are picked.
 //   3. Add up each team's REAL career totals in that attribute. The biggest total wins.
 //
 // No hands, no multipliers, no ratings: a team is worth the sum of what its players really did. The skill is football knowledge:
@@ -64,8 +64,8 @@ const other = (who) => (who === 'you' ? 'bot' : 'you');
 export function newMatch(pool, seed = Date.now(), opts = {}) {
   const state = {
     seed: String(seed), level: opts.level ?? 'medium', phase: 'draft', round: 1,
-    // the attribute being counted, rolled before the draft and known throughout
-    category: opts.category ?? makeRng(`${seed}|category`).pick(CATEGORY_KEYS),
+    // the attribute being counted: null until the draft is over, then rolled (opts.category forces it, for tests)
+    category: null, forcedCategory: opts.category ?? null,
     positions: [], first1: opts.first ?? (makeRng(`${seed}|first`).int(2) ? 'bot' : 'you'),
     money: { you: RULES.budget, bot: RULES.budget }, teams: { you: [], bot: [] }, paid: { you: [], bot: [] },
     board: [], shown: [], turn: null, log: [],
@@ -137,10 +137,16 @@ export const free = (state) => state.board.filter((b) => !b.takenBy);
 // A player's REAL career total in the attribute: goals, assists, appearances, or discipline points (a yellow card is 1, a red 3).
 export const valueOf = (card, category) => statOf(card, category);
 
-// Add each team up. The biggest total wins; equal totals are a draw.
-export function showdown(state) {
+// The roll, once the teams are picked: which attribute is counted.
+export function rollAttribute(state) {
   if (state.phase !== 'showdown' && state.phase !== 'over') throw new Error('the teams are not picked yet');
-  const category = state.category;
+  state.category ??= state.forcedCategory ?? stream(state, 'category').pick(CATEGORY_KEYS);
+  return state.category;
+}
+
+// Roll the attribute, add each team up. The biggest total wins; equal totals are a draw.
+export function showdown(state) {
+  const category = rollAttribute(state);
   const side = (who) => {
     const players = state.teams[who].map((card, i) => ({ card, value: valueOf(card, category), paid: state.paid[who][i] }));
     return { players, total: players.reduce((sum, p) => sum + p.value, 0) };

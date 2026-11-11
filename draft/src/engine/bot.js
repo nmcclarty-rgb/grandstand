@@ -1,19 +1,24 @@
-// The bot. Three levels, same rules as you: the same board, the same budget, one pick a round, and it knows which attribute is
-// being counted (so do you).
+// The bot. Three levels, same rules as you: the same board, the same budget, one pick a round, and like you it does not know which
+// attribute will be counted until the teams are in, so it values a player across all four.
 //
 //   easy    a fan who goes on names: picks the dearest player it can afford, with a little randomness. Price is its only
 //           information, so it falls for every trap and walks past every bargain.
-//   medium  knows the stats, but through a fog (noise on what it thinks a player's total is).
-//   hard    knows exactly what every player has done in the attribute, and looks for the best value for the money.
+//   medium  knows the stats, but through a fog (noise on what it thinks a player is worth).
+//   hard    knows exactly what every player has done, and looks for the best value for the money.
 import { makeRng } from '../../../stickers/src/engine/rng.js';
+import { CATEGORY_KEYS } from '../../../stickers/src/engine/cards.js';
 import { free, canAfford, roundsAfter, pick, valueOf } from './draft.js';
 
 export const LEVELS = ['easy', 'medium', 'hard'];
-const FOG = { medium: 55, hard: 0 };   // how far off, in points of the record, the bot's idea of a player can be
+const FOG = { medium: 22, hard: 0 };   // how far off, in points of the record, the bot's idea of a player can be
 export const VALUE_PER_POUND = 6;      // points of the record a pound of budget is worth to the bot while there are rounds to come
 
-// what a player is worth in the attribute, as a share of the all-time record (0 to 100), so the four attributes are on one scale
-export const worth = (card, category, pool) => (100 * valueOf(card, category)) / pool.meta.records[category].total;
+// what a player is worth in an attribute, as a share of the all-time record (0 to 100), so the four attributes are on one scale.
+// With no attribute (during the draft) it is his average share across all four.
+export const worth = (card, category, pool) => {
+  const one = (k) => (100 * valueOf(card, k)) / pool.meta.records[k].total;
+  return category ? one(category) : CATEGORY_KEYS.reduce((sum, k) => sum + one(k), 0) / CATEGORY_KEYS.length;
+};
 
 // -> the board id the bot picks
 export function choose(state, who = 'bot', level = state.level) {

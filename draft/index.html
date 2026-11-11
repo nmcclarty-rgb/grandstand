@@ -15,8 +15,8 @@
   <section class="screen" id="title" hidden aria-labelledby="t-h">
     <h1 id="t-h" tabindex="-1">Blind <em>Five</em></h1>
     <ol class="steps">
-      <li><b>Roll which attribute</b> is being counted: goals, assists, appearances or discipline.</li>
       <li><b>Pick a team</b> of five from 34 seasons of Premier League players, with <b>£10</b>. Each round the wheel names a position and eight players go on the board with <b>a name and a price</b>: no stats, no club, nothing else. You and the bot take turns to pick one.</li>
+      <li><b>Roll which attribute</b> is being counted: goals, assists, appearances or discipline. Not until the teams are in.</li>
       <li><b>Add it up.</b> Each team's real career totals in that attribute. The biggest total wins.</li>
     </ol>
     <p class="lede">A price is a hint, not the truth. Know your football.</p>
@@ -40,7 +40,7 @@
 
   <section class="screen" id="draft" hidden aria-labelledby="d-h">
     <header class="dhud">
-      <div class="dstat attr"><small>Counting</small><b id="d-attr">GOALS</b></div>
+      <div class="dstat attr"><small>Counting</small><b id="d-attr">???</b></div>
       <div class="dstat"><small>Round</small><b id="d-round">1</b><i>/5</i></div>
       <div class="dpos"><small>The wheel says</small><h2 id="d-h" tabindex="-1"><span id="d-pos">&nbsp;</span></h2></div>
       <div class="dstat money"><small>You have</small><b id="d-money">£10</b></div>
@@ -60,10 +60,12 @@
     <p class="say" id="s-say" role="status" aria-live="polite"></p>
     <div class="actions" id="s-actions"></div>
     <div class="tally" id="s-tally" hidden></div>
-    <h3>Your five</h3>
-    <div class="gallery" id="s-you"></div>
-    <h3>The bot's five</h3>
-    <div class="gallery" id="s-bot"></div>
+    <div id="s-cards" hidden>
+      <h3>Your five</h3>
+      <div class="gallery" id="s-you"></div>
+      <h3>The bot's five</h3>
+      <div class="gallery" id="s-bot"></div>
+    </div>
   </section>
 </main>
 

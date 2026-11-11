@@ -5,16 +5,17 @@ A **blind budget draft against a bot**, on the [Sticker Season](../stickers/) ca
 
 Three steps:
 
-1. **Roll which attribute** is counted: goals, assists, appearances or discipline (a yellow card is 1 point, a red card is 3). It is shown all through the draft.
-2. **Pick a team of five** with £10 each over five rounds. Each round the wheel names a position and eight players go on the board with
+1. **Pick a team of five** with £10 each over five rounds. Each round the wheel names a position and eight players go on the board with
    **a name and a price only**: no stats, no club. You alternate picks (who goes first swaps every round) and you can see what the bot takes.
+2. **Roll which attribute** is counted: goals, assists, appearances or discipline (a yellow card is 1 point, a red card is 3). It is rolled
+   **after** the draft, so you buy without knowing.
 3. **Add it up.** Each team's **real Premier League career totals** in the attribute. The biggest total wins.
 
 No hands, no multipliers, no ratings: none of Sticker Season's rules are used, only its player data.
 
 ```bash
 cd draft
-npm test             # 18 tests: boards, prices, budget rules, turn order, every draft finishes, the roll, the totals, the bot levels
+npm test             # 19 tests: boards, prices, budget rules, turn order, every draft finishes, the roll, the totals, the bot levels
 npm run simulate     # the levels play each other; prints win rates and the hands that come up
 npm start            # then open http://localhost:8779/draft/ and play
 ```
@@ -36,30 +37,28 @@ tools/simulate.mjs    bots against bots
 - **Price** is the true tier, nudged one step with probability 0.3 for tiers 2-4 (a **bargain** if down, a **trap** if up);
   a star can only be a £4 bargain. After the draft each player's caption says what he cost and whether he was a bargain or a trap.
 - **Wheel** GK 1 : DEF 2 : MID 2 : FWD 2, never one position more than twice in a match.
-- **Attribute** rolled once from the seed, before the draft, so you pick knowing what is counted. Goals, assists and appearances are
+- **Attribute** rolled once from the seed **after** the draft (it does not depend on who you picked). Goals, assists and appearances are
   career totals; discipline is yellow cards + 3 × red cards.
 - **Showdown** the sum of each team's five players' totals. Equal totals are a draw.
 
-## What the simulator found (1,000 matches per pairing; win %, draws count half)
+## What the simulator found (win %, draws count half; the attribute is rolled after the draft)
 
 | you \ opponent | random | easy | medium | hard |
 |---|---|---|---|---|
-| random | 49 | 39 | 27 | 3 |
-| easy | 62 | 49 | 34 | 6 |
-| medium | 72 | 67 | 52 | 11 |
-| hard | 96 | 94 | 86 | 52 |
+| random | 47 | 38 | 26 | 11 |
+| easy | 62 | 50 | 36 | 18 |
+| medium | 75 | 67 | 45 | 25 |
+| hard | 85 | 85 | 72 | 47 |
 
 - **Price carries information**: easy, which only reads prices, beats a random picker 62-38.
-- **Knowing the attribute matters far more than before**: once you know it is goals, a forward is worth the money and a goalkeeper
-  is worth nothing, so a bot that knows the stats crushes one that does not. The bot levels are: easy = prices only; medium = knows the
-  totals through a fog (55 points of the record either way); hard = exact totals and value for money.
-- **Hard is unbeatable for a person**: nobody knows every player's exact totals. Medium is the fair fight, and the real test of
-  whether it is fun is a human against medium. No human has played it yet.
-- A match is decided by under 14% of the larger total about one time in seven, so there are close ones.
-- Appearances favour long careers, goals favour forwards, and discipline is the most knowledge-driven of the four (hard beats medium 95%
-  of the time there): who is dirty is not obvious from a name.
+- **Knowledge still wins, but luck is real.** Rolling after the draft means nobody can pick for the attribute: the bots value a player by his
+  average standing across all four. Hard beats medium 72% of the time (it was 86% when the attribute was known), and a random picker
+  still beats hard 11% of the time: the roll decides some matches.
+- The bot levels: easy = prices only; medium = knows the stats through a fog; hard = exact stats and value for money. Hard is not beatable
+  for a person who does not know every career total; medium is the fair fight. No human has played it yet.
+- **What the blind roll changes:** you should buy a team that is good at more than one attribute. A long-serving player scores in appearances
+  and discipline; a striker only in goals; a goalkeeper in appearances and discipline but never goals.
 
 ## Not built
 
-A rematch against the same boards from the other seat · a streak or ladder · a medium level calibrated against real people · an option to roll
-the attribute after the draft instead of before (a pure blind draft) · sound.
+A rematch against the same boards from the other seat · a streak or ladder · a medium level calibrated against real people · an option to roll the attribute before the draft (a knowledge game rather than a gamble) · sound.

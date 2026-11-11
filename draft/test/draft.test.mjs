@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { pool } from './helpers.mjs';
-import { RULES, TIER_SLOTS, PRICE_NOISE, newMatch, pick, free, canAfford, maxSpend, firstPicker, positionOf, showdown, universeOf, valueOf } from '../src/engine/draft.js';
+import { RULES, TIER_SLOTS, PRICE_NOISE, newMatch, pick, free, canAfford, maxSpend, firstPicker, positionOf, showdown, rollAttribute, universeOf, valueOf } from '../src/engine/draft.js';
 import { choose, botMove, worth, LEVELS } from '../src/engine/bot.js';
 import { CATEGORY_KEYS, statOf } from '../../stickers/src/engine/cards.js';
 
@@ -128,14 +128,26 @@ test('RULE: every draft always finishes: both teams get five players and nobody 
   }
 });
 
-test('an attribute is rolled before the draft: all four come up, it is the same for a seed, and it does not change', () => {
-  const seen = new Set();
-  for (let i = 0; i < 200; i++) seen.add(newMatch(pool, `c${i}`).category);
-  assert.deepEqual([...seen].sort(), [...CATEGORY_KEYS].sort());
-  assert.equal(newMatch(pool, 'same').category, newMatch(pool, 'same').category);
-  const s = draft('stable');
-  const cat = s.category;
+test('the attribute is NOT known during the draft: it is rolled once the teams are picked, all four come up, and it is the same for a seed', () => {
+  const s = newMatch(pool, 'blind');
+  assert.equal(s.category, null);
+  assert.throws(() => rollAttribute(s), /not picked yet/);
+  while (s.phase === 'draft') { assert.equal(s.category, null, 'still unknown mid-draft'); const who = s.turn; pick(s, who, choose(s, who, 'easy')); }
+  assert.equal(s.category, null, 'unknown the moment the draft ends');
+  const cat = rollAttribute(s);
+  assert.ok(CATEGORY_KEYS.includes(cat));
+  assert.equal(rollAttribute(s), cat, 'rolling again does not change it');
   assert.equal(showdown(s).category, cat);
+  const seen = new Set();
+  for (let i = 0; i < 200; i++) { const m = draft(`c${i}`); seen.add(rollAttribute(m)); }
+  assert.deepEqual([...seen].sort(), [...CATEGORY_KEYS].sort());
+  assert.equal(rollAttribute(draft('same')), rollAttribute(draft('same')));
+  assert.equal(rollAttribute(Object.assign(draft('forced'), {})), rollAttribute(draft('forced')));
+});
+
+test('the roll does not depend on what was picked: the same seed rolls the same attribute whoever you buy', () => {
+  const a = draft('indep', (s, who) => choose(s, who, 'easy')), b = draft('indep', (s, who) => choose(s, who, 'hard'));
+  assert.equal(rollAttribute(a), rollAttribute(b));
 });
 
 test('the showdown is just addition: each team\'s real career totals in the attribute, biggest wins', () => {
@@ -143,8 +155,9 @@ test('the showdown is just addition: each team\'s real career totals in the attr
   let you = 0, bot = 0, draws = 0;
   for (let i = 0; i < 400; i++) {
     const s = draft(`sd${i}`);
-    const cat = s.category;
     const r = showdown(s);
+    const cat = s.category;
+    assert.equal(r.category, cat);
     assert.equal(r.you.total, tally(s, 'you', cat));
     assert.equal(r.bot.total, tally(s, 'bot', cat));
     assert.equal(r.you.players.length, 5);
@@ -192,11 +205,13 @@ test('the hard bot looks for value: it is not simply buying the dearest, and in 
   assert.equal(id, options.sort((a, b) => worth(b.card, s.category, pool) - worth(a.card, s.category, pool))[0].card.id, 'the best player it can afford for the attribute');
 });
 
-test('worth is a share of the record, so all four attributes are on one 0-100 scale', () => {
+test('worth is a share of the record, so all four attributes are on one 0-100 scale; with no attribute it is the average of the four', () => {
   for (const cat of CATEGORY_KEYS) {
     const best = Math.max(...pool.cards.map((c) => worth(c, cat, pool)));
     assert.ok(Math.abs(best - 100) < 1e-9, `${cat}: ${best}`);
   }
+  const c = pool.cards[0];
+  assert.ok(Math.abs(worth(c, null, pool) - CATEGORY_KEYS.reduce((s, k) => s + worth(c, k, pool), 0) / 4) < 1e-9);
 });
 
 test('botMove plays the bot\'s turn, and the bot never makes an illegal pick at any level', () => {

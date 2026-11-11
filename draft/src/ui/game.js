@@ -63,7 +63,7 @@ function startMatch(seed) {
   result = null;
   const my = ++token;
   show('draft');
-  $('d-attr').textContent = CATEGORIES[state.category].short;
+  $('d-attr').textContent = '???';
   renderTeams();
   runRound(my);
 }
@@ -90,7 +90,7 @@ async function runRound(my) {
   $('d-board').classList.remove('waiting');
   renderBoard();
   const first = state.turn === 'you' ? 'You pick first.' : 'The bot picks first.';
-  say(`<b>${LABEL[positionOf(state)]}.</b> Counting <b>${CATEGORIES[state.category].short}</b>. ${first}`);
+  say(`<b>${LABEL[positionOf(state)]}.</b> ${first}`);
   if (state.turn === 'bot') { await sleep(800); await botTurn(my); } else { busy = false; say(`${$('d-say').innerHTML} <b>Your pick.</b>`); }
 }
 
@@ -166,11 +166,26 @@ function renderAll() { renderBoard(); renderTeams(); renderMoney(); }
 const UNIT = { goals: 'goals', assists: 'assists', games: 'appearances', discipline: 'discipline points' };
 
 function goShowdown() {
-  result = showdown(state);
+  result = showdown(state);   // rolls the attribute; the page shows it when you press the button
   show('show');
   $('s-tally').hidden = true;
+  $('s-cards').hidden = true;
   $('s-you').replaceChildren(); $('s-bot').replaceChildren();
-  $('s-say').textContent = `Both teams are in. Counting ${CATEGORIES[result.category].label.toLowerCase()}: the real career totals, added up.`;
+  $('s-say').textContent = 'Both teams are in. Which attribute is being counted? Nobody knows yet.';
+  $('s-actions').replaceChildren(el('button', { class: 'primary', type: 'button', text: 'Roll the attribute', onclick: roll }));
+}
+
+// the roll: the wheel cycles through the four attributes and lands on the one in the result
+async function roll() {
+  const my = token;
+  $('s-actions').replaceChildren();
+  const say = $('s-say');
+  const order = CATEGORY_KEYS.map((k) => CATEGORIES[k].label);
+  if (!reduceMotion) for (let i = 0; i < 16; i++) { say.innerHTML = `<span class="rolling">${order[i % 4]}</span>`; await sleep(60 + i * 18); if (my !== token) return; }
+  say.innerHTML = `Counting <span class="rolling landed">${CATEGORIES[result.category].label}</span>: the real career totals, added up.`;
+  $('d-attr').textContent = CATEGORIES[result.category].short;
+  await sleep(700);
+  if (my !== token) return;
   $('s-actions').replaceChildren(el('button', { class: 'primary', type: 'button', text: 'Reveal the teams', onclick: reveal }));
 }
 
@@ -224,6 +239,7 @@ async function reveal() {
     el('thead', {}, el('tr', {}, el('th', { colspan: 2, text: 'You' }), el('th'), el('th', { colspan: 2, text: 'The bot' }))),
     el('tbody', {}, ...rows, total)));
   renderCards();
+  $('s-cards').hidden = false;
   let y = 0, b = 0;
   for (let i = 0; i < rows.length; i++) {
     await sleep(750);
@@ -252,15 +268,16 @@ function buildManual() {
     <h2 id="m-h">How to play</h2>
     <p><b>The aim.</b> Build a five-a-side team with a higher total than the bot's, knowing nothing about the players but their names and prices.</p>
     <ol>
-      <li><b>Roll which attribute</b> is being counted: <b>goals, assists, appearances or discipline</b> (a yellow card is 1 point, a red card is 3). It is shown all through the draft.</li>
       <li><b>Pick your team.</b> You and the bot each have <b>£${RULES.budget}</b> for the whole team. Each of <b>${RULES.rounds} rounds</b> the wheel names a position: goalkeepers, defenders, midfielders or forwards. Eight players of that position go on the board with a <b>name and a price</b> of £1 to £5. You and the bot take turns to pick <b>one</b> each; who picks first swaps every round. Once a player is taken he is gone, and you see what the bot takes as it takes it. You must keep <b>£${RULES.minPrice} for every round still to come</b>, so you can never be locked out.</li>
+      <li><b>Roll which attribute</b> is being counted: <b>goals, assists, appearances or discipline</b> (a yellow card is 1 point, a red card is 3). It is rolled <b>after</b> the draft, so you pick without knowing.</li>
       <li><b>Add it up.</b> The teams are revealed and each player's <b>real Premier League career total</b> (1992/93 to 2025/26) in the attribute is added up. The biggest total wins.</li>
     </ol>
     <h3>Prices are a hint, not the truth</h3>
     <p>A £5 is usually a star of his position and a £1 a squad man, but about one player in three in the middle prices is a <b>bargain</b> (cheaper than he is) or a <b>trap</b> (dearer). Prices are by position: the best goalkeeper in the league is a £5 goalkeeper, but he will score no goals. Everyone on a board has made at least 100 Premier League appearances.</p>
     <h3>Tips</h3>
     <ul>
-      <li>Think about the attribute. For <b>goals</b>, forwards are worth the money and goalkeepers are worth nothing, so spend nowhere else. For <b>appearances</b>, a long-serving defender or keeper is as good as a star. For <b>discipline</b>, find the hard men.</li>
+      <li>You do not know the attribute, so buy a team that can win more than one: forwards for goals, midfielders for assists and long-serving players of any position for appearances. Or gamble on one.</li>
+      <li>A goalkeeper is the cheapest place to save: he will score no goals and make almost no assists, but a long-serving keeper has plenty of appearances.</li>
       <li>Money left at the end is wasted. Spend it, but not on the wrong name.</li>
       <li>A career total rewards a long career: someone who played 15 years beats a brilliant two-season wonder.</li>
     </ul>`;
