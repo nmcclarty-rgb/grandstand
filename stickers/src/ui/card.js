@@ -1,5 +1,5 @@
 // Draws one sticker: Panini border and foil, Top Trumps stat block.
-import { CATEGORIES, CATEGORY_KEYS, EDITIONS, cardChips } from '../engine/cards.js';
+import { CATEGORIES, CATEGORY_KEYS, EDITIONS, cardChips, safeHands } from '../engine/cards.js';
 import { CLUB_COLOURS, inkOn } from './clubs.js';
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -41,6 +41,7 @@ export function renderCard(card, opts = {}) {
       <div class="rating"><small>OVR</small>${card.rating}</div>
       <div class="pos">${card.pos}</div>
       ${bust(c1, c2)}
+      ${card.pos === 'GK' ? `<div class="abil" title="Held in your hand, not played: +${safeHands(card)} mult to every hand you play">SAFE HANDS +${safeHands(card)}</div>` : ''}
       ${edition !== 'base' ? `<div class="edtag">${EDITIONS[edition].label}</div>` : ''}
     </div>
     <div class="name">${esc(card.name)}</div>

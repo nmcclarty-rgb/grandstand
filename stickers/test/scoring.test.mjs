@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { scoreHand } from '../src/engine/scoring.js';
+import { safeHands } from '../src/engine/cards.js';
 import { mk, scale } from './helpers.mjs';
 
 const ctx = (over = {}) => ({ category: 'goals', scale, jokers: [], handLevels: {}, state: { handsLeft: 4, discardsLeft: 3 }, ...over });
@@ -158,4 +159,48 @@ test('RULE: no manager depends on a stat that is missing for some seasons', asyn
   for (const gone of ['wall', 'shotStopper']) assert.ok(!JOKER_IDS.includes(gone), `${gone} used clean sheets / saves`);
   // the specialists name their category: it must be one that exists
   for (const id of ['poacher', 'creator', 'ironman']) assert.match(JOKERS[id].blurb, /GOALS|ASSISTS|GAMES PLAYED/);
+});
+
+// ---- the keeper's ability: Safe Hands ------------------------------------------------------------
+const gk = (games, over = {}) => mk({ pos: 'GK', games, club: 'WBA', ...over });
+
+test('Safe Hands is worth +3 / +2 / +1 mult by games played, and only goalkeepers have it', () => {
+  assert.deepEqual([38, 30, 29, 15, 14, 0].map((g) => safeHands(gk(g))), [3, 3, 2, 2, 1, 1]);
+  for (const pos of ['DEF', 'MID', 'FWD']) assert.equal(safeHands(mk({ pos, games: 38 })), 0);
+});
+
+test('a keeper held in hand adds his mult to the hand you play', () => {
+  assert.equal(scoreHand(pair(), ctx({ held: [gk(38)] })).total, 40 * (2 + 3));
+  assert.equal(scoreHand(pair(), ctx({ held: [gk(20)] })).total, 40 * (2 + 2));
+  assert.equal(scoreHand(pair(), ctx({ held: [gk(5)] })).total, 40 * (2 + 1));
+});
+
+test('keepers held in hand stack; outfield players held add nothing', () => {
+  assert.equal(scoreHand(pair(), ctx({ held: [gk(38), gk(20)] })).total, 40 * (2 + 3 + 2));
+  assert.equal(scoreHand(pair(), ctx({ held: [mk({ pos: 'DEF', games: 38 }), mk({ pos: 'MID' })] })).total, 80);
+  assert.equal(scoreHand(pair(), ctx({ held: [] })).total, 80);
+  assert.equal(scoreHand(pair(), ctx()).total, 80); // held is optional
+});
+
+test('hold or play: a keeper you play does not add Safe Hands', () => {
+  const played = [gk(38, { goals: 10 }), mk({ goals: 5 }), gk(30, { club: 'CHE' })];
+  const r = scoreHand(played, ctx({ held: [] }));
+  assert.ok(!r.trace.some((t) => /Safe Hands/.test(t.src)));
+});
+
+test('Safe Hands comes after the cards and before the managers, and shows in the trace', () => {
+  // One-Club Man (x1.5 on a one-club pair) comes after: (2 + 3) x 1.5 = 7.5, not 2 x 1.5 + 3 = 6
+  const r = scoreHand(pair(), ctx({ jokers: ['oneClubMan'], held: [gk(38, { name: 'Foster' })] }));
+  assert.equal(r.mult, 7.5);
+  assert.equal(r.total, 40 * 7.5);
+  const order = r.trace.map((t) => t.src);
+  assert.ok(order.indexOf('Safe Hands: Foster (held)') > order.indexOf(r.trace.find((t) => t.src.startsWith('P')).src));
+  assert.ok(order.indexOf('Safe Hands: Foster (held)') < order.indexOf('One-Club Man'));
+});
+
+test('yellow and red cards are categories like any other', () => {
+  const cards = [mk({ club: 'ARS', yellow: 7, red: 2 }), mk({ club: 'CHE', yellow: 3, red: 0 })];
+  assert.equal(scoreHand(cards, ctx({ category: 'yellow' })).chips, 5 + 7);
+  assert.equal(scoreHand(cards, ctx({ category: 'red' })).chips, 5 + 20);
+  assert.equal(scoreHand(cards, ctx({ category: 'goals' })).chips, 5); // no goals: only the hand's base
 });

@@ -11,29 +11,28 @@ simulator found.
 
 ```bash
 cd stickers
-npm run fetch        # download the FPL season files (raw, git-ignored)
-npm run build:data   # FPL + data/fbref/*.xls -> src/data/cards.json (committed, so you can skip the two above)
-npm test             # 68 tests: hand rules, exact scoring arithmetic, managers, rounds, data anchors, the two design rules
-npm run simulate     # bots play whole runs; prints where the target curve breaks
-npm run crosscheck   # FBref vs FPL where they overlap (needs exports in data/fbref/overlap/)
+npm test             # 81 tests: hand rules, exact scoring arithmetic, managers, rounds, the wheel, data anchors, the design rules
+npm run simulate     # bots play whole 38-game seasons; prints where the target curve breaks
+npm run build:data   # data/fbref/*.xls -> src/data/cards.json (cards.json is committed, so you can skip this)
 npm start            # http://localhost:8778 : the tabletop
 ```
 
 Plain ES modules, no build step, no dependencies (Node 22+ for the tests and tools).
 
 ```
-src/engine/   rng · cards (categories, editions) · hands · jokers (managers) · scoring · round · deck
+src/engine/   rng · cards (categories, editions, Safe Hands) · hands · jokers (managers) · scoring · round (wheel, VAR) · deck
 src/ui/       card renderer, club colours, tabletop
-src/data/     cards.json: one card per player-season: every season 1992/93 to 2025/26
-data/fbref/   hand-exported FBref tables (git-ignored); see DESIGN.md §6 for how to add a season
-tools/        fetch-data · fbref (export reader) · clubs · build-cards · simulate · crosscheck
+src/data/     cards.json: one card per player-season, every season 1992/93 to 2025/26
+data/fbref/   the 34 season exports, two files each (git-ignored; see DESIGN.md section 6)
+tools/        fbref (export reader) · clubs · build-cards · simulate
 test/         node:test suites
 ```
 
 ## What it is, in one paragraph
 
-A **card is a player in a season** ("Salah, Liverpool 2017/18", 32 goals). Each
-fixture names a **category** (Goals, Assists or Games Played) and each card's number in
-it becomes chips. Cards that share a club-season, a club, a run of seasons or a
-player form **hands** with a multiplier; **managers** bend the arithmetic;
-**editions** (shiny, holo, gold) are the Panini foils. Reach the target in four hands.
+A **card is a player in a season** ("Salah, Liverpool 2017/18", 32 goals). A run is a **38-game season**.
+Before each matchday a **wheel** picks a **category** (goals, assists, games, yellow cards or red cards), and each
+card's number in it becomes chips. Cards that share a club-season, a club, a run of seasons or a player form
+**hands** with a multiplier; **managers** bend the arithmetic; **editions** (shiny, holo, gold) are the Panini foils.
+A **goalkeeper held in your hand** (not played) adds mult to every hand you play. Reach the target in four hands.
+**VAR** overturns a spin you don't like: five a season.

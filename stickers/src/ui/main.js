@@ -1,9 +1,9 @@
 // The tabletop: deal a squad, pick up to five cards, see the hand and the arithmetic.
 import { makePool, starterDeck, openPack } from '../engine/deck.js';
 import { makeRng } from '../engine/rng.js';
-import { startRound, playHand, discard, fixtureTarget, SEASON_LENGTH } from '../engine/round.js';
+import { startRound, playHand, discard, fixtureTarget, SEASON_LENGTH, spinWheel, WHEEL, VAR_PER_SEASON } from '../engine/round.js';
 import { scoreHand } from '../engine/scoring.js';
-import { CATEGORIES, CATEGORY_KEYS } from '../engine/cards.js';
+import { CATEGORIES, CATEGORY_KEYS, safeHands } from '../engine/cards.js';
 import { JOKERS, JOKER_IDS } from '../engine/jokers.js';
 import { HANDS } from '../engine/hands.js';
 import { renderCard } from './card.js';
@@ -15,7 +15,9 @@ const params = new URLSearchParams(location.search);
 let pool, round, rng;
 let seed = Number(params.get('seed')) || 1;
 let matchday = Math.min(38, Math.max(1, Number(params.get('matchday')) || 1));
-let categoryChoice = params.get('category') || 'goals';
+let categoryChoice = CATEGORIES[params.get('category')] ? params.get('category') : 'spin'; // 'spin' = the wheel decides
+let varLeft = VAR_PER_SEASON;
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let selected = [];
 const managers = new Set((params.get('managers') || '').split(',').filter((id) => JOKERS[id]));
 let packCount = 0;
@@ -23,9 +25,10 @@ let packCount = 0;
 const sorted = () => [...selected].sort((a, b) => a - b);
 const n = (x) => x.toLocaleString('en-GB');
 
-function ctx() {
+// held: the cards still in your hand when you play (a keeper held in hand adds Safe Hands)
+function ctx(held) {
   return {
-    category: round.category, scale: round.scale, jokers: round.jokers, handLevels: round.handLevels,
+    category: round.category, scale: round.scale, jokers: round.jokers, handLevels: round.handLevels, held,
     state: { handsLeft: round.handsLeft, discardsLeft: round.discardsLeft },
   };
 }
@@ -33,10 +36,38 @@ function ctx() {
 function newDeal() {
   rng = makeRng(`table:${seed}`);
   const run = { deck: starterDeck(pool, rng), jokers: [...managers], handLevels: {}, scale: pool.scale };
-  const category = categoryChoice === 'random' ? rng.pick(CATEGORY_KEYS) : categoryChoice;
+  const category = categoryChoice === 'spin' ? spinWheel(rng) : categoryChoice;
+  varLeft = VAR_PER_SEASON;
   round = startRound(run, { target: fixtureTarget(matchday), category, rng });
   selected = [];
   render();
+  if (categoryChoice === 'spin') reel(category);
+}
+
+// A short reel on the category pill before it settles. Purely cosmetic: the result is already decided.
+let reeling = null;
+function reel(final) {
+  clearInterval(reeling);
+  if (reduceMotion) return;
+  let ticks = 0;
+  const pill = $('cat');
+  pill.classList.add('spinning');
+  reeling = setInterval(() => {
+    ticks++;
+    pill.textContent = CATEGORIES[CATEGORY_KEYS[ticks % CATEGORY_KEYS.length]].label;
+    if (ticks >= 12) { clearInterval(reeling); pill.textContent = CATEGORIES[final].label; pill.classList.remove('spinning'); }
+  }, 70);
+}
+
+// VAR: overturn the spin and spin again, to a different category. Only before you have played a hand.
+const canVar = () => round.status === 'playing' && round.plays.length === 0 && varLeft > 0;
+function doVar() {
+  if (!canVar()) return;
+  round.category = spinWheel(rng, WHEEL, { not: round.category });
+  varLeft--;
+  selected = [];
+  render();
+  reel(round.category);
 }
 
 function toggle(i) {
@@ -54,7 +85,9 @@ function renderMeter() {
   $('hands').textContent = `${round.handsLeft} hands`;
   $('discards').textContent = `${round.discardsLeft} discards`;
   $('deckleft').textContent = `${round.drawPile.length} in deck`;
-  $('cat').textContent = CATEGORIES[round.category].label;
+  if (!reeling || !$('cat').classList.contains('spinning')) $('cat').textContent = CATEGORIES[round.category].label;
+  $('var').textContent = `VAR ${varLeft}`;
+  $('var').disabled = !canVar();
   const st = $('status');
   st.className = `status ${round.status}`;
   st.textContent = round.status === 'won' ? `Full time: through, with ${round.handsLeft} hands to spare.`
@@ -67,7 +100,9 @@ function renderHand(preview) {
   const scoring = new Set(preview ? preview.scoring.map((k) => sorted()[k]) : []);
   round.hand.forEach((card, i) => {
     const isSel = selected.includes(i);
-    const state = preview && isSel ? (scoring.has(i) ? 'scoring' : 'kicker') : null;
+    // a keeper left in hand is working for you (Safe Hands), so it is marked while the round is live
+    const state = preview && isSel ? (scoring.has(i) ? 'scoring' : 'kicker')
+      : !isSel && round.status === 'playing' && safeHands(card) ? 'held' : null;
     const el = renderCard(card, { category: round.category, scale: round.scale, selected: isSel, state });
     el.tabIndex = 0;
     el.setAttribute('role', 'button');
@@ -89,7 +124,7 @@ function renderLive() {
     live.querySelector('.detail').innerHTML = `<p class="empty">${playing ? 'Pick up to five cards (tap them, or press 1-8).' : 'Deal again to keep playing.'}</p>`;
     return null;
   }
-  const r = scoreHand(idx.map((i) => round.hand[i]), ctx());
+  const r = scoreHand(idx.map((i) => round.hand[i]), ctx(round.hand.filter((_, i) => !idx.includes(i))));
   const rows = r.trace.map((t, k) => {
     const bits = [];
     if (t.chips !== undefined) bits.push(`<span class="add">${k === 0 ? '' : '+'}${t.chips}</span>`);
@@ -163,7 +198,7 @@ async function init() {
   pool = makePool(await res.json());
 
   const cat = $('category');
-  cat.innerHTML = CATEGORY_KEYS.map((k) => `<option value="${k}">${CATEGORIES[k].label}</option>`).join('') + '<option value="random">Random</option>';
+  cat.innerHTML = '<option value="spin">Spin the wheel</option>' + CATEGORY_KEYS.map((k) => `<option value="${k}">${CATEGORIES[k].label}</option>`).join('');
   cat.value = categoryChoice;
   cat.addEventListener('change', () => { categoryChoice = cat.value; newDeal(); });
 
@@ -177,6 +212,7 @@ async function init() {
   $('deal').addEventListener('click', () => { seed++; $('seed').value = seed; newDeal(); });
   $('play').addEventListener('click', doPlay);
   $('discard').addEventListener('click', doDiscard);
+  $('var').addEventListener('click', doVar);
   $('openpack').addEventListener('click', showPack);
   $('clear').addEventListener('click', () => { selected = []; render(); });
 

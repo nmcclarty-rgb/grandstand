@@ -4,13 +4,15 @@
 //   1. the hand's base chips and mult (at its training level)
 //   2. each scoring card, left to right: its category chips, its edition, then every
 //      manager's onCard effect. A retrigger repeats that whole step for the card.
-//   3. each manager's onHand effect, in manager order
+//   3. cards held in your hand: a goalkeeper's Safe Hands adds mult for each one not played
+//   4. each manager's onHand effect, in manager order
 //   total = floor(chips × mult)
-import { EDITIONS, cardChips } from './cards.js';
+import { EDITIONS, cardChips, safeHands } from './cards.js';
 import { evaluateHand, handBase, HANDS } from './hands.js';
 import { JOKERS } from './jokers.js';
 
-// ctx: { category, scale, jokers: [id], handLevels: {handType: level}, state: {handsLeft, discardsLeft} }
+// ctx: { category, scale, jokers: [id], handLevels: {handType: level}, state: {handsLeft, discardsLeft},
+//        held: [cards still in hand, not played] }
 export function scoreHand(played, ctx) {
   const { category, scale } = ctx;
   const jokers = (ctx.jokers ?? []).map((id) => {
@@ -51,6 +53,11 @@ export function scoreHand(played, ctx) {
       if (ed.chips || ed.mult || ed.xmult) apply(`${label} · ${ed.label}`, ed);
       for (const mgr of jokers) if (mgr.onCard) apply(`${mgr.name} → ${label}`, mgr.onCard(card, j));
     }
+  }
+  // held in hand: not scored, but a keeper's Safe Hands still counts
+  for (const card of ctx.held ?? []) {
+    const m = safeHands(card);
+    if (m) apply(`Safe Hands: ${card.name} (held)`, { mult: m });
   }
   for (const mgr of jokers) if (mgr.onHand) apply(mgr.name, mgr.onHand(j));
 

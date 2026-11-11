@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { makeRng } from '../src/engine/rng.js';
-import { startRound, playHand, discard, RULES, fixtureTarget, SEASON_LENGTH } from '../src/engine/round.js';
+import { startRound, playHand, discard, RULES, fixtureTarget, SEASON_LENGTH, spinWheel, WHEEL, VAR_PER_SEASON } from '../src/engine/round.js';
+import { CATEGORY_KEYS } from '../src/engine/cards.js';
 import { mk, scale } from './helpers.mjs';
 
 const deck = (n = 24) => Array.from({ length: n }, (_, i) => mk({ goals: i, club: i % 2 ? 'ARS' : 'CHE' }));
@@ -90,4 +91,54 @@ test('matchdays outside 1-38 are an error, and the curve can be retuned', () => 
   assert.throws(() => fixtureTarget(39), /matchday must be 1-38/);
   assert.throws(() => fixtureTarget(1.5), /matchday must be 1-38/);
   assert.equal(fixtureTarget(38, { end: 70000 }), 70000);
+});
+
+test('playing a hand passes the cards still in hand, so a held keeper adds Safe Hands', () => {
+  // an 8-card deck is dealt whole: seven outfielders and one keeper
+  const outfield = Array.from({ length: 7 }, (_, i) => mk({ pos: 'MID', club: `C${i}`, goals: 4 }));
+  const keeper = mk({ pos: 'GK', club: 'WBA', games: 33, name: 'Foster' });
+  const s = startRound(run([...outfield, keeper]), { target: 1e9, category: 'goals', rng: makeRng(1) });
+  const gkIdx = s.hand.findIndex((c) => c.pos === 'GK');
+  const midIdx = s.hand.findIndex((c) => c.pos === 'MID');
+  const held = playHand(s, [midIdx]);
+  assert.equal(held.mult, 1 + 3, 'keeper held: Kickabout x1 + Safe Hands 3');
+  assert.ok(held.trace.some((t) => t.src === 'Safe Hands: Foster (held)'));
+  // play the keeper himself and nothing is held, so no Safe Hands
+  const s2 = startRound(run([...outfield, { ...keeper, uid: 'k2' }]), { target: 1e9, category: 'goals', rng: makeRng(1) });
+  const played = playHand(s2, [s2.hand.findIndex((c) => c.pos === 'GK')]);
+  assert.equal(played.mult, 1);
+  assert.ok(gkIdx >= 0);
+});
+
+// ---- the wheel and VAR -----------------------------------------------------------------------------
+test('the wheel has a slice for every category, and VAR gives you five a season', () => {
+  assert.deepEqual(Object.keys(WHEEL).sort(), [...CATEGORY_KEYS].sort());
+  assert.equal(VAR_PER_SEASON, 5);
+});
+
+test('a fair wheel lands on every category about equally often', () => {
+  const rng = makeRng(7);
+  const n = Object.fromEntries(CATEGORY_KEYS.map((k) => [k, 0]));
+  for (let i = 0; i < 10000; i++) n[spinWheel(rng, { goals: 1, assists: 1, games: 1, yellow: 1, red: 1 })]++;
+  for (const k of CATEGORY_KEYS) assert.ok(Math.abs(n[k] / 10000 - 0.2) < 0.02, `${k}: ${n[k]}`);
+});
+
+test('slice sizes are weights, and a zero slice never comes up', () => {
+  const rng = makeRng(3);
+  const n = { goals: 0, assists: 0, games: 0 };
+  for (let i = 0; i < 9000; i++) n[spinWheel(rng, { goals: 6, assists: 3, games: 0, red: 0 })]++;
+  assert.equal(n.games, 0);
+  assert.ok(Math.abs(n.goals / 9000 - 2 / 3) < 0.03, JSON.stringify(n));
+});
+
+test('VAR spins again to a different category, and the same seed gives the same spins', () => {
+  const rng = makeRng(11);
+  for (let i = 0; i < 500; i++) {
+    const first = spinWheel(rng);
+    assert.notEqual(spinWheel(rng, WHEEL, { not: first }), first);
+  }
+  const seq = (seed) => { const r = makeRng(seed); return Array.from({ length: 12 }, () => spinWheel(r)).join(); };
+  assert.equal(seq(5), seq(5));
+  assert.notEqual(seq(5), seq(6));
+  assert.throws(() => spinWheel(makeRng(1), { goals: 1 }, { not: 'goals' }), /no slices/);
 });

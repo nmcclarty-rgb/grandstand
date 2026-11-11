@@ -18,7 +18,7 @@ export const FBREF_CLUBS = {
   'blackburn rovers': 'BLA', 'blackpool': 'BLP', 'bolton': 'BOL', 'bolton wanderers': 'BOL', 'bournemouth': 'BOU',
   'bradford city': 'BRA', 'brighton': 'BHA', 'burnley': 'BUR', 'cardiff city': 'CAR', 'charlton athletic': 'CHA',
   'chelsea': 'CHE', 'coventry city': 'COV', 'crystal palace': 'CRY', 'derby county': 'DER', 'everton': 'EVE',
-  'fulham': 'FUL', 'huddersfield town': 'HUD', 'hull city': 'HUL', 'ipswich town': 'IPS', 'leeds united': 'LEE',
+  'fulham': 'FUL', 'huddersfield': 'HUD', 'huddersfield town': 'HUD', 'brentford': 'BRE', 'luton town': 'LUT', 'hull city': 'HUL', 'ipswich town': 'IPS', 'leeds united': 'LEE',
   'leicester': 'LEI', 'leicester city': 'LEI', 'liverpool': 'LIV', 'manchester city': 'MCI', 'manchester utd': 'MUN',
   'manchester united': 'MUN', 'middlesbrough': 'MID', 'newcastle': 'NEW', 'newcastle utd': 'NEW', 'newcastle united': 'NEW',
   'norwich city': 'NOR', 'nottingham': 'NFO', "nott'ham forest": 'NFO', 'nottingham forest': 'NFO',

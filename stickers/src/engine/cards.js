@@ -8,12 +8,14 @@ export const POSITIONS = ['GK', 'DEF', 'MID', 'FWD'];
 // The Top Trumps bit: each fixture names one category, and a card's number in it becomes its chips,
 // scaled so the 99th percentile is worth 60 chips.
 //
-// RULE: only stats that exist for every season (1992/93 to 2025/26). FPL has more (clean sheets, saves,
-// bonus, price) but only from 2016/17, so they are not used anywhere in the game.
+// RULE: only stats that exist for every season (1992/93 to 2025/26): goals, assists, games, yellow and red
+// cards. Clean sheets, saves and the like are not recorded for the early seasons, so they are not used.
 export const CATEGORIES = {
   goals:   { label: 'GOALS',        short: 'GOALS',   unit: 'goals' },
   assists: { label: 'ASSISTS',      short: 'ASSISTS', unit: 'assists' },
   games:   { label: 'GAMES PLAYED', short: 'GAMES',   unit: 'games' },
+  yellow:  { label: 'YELLOW CARDS', short: 'YELLOWS', unit: 'yellow cards' },
+  red:     { label: 'RED CARDS',    short: 'REDS',    unit: 'red cards' },
 };
 export const CATEGORY_KEYS = Object.keys(CATEGORIES);
 
@@ -36,3 +38,12 @@ export function cardChips(card, category, scale) {
 
 // 'goals' -> 'GOALS' etc. for display.
 export const categoryLabel = (key) => CATEGORIES[key].label;
+
+// The keeper's ability, SAFE HANDS: a goalkeeper held in your hand (not played) adds mult to every hand you
+// play. Goalkeepers score almost nothing in any category, so this is their job: support. How much depends on
+// how much he played (a stat every season has): a regular is worth more than a deputy.
+//   30+ games: first choice, +3 mult    15-29: rotation, +2 mult    under 15: backup, +1 mult
+export function safeHands(card) {
+  if (card.pos !== 'GK') return 0;
+  return card.games >= 30 ? 3 : card.games >= 15 ? 2 : 1;
+}

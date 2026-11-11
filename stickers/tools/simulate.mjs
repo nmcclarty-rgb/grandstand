@@ -17,7 +17,7 @@
 import { readFileSync } from 'node:fs';
 import { makeRng } from '../src/engine/rng.js';
 import { makePool, starterDeck, openPack, STARTER_SHAPE } from '../src/engine/deck.js';
-import { startRound, playHand, discard, fixtureTarget, SEASON_LENGTH, TARGET_START, TARGET_END } from '../src/engine/round.js';
+import { startRound, playHand, discard, fixtureTarget, SEASON_LENGTH, TARGET_START, TARGET_END, spinWheel, WHEEL, VAR_PER_SEASON } from '../src/engine/round.js';
 import { scoreHand } from '../src/engine/scoring.js';
 import { CATEGORY_KEYS, cardChips, teamKey } from '../src/engine/cards.js';
 import { JOKER_IDS } from '../src/engine/jokers.js';
@@ -47,14 +47,15 @@ function subsets(n, maxSize) {
 }
 const SUBSETS = subsets(8, 5);
 
-function ctxOf(s) {
-  return { category: s.category, scale: s.scale, jokers: s.jokers, handLevels: s.handLevels, state: { handsLeft: s.handsLeft, discardsLeft: s.discardsLeft } };
+function ctxOf(s, held) {
+  return { category: s.category, scale: s.scale, jokers: s.jokers, handLevels: s.handLevels, held, state: { handsLeft: s.handsLeft, discardsLeft: s.discardsLeft } };
 }
 function bestPlay(s) {
   let best = null;
   for (const idx of SUBSETS) {
     if (idx[idx.length - 1] >= s.hand.length) continue;
-    const r = scoreHand(idx.map((i) => s.hand[i]), ctxOf(s));
+    const held = s.hand.filter((_, i) => !idx.includes(i)); // a keeper left in hand adds Safe Hands
+    const r = scoreHand(idx.map((i) => s.hand[i]), ctxOf(s, held));
     if (!best || r.total > best.total) best = { idx, total: r.total, scoring: r.scoring };
   }
   return best;
@@ -71,7 +72,7 @@ const bots = {
     const pace = (s.target - s.score) / s.handsLeft;
     if (s.discardsLeft > 0 && best.total < pace && s.drawPile.length) {
       const keep = new Set(best.scoring.map((i) => best.idx[i]));
-      const toss = s.hand.map((_, i) => i).filter((i) => !keep.has(i))
+      const toss = s.hand.map((_, i) => i).filter((i) => !keep.has(i) && s.hand[i].pos !== 'GK') // keepers are worth holding
         .sort((a, b) => cardChips(s.hand[a], s.category, s.scale) - cardChips(s.hand[b], s.category, s.scale)).slice(0, 5);
       if (toss.length) return discard(s, toss);
     }
@@ -85,8 +86,16 @@ function playRun(botName, rewarded, seed) {
   const run = { deck: starterDeck(pool, rng, SHAPE), jokers: [], handLevels: {}, scale: pool.scale };
   const results = [];
   const played = {};
+  let varLeft = VAR_PER_SEASON, varUsed = 0;
+  results.varUsed = 0;
   for (let matchday = 1; matchday <= SEASON_LENGTH; matchday++) {
-    const category = rng.pick(CATEGORY_KEYS);
+    let category = spinWheel(rng);
+    // VAR: a bot that knows its deck overturns a spin that lands on a category the deck is weak in
+    if (botName !== 'random' && varLeft > 0) {
+      const strength = (cat) => run.deck.map((c) => cardChips(c, cat, pool.scale)).sort((a, b) => b - a).slice(0, 8).reduce((a, b) => a + b, 0);
+      const best = Math.max(...CATEGORY_KEYS.map(strength));
+      if (strength(category) < 0.5 * best) { category = spinWheel(rng, WHEEL, { not: category }); varLeft--; varUsed++; results.varUsed = varUsed; }
+    }
     const s = startRound(run, { target: fixtureTarget(matchday, TARGETS), category, rng });
     let guard = 0;
     while (s.status === 'playing' && guard++ < 50) bots[botName](s, rng);
@@ -147,6 +156,9 @@ for (const [label] of configs) {
   const wins = table[label].runs.filter((r) => r.length === SEASON_LENGTH && r.at(-1).won).length;
   console.log(`${label.padEnd(8)} matchdays cleared: median ${String(median).padStart(2)}, best 10% reach ${String(p90).padStart(2)} of ${SEASON_LENGTH}   full seasons: ${wins}/${RUNS}`);
 }
+
+const used = (l) => (table[l].runs.reduce((a, r) => a + r.varUsed, 0) / RUNS).toFixed(1);
+console.log(`\nVAR reviews used per season (of ${VAR_PER_SEASON}): greedy ${used('greedy')}, greedy+ ${used('greedy+')}`);
 
 // ---- does the category you draw decide the result? ------------------------------------
 console.log('\nwin rate by category (all fixtures played)');

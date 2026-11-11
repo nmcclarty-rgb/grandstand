@@ -5,10 +5,14 @@ import { parseFbrefTable, mergeSeasonFiles, EXPORT_CAP } from '../tools/fbref.mj
 import { makeRng } from '../src/engine/rng.js';
 import { starterDeck, openPack, TIERS } from '../src/engine/deck.js';
 import { POSITIONS, CATEGORY_KEYS, teamKey } from '../src/engine/cards.js';
+import { evaluateHand } from '../src/engine/hands.js';
 
 const json = loadJson();
 const { cards, meta } = json;
-const find = (name, season) => cards.find((c) => c.name === name && c.season === season);
+// name: the card's display name, or a surname / full name ("Wright" finds Ian Wright whatever initial is shown)
+const matches = (c, name) => c.name === name || c.full === name || c.full.endsWith(` ${name}`);
+const find = (name, season) => cards.find((c) => matches(c, name) && c.season === season);
+const SEASON_GAMES = 38;
 
 test('every card is well-formed and unique', () => {
   const ids = new Set();
@@ -24,13 +28,13 @@ test('every card is well-formed and unique', () => {
     assert.ok(meta.clubs[c.club], `${c.id}: club ${c.club}`);
     assert.ok(c.rating >= 1 && c.rating <= 99, `${c.id}: rating ${c.rating}`);
     for (const k of CATEGORY_KEYS) assert.ok(Number.isInteger(c[k]) && c[k] >= 0, `${c.id}: ${k}=${c[k]}`);
-    // RULE: a card carries only stats that exist for every season. Partial stats (FPL's clean sheets, saves,
-    // bonus, price, points) would be zero for 24 of 34 seasons, so they must not be on a card.
-    assert.deepEqual(Object.keys(c).sort(), ['assists', 'club', 'full', 'games', 'goals', 'id', 'name', 'pid', 'pos', 'rating', 'season', 'src'], `${c.id}: unexpected fields`);
+    // RULE: a card carries only stats that exist for every season. Partial stats (clean sheets, saves, bonus
+    // points, price) would be zero for most seasons, so they must not be on a card.
+    assert.deepEqual(Object.keys(c).sort(), ['assists', 'club', 'full', 'games', 'goals', 'id', 'name', 'pid', 'pos', 'rating', 'red', 'season', 'yellow'], `${c.id}: unexpected fields`);
   }
 });
 
-test('parsing anchors: known season totals survive the CSV round-trip', () => {
+test('anchors: known season totals survive the export round-trip', () => {
   assert.equal(find('Kane', '2016-17').goals, 29);
   assert.equal(find('Kane', '2016-17').club, 'TOT');
   assert.equal(find('Lukaku', '2016-17').goals, 25);
@@ -43,11 +47,10 @@ test('parsing anchors: known season totals survive the CSV round-trip', () => {
   assert.equal(find('Heaton', '2016-17').club, 'BUR');
 });
 
-test('legacy seasons without teams.csv map clubs correctly (alphabetical id fallback)', () => {
-  // Each of these is a well-known player/club pairing in a season that has no teams.csv.
+test('well-known player and club pairings come out right', () => {
   const expect = [
     ['Agüero', '2017-18', 'MCI'], ['Mané', '2018-19', 'LIV'], ['Aubameyang', '2018-19', 'ARS'],
-    ['Sánchez', '2016-17', 'ARS'], ['Costa', '2016-17', 'CHE'], ['Fabianski', '2018-19', 'WHU'],
+    ['Sánchez', '2016-17', 'ARS'], ['Costa', '2016-17', 'CHE'], ['Fabiański', '2018-19', 'WHU'],
   ];
   for (const [name, season, club] of expect) assert.equal(find(name, season)?.club, club, `${name} ${season}`);
 });
@@ -68,77 +71,79 @@ test('every team-season has all four positions; 22 clubs until 1995, 20 after', 
   assert.deepEqual(thin.map(([k]) => k), []);
 });
 
-test('FBref seasons: anchors, merged exports, mid-season movers', () => {
-  const get = (name, season, club) => cards.find((c) => c.name === name && c.season === season && c.club === club);
-  assert.equal(get('Sheringham', '1992-93', 'TOT').goals, 21);
-  assert.equal(get('Ferdinand', '1992-93', 'QPR').goals, 20);
-  assert.equal(get('Shearer', '1992-93', 'BLA').goals, 16);
-  assert.equal(get('Wright', '1992-93', 'ARS').goals, 15);       // only in the Z-A export
-  assert.equal(get('Cole', '1993-94', 'NEW').goals, 34);
-  assert.equal(get('Shearer', '1993-94', 'BLA').goals, 31);
-  assert.equal(get('Le Tissier', '1993-94', 'SOU').goals, 25);
-  assert.equal(get('Shearer', '1994-95', 'BLA').goals, 34);
-  assert.equal(get('Fowler', '1994-95', 'LIV').goals, 25);
-  assert.equal(get('Ferdinand', '1994-95', 'QPR').goals, 24);
-  assert.equal(get('Shearer', '1996-97', 'NEW').goals, 25);
-  assert.equal(get('Wright', '1996-97', 'ARS').goals, 23);
-  assert.equal(get('Owen', '1997-98', 'LIV').goals, 18);
-  assert.equal(get('Dublin', '1997-98', 'COV').goals, 18);
-  assert.equal(get('Sutton', '1997-98', 'BLA').goals, 18);
-  assert.equal(get('van Nistelrooy', '2002-03', 'MUN').goals, 25);
+test('anchors across the eras: merged exports, 38-game scaling, mid-season movers', () => {
+  const get = (name, season, club) => cards.find((c) => matches(c, name) && c.season === season && c.club === club);
+  // 1992/93 to 1994/95 were 42-game seasons: counting stats are scaled by 38/42 and rounded, so the real
+  // figure is written here and the scaling is part of the assertion.
+  const s38 = (x) => Math.round((x * 38) / 42);
+  assert.equal(get('Sheringham', '1992-93', 'TOT').goals, s38(21));
+  assert.equal(get('Ferdinand', '1992-93', 'QPR').goals, s38(20));
+  assert.equal(get('Shearer', '1992-93', 'BLA').goals, s38(16));
+  assert.equal(get('Wright', '1992-93', 'ARS').goals, s38(15));      // only in the Z-A export
+  assert.equal(get('Cole', '1993-94', 'NEW').goals, s38(34));
+  assert.equal(get('Shearer', '1993-94', 'BLA').goals, s38(31));
+  assert.equal(get('Le Tissier', '1993-94', 'SOU').goals, s38(25));
+  assert.equal(get('Shearer', '1994-95', 'BLA').goals, s38(34));
+  assert.equal(get('Fowler', '1994-95', 'LIV').goals, s38(25));
+  assert.equal(get('Ferdinand', '1994-95', 'QPR').goals, s38(24));
+  // 38-game seasons are as recorded
+  const exact = [
+    ['Shearer', '1995-96', 'BLA', 31], ['Fowler', '1995-96', 'LIV', 28], ['Ferdinand', '1995-96', 'NEW', 25],
+    ['Shearer', '1996-97', 'NEW', 25], ['Wright', '1996-97', 'ARS', 23], ['Owen', '1997-98', 'LIV', 18],
+    ['Dublin', '1997-98', 'COV', 18], ['Sutton', '1997-98', 'BLA', 18], ['Owen', '1998-99', 'LIV', 18],
+    ['Phillips', '1999-00', 'SUN', 30], ['Hasselbaink', '2000-01', 'CHE', 23], ['Henry', '2001-02', 'ARS', 24],
+    ['van Nistelrooy', '2002-03', 'MUN', 25], ['Henry', '2003-04', 'ARS', 30], ['Shearer', '2003-04', 'NEW', 22],
+    ['Henry', '2004-05', 'ARS', 25], ['Johnson', '2004-05', 'CRY', 21], ['Henry', '2005-06', 'ARS', 27],
+    ['Bent', '2005-06', 'CHA', 18], ['Drogba', '2006-07', 'CHE', 20], ['Ronaldo', '2007-08', 'MUN', 31],
+    ['Torres', '2007-08', 'LIV', 24], ['Anelka', '2008-09', 'CHE', 19], ['Drogba', '2009-10', 'CHE', 29],
+    ['Rooney', '2009-10', 'MUN', 26], ['Tevez', '2009-10', 'MCI', 23], ['Berbatov', '2010-11', 'MUN', 20],
+    ['Tevez', '2010-11', 'MCI', 20], ['van Persie', '2011-12', 'ARS', 30], ['Agüero', '2011-12', 'MCI', 23],
+    ['van Persie', '2012-13', 'MUN', 26], ['Bale', '2012-13', 'TOT', 21], ['Suárez', '2013-14', 'LIV', 31],
+    ['Sturridge', '2013-14', 'LIV', 21], ['Agüero', '2014-15', 'MCI', 26], ['Kane', '2014-15', 'TOT', 21],
+    ['Vardy', '2015-16', 'LEI', 24], ['Kane', '2015-16', 'TOT', 25],
+  ];
+  for (const [name, season, club, goals] of exact) assert.equal(get(name, season, club)?.goals, goals, `${name} ${season}`);
   assert.equal(get('Henry', '2002-03', 'ARS').assists, 20);
-  assert.equal(get('Henry', '2003-04', 'ARS').goals, 30);
-  assert.equal(get('Shearer', '2003-04', 'NEW').goals, 22);
-  assert.equal(get('Owen', '1998-99', 'LIV').goals, 18);
-  assert.equal(get('Phillips', '1999-00', 'SUN').goals, 30);
-  assert.equal(get('Hasselbaink', '2000-01', 'CHE').goals, 23);
-  assert.equal(get('Henry', '2001-02', 'ARS').goals, 24);
-  assert.equal(get('Henry', '2004-05', 'ARS').goals, 25);
   assert.equal(get('Lampard', '2004-05', 'CHE').assists, 18);
-  assert.equal(get('Johnson', '2004-05', 'CRY').goals, 21);
-  assert.equal(get('Henry', '2005-06', 'ARS').goals, 27);
-  assert.equal(get('Bent', '2005-06', 'CHA').goals, 18);
-  assert.equal(get('Drogba', '2006-07', 'CHE').goals, 20);
-  assert.equal(get('Ronaldo', '2007-08', 'MUN').goals, 31);
-  assert.equal(get('Torres', '2007-08', 'LIV').goals, 24);
   assert.equal(get('Fàbregas', '2007-08', 'ARS').assists, 17);
-  assert.equal(get('Anelka', '2008-09', 'CHE').goals, 19);
-  assert.equal(get('Drogba', '2009-10', 'CHE').goals, 29);
-  assert.equal(get('Rooney', '2009-10', 'MUN').goals, 26);
-  assert.equal(get('Tevez', '2009-10', 'MCI').goals, 23);
-  assert.equal(get('Berbatov', '2010-11', 'MUN').goals, 20);
-  assert.equal(get('Tevez', '2010-11', 'MCI').goals, 20);
-  assert.equal(get('van Persie', '2011-12', 'ARS').goals, 30);
-  assert.equal(get('Agüero', '2011-12', 'MCI').goals, 23);
-  assert.equal(get('van Persie', '2012-13', 'MUN').goals, 26);
-  assert.equal(get('Bale', '2012-13', 'TOT').goals, 21);
-  assert.equal(get('Suárez', '2013-14', 'LIV').goals, 31);
-  assert.equal(get('Agüero', '2014-15', 'MCI').goals, 26);
-  assert.equal(get('Kane', '2014-15', 'TOT').goals, 21);
-  assert.equal(get('Vardy', '2015-16', 'LEI').goals, 24);
-  assert.equal(get('Kane', '2015-16', 'TOT').goals, 25);
-  assert.equal(get('Shearer', '1995-96', 'BLA').goals, 31);
-  assert.equal(get('Fowler', '1995-96', 'LIV').goals, 28);
-  assert.equal(get('Ferdinand', '1995-96', 'NEW').goals, 25);
-  assert.equal(get('Sturridge', '2013-14', 'LIV').goals, 21);
   // 2001/02 was a Z-A export plus an A-Z one: surnames at the A end only exist because both were merged
   assert.ok(get('Bergkamp', '2001-02', 'ARS') && get('Anelka', '2001-02', 'LIV'));
-  // Sheringham left Forest for Spurs mid-season: two cards, two clubs
-  assert.ok(cards.filter((c) => c.pid === get('Sheringham', '1992-93', 'TOT').pid && c.season === '1992-93').length >= 1);
-  assert.equal(get('Cantona', '1992-93', 'LEE').goals + get('Cantona', '1992-93', 'MUN').goals, 15);
-  // both sources give a card the same fields, so any card can stand in any category
-  for (const c of cards.filter((x) => x.src === 'fbref')) assert.ok(c.games > 0, c.id);
+  // mid-season movers have one card per club, in every season
+  assert.equal(get('Cantona', '1992-93', 'LEE').goals + get('Cantona', '1992-93', 'MUN').goals, s38(6) + s38(9));
+  assert.deepEqual(cards.filter((c) => c.full === 'Alexis Sánchez' && c.season === '2017-18').map((c) => c.club).sort(), ['ARS', 'MUN']);
+  for (const c of cards) assert.ok(c.games > 0, c.id);
 });
 
-test('every FBref season has a plausible number of goals on the cards', () => {
-  // A season is n x (n-1) matches at about 2.5 goals each. Own goals are not credited to a player, so a
-  // little under. A season of zeros (the wrong FBref table) or a half-imported one fails this.
-  for (const season of meta.sources.fbref) {
+test('every season is a 38-game season: no card shows more than 38 games, and the 42-game ones are scaled', () => {
+  assert.equal(Math.max(...cards.map((c) => c.games)), SEASON_GAMES);
+  assert.deepEqual(meta.scaled, { seasons: ['1992-93', '1993-94', '1994-95'], to: 38 });
+  // a regular of a 42-game season played about 42 games and now shows 38; of a 38-game season, 38 either way
+  const schmeichel = cards.find((c) => c.name === 'Schmeichel' && c.season === '1992-93');
+  assert.equal(schmeichel.games, 38);
+});
+
+test('players keep one id across their whole career, so cards link across 2016', () => {
+  const kane = cards.filter((c) => c.full === 'Harry Kane');
+  assert.equal(new Set(kane.map((c) => c.pid)).size, 1);
+  assert.ok(kane.length >= 9);
+  const careers = new Map();
+  for (const c of cards) careers.set(c.pid, (careers.get(c.pid) ?? new Set()).add(c.season));
+  assert.ok(Math.max(...[...careers.values()].map((x) => x.size)) >= 20, 'someone played 20+ seasons (Milner: 23)');
+  // a Hat-trick that spans the old FPL/FBref boundary: three Kane seasons in one hand
+  const three = ['2014-15', '2015-16', '2016-17'].map((season) => cards.find((c) => c.full === 'Harry Kane' && c.season === season));
+  assert.equal(evaluateHand(three).type, 'hatTrick');
+});
+
+test('every season has a plausible number of goals on the cards', () => {
+  // Every season is 38 games a team, so n clubs play n x 38 / 2 matches at about 2.5 goals each (2023/24 was a
+  // record, 3.3). Own goals are not credited to a player, so a little under. A season of zeros (the wrong FBref
+  // table) or a half-imported one fails this.
+  for (const season of meta.seasons) {
     const inSeason = cards.filter((c) => c.season === season);
     const clubs = new Set(inSeason.map((c) => c.club)).size;
-    const matches = clubs * (clubs - 1);
+    const matches = (clubs * SEASON_GAMES) / 2;
     const goals = inSeason.reduce((sum, c) => sum + c.goals, 0);
-    assert.ok(goals > 2.2 * matches && goals < 3.0 * matches, `${season}: ${goals} goals in ${matches} matches`);
+    assert.ok(goals > 2.2 * matches && goals < 3.4 * matches, `${season}: ${goals} goals in ${matches} matches`);
   }
 });
 
@@ -245,7 +250,7 @@ test('a short single export is complete, and disagreeing rows are an error', () 
   assert.throws(() => mergeSeasonFiles('x', [file('a', a), file('b', b)]), /disagrees/);
 });
 
-test('display names keep compound surnames and drop suffixes', () => {
+test('display names keep compound surnames, drop suffixes and tell shared surnames apart', () => {
   const shown = (full) => [...new Set(cards.filter((c) => c.full === full).map((c) => c.name))];
   assert.deepEqual(shown('Roque Santa Cruz'), ['Santa Cruz']);
   assert.deepEqual(shown('Luís Boa Morte'), ['Boa Morte']);
@@ -253,23 +258,28 @@ test('display names keep compound surnames and drop suffixes', () => {
   assert.deepEqual(shown('Tal Ben Haim'), ['Ben Haim']);
   assert.deepEqual(shown('Asier del Horno'), ['del Horno']);
   assert.deepEqual(shown('Ricardo Vaz Tê'), ['Vaz Tê']);
-  assert.deepEqual(shown('Alan Kelly Jr.'), ['Kelly']);
+  assert.deepEqual(shown('Alexis Mac Allister'), ['Mac Allister']);
+  assert.deepEqual(shown('Son Heung-min'), ['Son']);         // FBref writes some names surname-first
   // ordinary middle names are not part of the surname
   assert.deepEqual(shown('Ole Gunnar Solskjær'), ['Solskjær']);
   assert.deepEqual(shown('Jimmy Floyd Hasselbaink'), ['Hasselbaink']);
+  // a surname shared by 4+ different players gets an initial, so two cards in a hand are not both "WRIGHT"
+  assert.deepEqual(shown('Ian Wright'), ['I.Wright']);
+  assert.deepEqual(shown('Adam Smith'), ['A.Smith']);
+  assert.deepEqual(shown('Alan Kelly Jr.'), ['A.Kelly']);   // and the suffix is gone
+  assert.deepEqual(shown('Alan Shearer'), ['Shearer']);       // a distinctive surname stays plain
   // a suffix left behind ("Jr.") is the bug; a real short mononym ("Jô") is not
-  assert.ok(cards.filter((c) => c.src === 'fbref').every((c) => c.name.length >= 2 && !c.name.endsWith('.')), 'no stub names like "Jr."');
+  assert.ok(cards.every((c) => c.name.length >= 2 && !c.name.endsWith('.')), 'no stub names like "Jr."');
   assert.deepEqual(shown('Jô'), ['Jô']);
 });
 
-test('every season from 1992/93 to 2025/26 is covered, from exactly one source', () => {
+test('every season from 1992/93 to 2025/26 is covered, all from one source', () => {
   const year = (y) => `${y}-${String((y + 1) % 100).padStart(2, '0')}`;
   const all = Array.from({ length: 2025 - 1992 + 1 }, (_, i) => year(1992 + i));
   assert.deepEqual(all.filter((x) => !meta.seasons.includes(x)), [], 'missing seasons');
   assert.deepEqual(meta.seasons, all);
-  assert.deepEqual(meta.sources.fbref, all.filter((x) => x < '2016-17'));
-  assert.deepEqual(meta.sources.fpl, all.filter((x) => x >= '2016-17'));
-  assert.ok(meta.sources.fbref.every((x) => !meta.sources.fpl.includes(x)));
+  assert.match(meta.source, /FBref/);
+  assert.equal(meta.sources, undefined, 'a second source would bring back inconsistent assists and player ids');
 });
 
 test('starter squads draw on every era, because every card has the same stats', () => {
@@ -285,11 +295,11 @@ test('starter squads draw on every era, because every card has the same stats', 
 });
 
 test('RULE: the only categories are the stats every season has', () => {
-  assert.deepEqual(CATEGORY_KEYS, ['goals', 'assists', 'games']);
-  assert.deepEqual(Object.keys(meta.chipScale), ['goals', 'assists', 'games']);
+  assert.deepEqual(CATEGORY_KEYS, ['goals', 'assists', 'games', 'yellow', 'red']);
+  assert.deepEqual(Object.keys(meta.chipScale), ['goals', 'assists', 'games', 'yellow', 'red']);
 });
 
-test('RULE: one rating formula for every card, so ratings are comparable across sources', () => {
+test('RULE: one rating formula for every card, so ratings are comparable across eras', () => {
   const score = (c) => (c.pos === 'GK' ? c.games : c.goals * 2 + c.assists + c.games * 0.15);
   for (const pos of POSITIONS) {
     const group = cards.filter((c) => c.pos === pos).sort((a, b) => score(a) - score(b));
