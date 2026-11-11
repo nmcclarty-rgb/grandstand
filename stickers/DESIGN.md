@@ -71,7 +71,7 @@ says that curve is a reasonable start for this scoring scale (§7); it has not b
 tuned further.
 
 **Starter squad**: 24 mid-table cards (rating 25-80): 3 clubs × 3 consecutive calendar seasons,
-2 GK / 8 DEF / 8 MID / 6 FWD. See §7 for why that shape. Only 2016/17 onward has three seasons in a row, so
+2 GK / 8 DEF / 8 MID / 6 FWD. See §7 for why that shape. The starter only uses cards with full stat lines (2016/17 onward), so
 the 1990s cards reach you through packs for now.
 
 ## 6. Data
@@ -81,9 +81,9 @@ Two sources, joined at the cards:
 | Seasons | Source | Stats available |
 |---|---|---|
 | 2016/17 to 2025/26 | the **Fantasy Premier League season archive** ([vaastav/Fantasy-Premier-League](https://github.com/vaastav/Fantasy-Premier-League)), fetched by `tools/fetch-data.mjs` | all seven categories, plus fantasy points |
-| 1992/93 to 1994/95 | **FBref** "Standard Stats" tables, exported by hand (Share & Export, Excel) into `data/fbref/` | games, goals, assists (plus cards, not used yet) |
+| 1992/93 to 1994/95, 1996/97, 1997/98 | **FBref** "Standard Stats" tables, exported by hand (Share & Export, Excel) into `data/fbref/` | games, goals, assists (plus cards, not used yet) |
 
-Everything from 1995/96 to 2015/16 is still missing: 21 seasons. Each extra FBref season is one
+Still missing: 1995/96 and 1998/99 to 2015/16, 19 of the 24 seasons before the FPL archive starts. Each extra FBref season is one
 more export (two files, see below) and no code change unless it names a club the importer doesn't
 know yet; an unknown club stops the build rather than guessing.
 
@@ -101,9 +101,9 @@ know yet; an unknown club stops the build rather than guessing.
 - **Mid-season movers get one card per club** in the FBref seasons (Sheringham: 1 goal at Forest, 21 at Spurs).
   FPL assigns a player to the club they finished the season with, so there it is one card.
 - A "season" needs 270 minutes in either source (three full games). 2026/27 is excluded as incomplete.
-- Counts: 5,691 cards, 2,156 players, 41 clubs. Sanity checks in `test/data.test.mjs`: known season totals
-  for both sources, and the goals on the cards add up to within 10% of the real league total
-  (the shortfall is own goals, which FBref does not credit to a player).
+- Counts: 6,548 cards, 2,444 players, 44 clubs. Sanity checks in `test/data.test.mjs`: known season totals
+  for both sources, and the goals on the cards add up to a plausible total for the number of matches
+  (about 96% of the real figure; the shortfall is own goals, which FBref does not credit to a player).
 - 2016/17 to 2018/19 ship no `teams.csv`; clubs are mapped from FPL's alphabetical team ids, checked in the tests.
 - **`rating`** (1-99) is a percentile within position and within source, so a 1990s striker is ranked against
   1990s strikers. FPL cards rank on fantasy points. FBref cards have none, so they rank on
@@ -130,7 +130,7 @@ deck), a random manager per stage, and a training level for its favourite hand.
 |---|---|---|
 | random | 1 | 0 / 500 |
 | greedy, starter squad only | 7 | 0 / 500 |
-| greedy+ | 13 | 1 / 500 |
+| greedy+ | 13 | 0 / 500 |
 
 1. **The curve works as a starting point.** Random play is dead by fixture 2, a competent
    player on the bare starter squad runs out of steam around stage 3, and building a deck
@@ -145,7 +145,28 @@ deck), a random manager per stage, and a training level for its favourite hand.
    Candidates: score only one card per position; require 5 cards; make keepers rarer in packs;
    or accept it as the bread-and-butter hand and let managers/levels make the group hands
    outscale it. Needs a human playtest, not more bot tuning.
-4. **Never made by either bot:** Dynasty, Hat-trick, Invincibles. They need deck-building the
+4. **The category you draw matters more than the deck you built. Open problem.** Same bare starter squad,
+   fixture 3.1 (target 800), greedy bot, 579 modern decks / 921 decks with 1990s cards (measured before
+   the starter was restricted, see 5):
+
+   | deck | goals | assists | games | clean sheets | saves | bonus | value |
+   |---|---|---|---|---|---|---|---|
+   | modern | 60% | 84% | 100% | 99% | **2%** | 87% | 100% |
+   | with 1990s cards | 48% | 77% | 100% | 74% | **1%** | 38% | 83% |
+
+   At fixture 4.1 (target 2000) almost nothing wins except Games (84%) and Value (51%, modern only).
+   Two causes. Chips are scaled so the 99th percentile is 60 in every category, but a *typical* card is
+   worth ~50 in Games (everyone plays ~35 games) and ~5 in Goals (most players score 0-3), so Games is the
+   easy category and Goals the hard one. And a Saves round with two keepers in the deck is unwinnable, and
+   the category is drawn at random, so a run can end on the draw. Options: offer three categories per
+   fixture and let the player choose (true to Top Trumps); scale chips against the median non-zero value
+   instead of the 99th percentile; make hand base values carry less of the early game. Fixture 1 is won by
+   every deck in every category (base hand chips alone clear 100), so the category is irrelevant until stage 3.
+5. **The starter squad is restricted to full-stat cards.** Once 1992/93-1994/95 gave three consecutive
+   seasons, 61% of starter decks were 1990s squads, which have no clean sheets, saves, bonus or value. They are
+   excluded from the starter and arrive through packs. Found by measuring, not by assumption: the headline
+   medians did not move at all, and the per-category table above did.
+6. **Never made by either bot:** Dynasty, Hat-trick, Invincibles. They need deck-building the
    bot doesn't do (collecting several seasons of one club or one player). That is the intent
    (they are the chase) but it means they are untested under real play.
 
@@ -153,4 +174,4 @@ deck), a random manager per stage, and a training level for its favourite hand.
 
 Run loop and shop · the sticker album (persistence, page completion, perks) · swaps · more
 than one card of the same player as a deliberate mechanic · boss-fixture rules ·
-sound · saving · 1995/96 to 2015/16 · linking a player across the two sources.
+sound · saving · 1995/96 and 1998/99 to 2015/16 · linking a player across the two sources.

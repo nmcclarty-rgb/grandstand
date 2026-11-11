@@ -65,7 +65,7 @@ test('every team-season has all four positions; 22 clubs until 1995, 20 after', 
   assert.deepEqual(thin.map(([k]) => k), []);
 });
 
-test('FBref seasons (1992/93 to 1994/95): anchors, merged exports, mid-season movers', () => {
+test('FBref seasons: anchors, merged exports, mid-season movers', () => {
   const get = (name, season, club) => cards.find((c) => c.name === name && c.season === season && c.club === club);
   assert.equal(get('Sheringham', '1992-93', 'TOT').goals, 21);
   assert.equal(get('Ferdinand', '1992-93', 'QPR').goals, 20);
@@ -77,6 +77,11 @@ test('FBref seasons (1992/93 to 1994/95): anchors, merged exports, mid-season mo
   assert.equal(get('Shearer', '1994-95', 'BLA').goals, 34);
   assert.equal(get('Fowler', '1994-95', 'LIV').goals, 25);
   assert.equal(get('Ferdinand', '1994-95', 'QPR').goals, 24);
+  assert.equal(get('Shearer', '1996-97', 'NEW').goals, 25);
+  assert.equal(get('Wright', '1996-97', 'ARS').goals, 23);
+  assert.equal(get('Owen', '1997-98', 'LIV').goals, 18);
+  assert.equal(get('Dublin', '1997-98', 'COV').goals, 18);
+  assert.equal(get('Sutton', '1997-98', 'BLA').goals, 18);
   // Sheringham left Forest for Spurs mid-season: two cards, two clubs
   assert.ok(cards.filter((c) => c.pid === get('Sheringham', '1992-93', 'TOT').pid && c.season === '1992-93').length >= 1);
   assert.equal(get('Cantona', '1992-93', 'LEE').goals + get('Cantona', '1992-93', 'MUN').goals, 15);
@@ -85,18 +90,25 @@ test('FBref seasons (1992/93 to 1994/95): anchors, merged exports, mid-season mo
     assert.deepEqual([c.cleanSheets, c.saves, c.bonus, c.price, c.points], [0, 0, 0, 0, 0], c.id);
     assert.ok(c.games > 0);
   }
-  assert.deepEqual(meta.sources.fbref, ['1992-93', '1993-94', '1994-95']);
+  assert.deepEqual(meta.sources.fbref, ['1992-93', '1993-94', '1994-95', '1996-97', '1997-98']);
 });
 
 test('every FBref season has a plausible number of goals on the cards', () => {
-  // The league scored roughly 1,200 a season; own goals are not credited to a player, so a little less.
-  // A season of zeros (the wrong FBref table) or a half-imported one fails this.
+  // A season is n x (n-1) matches at about 2.5 goals each. Own goals are not credited to a player, so a
+  // little under. A season of zeros (the wrong FBref table) or a half-imported one fails this.
   for (const season of meta.sources.fbref) {
-    const goals = cards.filter((c) => c.season === season).reduce((s, c) => s + c.goals, 0);
-    assert.ok(goals > 1000 && goals <= 1300, `${season}: ${goals} goals`);
+    const inSeason = cards.filter((c) => c.season === season);
+    const clubs = new Set(inSeason.map((c) => c.club)).size;
+    const matches = clubs * (clubs - 1);
+    const goals = inSeason.reduce((sum, c) => sum + c.goals, 0);
+    assert.ok(goals > 2.2 * matches && goals < 3.0 * matches, `${season}: ${goals} goals in ${matches} matches`);
   }
-  const sum = (season) => cards.filter((c) => c.season === season).reduce((s, c) => s + c.goals, 0);
-  assert.ok(sum('1992-93') <= 1222, 'cannot exceed the 1,222 the league scored');
+});
+
+test('every club on a card has kit colours, so no card falls back to grey', async () => {
+  const { CLUB_COLOURS } = await import('../src/ui/clubs.js');
+  const missing = Object.keys(meta.clubs).filter((k) => !CLUB_COLOURS[k]);
+  assert.deepEqual(missing, []);
 });
 
 test('chip scale: the 99th percentile in each category is worth about 60 chips', () => {
@@ -115,6 +127,7 @@ test('starter deck: 24 mid-table cards, three clubs x three consecutive seasons,
     assert.equal(deck.filter((c) => c.pos === 'GK').length, 2);
     assert.equal(deck.filter((c) => c.pos === 'FWD').length, 6);
     assert.ok(deck.every((c) => c.rating >= 25 && c.rating <= 80), 'starter squad is mid-table, not stars');
+    assert.ok(deck.every((c) => c.src === 'fpl'), 'starter squad needs full stat lines; 1990s cards come from packs');
     const clubs = new Map();
     for (const c of deck) clubs.set(c.club, (clubs.get(c.club) ?? new Set()).add(c.season));
     assert.equal(clubs.size, 3, `seed ${seed}: clubs`);

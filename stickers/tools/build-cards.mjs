@@ -112,9 +112,9 @@ for (const season of fbrefSeasons) {
   let kept = 0;
   for (const row of fbref.get(season)) {
     const n = fbrefNumbers(row);
+    if (n.minutes < MIN_MINUTES) continue; // cameos first: FBref leaves some of their positions blank
     const pos = FBREF_POS[row.position.split(',')[0]];
-    if (!pos) throw new Error(`${season}: unknown position '${row.position}' for ${row.player}`);
-    if (n.minutes < MIN_MINUTES) continue;
+    if (!pos) throw new Error(`${season}: unknown position '${row.position}' for ${row.player} (${n.minutes} min)`);
     const club = FBREF_CLUBS[row.team.toLowerCase()];
     if (!club) throw new Error(`${season}: unknown club '${row.team}' (${row.player}); add it to FBREF_CLUBS`);
     if (!CLUB_NAMES[club]) unknownClubs.add(club);
