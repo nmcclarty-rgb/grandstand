@@ -114,6 +114,9 @@ test('FBref seasons: anchors, merged exports, mid-season movers', () => {
   assert.equal(get('Kane', '2014-15', 'TOT').goals, 21);
   assert.equal(get('Vardy', '2015-16', 'LEI').goals, 24);
   assert.equal(get('Kane', '2015-16', 'TOT').goals, 25);
+  assert.equal(get('Shearer', '1995-96', 'BLA').goals, 31);
+  assert.equal(get('Fowler', '1995-96', 'LIV').goals, 28);
+  assert.equal(get('Ferdinand', '1995-96', 'NEW').goals, 25);
   assert.equal(get('Sturridge', '2013-14', 'LIV').goals, 21);
   // 2001/02 was a Z-A export plus an A-Z one: surnames at the A end only exist because both were merged
   assert.ok(get('Bergkamp', '2001-02', 'ARS') && get('Anelka', '2001-02', 'LIV'));
@@ -260,12 +263,12 @@ test('display names keep compound surnames and drop suffixes', () => {
   assert.deepEqual(shown('Jô'), ['Jô']);
 });
 
-test('every season from 1992/93 to 2025/26 is covered except 1995/96, and the sources do not overlap', () => {
+test('every season from 1992/93 to 2025/26 is covered, from exactly one source', () => {
   const year = (y) => `${y}-${String((y + 1) % 100).padStart(2, '0')}`;
   const all = Array.from({ length: 2025 - 1992 + 1 }, (_, i) => year(1992 + i));
-  assert.deepEqual(all.filter((x) => !meta.seasons.includes(x)), ['1995-96'], 'missing seasons');
-  assert.deepEqual(meta.seasons, all.filter((x) => x !== '1995-96'));
-  assert.deepEqual(meta.sources.fbref, all.filter((x) => x < '2016-17' && x !== '1995-96'));
+  assert.deepEqual(all.filter((x) => !meta.seasons.includes(x)), [], 'missing seasons');
+  assert.deepEqual(meta.seasons, all);
+  assert.deepEqual(meta.sources.fbref, all.filter((x) => x < '2016-17'));
   assert.deepEqual(meta.sources.fpl, all.filter((x) => x >= '2016-17'));
   assert.ok(meta.sources.fbref.every((x) => !meta.sources.fpl.includes(x)));
 });

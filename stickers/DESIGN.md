@@ -81,9 +81,9 @@ Two sources, joined at the cards:
 | Seasons | Source | Stats available |
 |---|---|---|
 | 2016/17 to 2025/26 | the **Fantasy Premier League season archive** ([vaastav/Fantasy-Premier-League](https://github.com/vaastav/Fantasy-Premier-League)), fetched by `tools/fetch-data.mjs` | all seven categories, plus fantasy points |
-| 1992/93 to 1994/95, 1996/97 to 2015/16 | **FBref** "Standard Stats" tables, exported by hand (Share & Export, Excel) into `data/fbref/` | games, goals, assists (plus cards, not used yet) |
+| 1992/93 to 2015/16 | **FBref** "Standard Stats" tables, exported by hand (Share & Export, Excel) into `data/fbref/` | games, goals, assists (plus cards, not used yet) |
 
-Still missing: **1995/96**, the only gap. A test states the rule (every season 1992/93 to 2025/26 but that one), so a missing file fails by name. Each extra FBref season is one
+None missing: all 34 seasons from 1992/93 to 2025/26 are in. A test states the rule, so a missing file fails by name.
 more export (two files, see below) and no code change unless it names a club the importer doesn't
 know yet; an unknown club stops the build rather than guessing.
 
@@ -102,7 +102,7 @@ know yet; an unknown club stops the build rather than guessing.
 - **Mid-season movers get one card per club** in the FBref seasons (Sheringham: 1 goal at Forest, 21 at Spurs).
   FPL assigns a player to the club they finished the season with, so there it is one card.
 - A "season" needs 270 minutes in either source (three full games). 2026/27 is excluded as incomplete.
-- Counts: 14,444 cards, 4,351 players, 51 clubs. `cards.json` is about 3 MB: fine for a prototype page, worth slimming (short keys, one array per card) before any release. Sanity checks in `test/data.test.mjs`: known season totals
+- Counts: 14,851 cards, 4,383 players, 51 clubs. `cards.json` is about 3 MB: fine for a prototype page, worth slimming (short keys, one array per card) before any release. Sanity checks in `test/data.test.mjs`: known season totals
   for both sources, and the goals on the cards add up to a plausible total for the number of matches
   (about 96% of the real figure; the shortfall is own goals, which FBref does not credit to a player).
 - 2016/17 to 2018/19 ship no `teams.csv`; clubs are mapped from FPL's alphabetical team ids, checked in the tests.
@@ -120,7 +120,7 @@ know yet; an unknown club stops the build rather than guessing.
   an assist is slightly different before and after 2016/17, which matters for Assists rounds.
 - Players are not yet linked across the two sources, so a Hat-trick can only be built within one source:
   Kane's 2015/16 card (FBref) and 2016/17 card (FPL) are different players to the engine. The seasons now join
-  up (1996/97 to 2025/26 is unbroken), so this is the next data problem. FBref ids are `fb:<name>:<birth year>`;
+  up (1992/93 to 2025/26 is unbroken), so this is the next data problem. FBref ids are `fb:<name>:<birth year>`;
   FPL ids are numbers and carry no birth year in `cards.json`. Name plus club alone matched only 80% of
   players in the cross-check (73% to 90% by season, falling with recency) (misses: "Willian", "Bernardo Silva", "Gylfi Sigurdsson" against FPL's full
   legal names, and anyone who moved mid-season), so linking needs a looser name match plus age.
@@ -187,4 +187,4 @@ deck), a random manager per stage, and a training level for its favourite hand.
 
 Run loop and shop · the sticker album (persistence, page completion, perks) · swaps · more
 than one card of the same player as a deliberate mechanic · boss-fixture rules ·
-sound · saving · 1995/96 · linking a player across the two sources.
+sound · saving · linking a player across the two sources.
