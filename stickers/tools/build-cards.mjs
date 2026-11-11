@@ -13,7 +13,7 @@
 // 2016/17 onward; the two sources disagreed on assists for ~30% of players, so it was dropped.)
 //
 // RULE: a card carries only stats that exist for EVERY season: goals, assists, games (minutes / 90),
-// yellow cards, red cards.
+// yellow cards, red cards. The four categories are goals, assists, games and Discipline (yellows + 3 x reds).
 //
 // 38 GAMES. 1992/93 to 1994/95 were 42-game seasons (22 clubs). Their counting stats are scaled by 38/42
 // so every season is a 38-game season, the same length as a run.
@@ -22,6 +22,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadFbrefSeasons, fbrefNumbers } from './fbref.mjs';
 import { CLUB_NAMES, FBREF_CLUBS } from './clubs.mjs';
+import { CATEGORY_KEYS, statOf } from '../src/engine/cards.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MIN_MINUTES = 270; // three full games: below that a "season" is a cameo, not a sticker
@@ -126,12 +127,11 @@ for (const pos of POSITIONS) {
   }
 }
 
-// Chip scale per category: the 99th percentile of non-zero values is worth 60 chips,
-// so no category is inherently stronger than another.
-const CATEGORY_KEYS = ['goals', 'assists', 'games', 'yellow', 'red'];
+// Chip scale per category: the 99th percentile of non-zero values is worth 60 chips, so no category is
+// inherently stronger than another. Categories and the derived Discipline score come from the engine.
 const chipScale = {};
 for (const key of CATEGORY_KEYS) {
-  const vals = cards.map((c) => c[key]).filter((v) => v > 0).sort((a, b) => a - b);
+  const vals = cards.map((c) => statOf(c, key)).filter((v) => v > 0).sort((a, b) => a - b);
   const p99 = vals[Math.floor(vals.length * 0.99)];
   chipScale[key] = { p99, perUnit: Math.round((60 / p99) * 1000) / 1000 };
 }

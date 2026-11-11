@@ -1,5 +1,5 @@
 // Draws one sticker: Panini border and foil, Top Trumps stat block.
-import { CATEGORIES, CATEGORY_KEYS, EDITIONS, cardChips, safeHands } from '../engine/cards.js';
+import { CATEGORIES, CATEGORY_KEYS, EDITIONS, cardChips, safeHands, statOf } from '../engine/cards.js';
 import { CLUB_COLOURS, inkOn } from './clubs.js';
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -29,10 +29,11 @@ export function renderCard(card, opts = {}) {
   if (card.uid) el.dataset.uid = card.uid;
 
   const rows = CATEGORY_KEYS.map((key) => {
-    const v = card[key];
+    const v = statOf(card, key);
+    const tip = key === 'discipline' ? ` title="${card.yellow} yellow, ${card.red} red: ${card.yellow} + 3 x ${card.red}"` : '';
     const active = key === category;
     const chips = active && scale ? `<b class="chips">${cardChips(card, key, scale)}</b>` : '';
-    return `<li class="${active ? 'active' : ''}${v === 0 ? ' zero' : ''}"><span>${CATEGORIES[key].short}</span><i>${v === 0 ? '–' : fmt(key, v)}</i>${chips}</li>`;
+    return `<li${tip} class="${active ? 'active' : ''}${v === 0 ? ' zero' : ''}"><span>${CATEGORIES[key].short}</span><i>${v === 0 ? '–' : fmt(key, v)}</i>${chips}</li>`;
   }).join('');
 
   el.innerHTML = `

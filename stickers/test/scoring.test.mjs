@@ -155,10 +155,10 @@ test('managers stack in order: +mult then xmult is not the same as xmult then +m
 
 test('RULE: no manager depends on a stat that is missing for some seasons', async () => {
   const { JOKER_IDS, JOKERS } = await import('../src/engine/jokers.js');
-  assert.equal(JOKER_IDS.length, 14);
+  assert.equal(JOKER_IDS.length, 15);
   for (const gone of ['wall', 'shotStopper']) assert.ok(!JOKER_IDS.includes(gone), `${gone} used clean sheets / saves`);
   // the specialists name their category: it must be one that exists
-  for (const id of ['poacher', 'creator', 'ironman']) assert.match(JOKERS[id].blurb, /GOALS|ASSISTS|GAMES PLAYED/);
+  for (const id of ['poacher', 'creator', 'ironman', 'hardMan']) assert.match(JOKERS[id].blurb, /GOALS|ASSISTS|GAMES PLAYED|DISCIPLINE/);
 });
 
 // ---- the keeper's ability: Safe Hands ------------------------------------------------------------
@@ -198,9 +198,18 @@ test('Safe Hands comes after the cards and before the managers, and shows in the
   assert.ok(order.indexOf('Safe Hands: Foster (held)') < order.indexOf('One-Club Man'));
 });
 
-test('yellow and red cards are categories like any other', () => {
+test('Discipline is a category: a yellow is 1 point, a red is 3, and it is worth chips like any stat', () => {
+  // 7 yellows + 2 reds = 13 points; 3 yellows = 3 points; 2 chips a point in the test scale
   const cards = [mk({ club: 'ARS', yellow: 7, red: 2 }), mk({ club: 'CHE', yellow: 3, red: 0 })];
-  assert.equal(scoreHand(cards, ctx({ category: 'yellow' })).chips, 5 + 7);
-  assert.equal(scoreHand(cards, ctx({ category: 'red' })).chips, 5 + 20);
+  assert.equal(scoreHand(cards, ctx({ category: 'discipline' })).chips, 5 + 13 * 2);
+  // a red card alone is worth 3 points: a card with one red beats a card with two yellows
+  const hardMan = [mk({ club: 'ARS', yellow: 0, red: 1 }), mk({ club: 'CHE', yellow: 2, red: 0 })];
+  assert.equal(scoreHand(hardMan, ctx({ category: 'discipline' })).chips, 5 + 3 * 2);
   assert.equal(scoreHand(cards, ctx({ category: 'goals' })).chips, 5); // no goals: only the hand's base
+});
+
+test('Hard Man: x1.5 mult on Discipline fixtures only', () => {
+  const dirty = [mk({ yellow: 5 }), mk({ yellow: 2 })];
+  assert.equal(scoreHand(dirty, ctx({ category: 'discipline', jokers: ['hardMan'] })).mult, 2 * 1.5);
+  assert.equal(scoreHand(dirty, ctx({ category: 'goals', jokers: ['hardMan'] })).mult, 2);
 });

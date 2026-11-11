@@ -8,8 +8,9 @@ changed by whoever touches the file last.
 1. **A season is 38 games.** A run is 38 matchdays, as in the league. One fixture each, one target each.
    Every season in the data is also made a 38-game season (the first three were 42 games; see section 6).
 2. **Only stats that exist for every season.** A stat with gaps is not used: not as a category, not on a
-   card, not in a manager, not in the rating. The five that survive: **goals, assists, games played,
-   yellow cards, red cards.** Tests enforce this (`RULE:` in `test/`).
+   card, not in a manager, not in the rating. The stats that survive: **goals, assists, games played, yellow
+   cards, red cards.** Yellows and reds are combined into one category, **Discipline** (a yellow is 1 point,
+   a red is 3), so there are four categories. Tests enforce this (`RULE:` in `test/`).
 3. **One data source.** All 34 seasons come from FBref's Standard Stats table. An earlier build used a second
    source (the Fantasy Premier League archive) for 2016/17 onward; the two disagreed on assists for ~30% of
    players, handled mid-season transfers differently, and gave players different ids, so it was dropped.
@@ -35,16 +36,18 @@ worth 60 chips**. A card is worth chips in the fixture's category only, which is
 
 | Category | Non-zero on | Notes |
 |---|---|---|
-| goals | 59% of cards | |
+| goals | 59% of cards | the hardest: most players score 0-3 |
 | assists | 58% | |
 | games played | ~100% | the easiest: everyone plays ~35, so a typical card is worth far more here |
-| yellow cards | 80% | every position gets booked, goalkeepers included |
-| red cards | 11% | the hardest: most cards have none, and the best have 3-4 |
+| discipline | 81% | yellow cards 1 point + red cards 3 points; a typical card with a record has 3, the 99th percentile is 14, the most is 22 |
 
-Red cards are the sparse one. Left alone they would behave like the "Saves" category an earlier design
-had, where most decks could not score. They are playable only because VAR and the base hand chips
-cover the early fixtures; in the sim a Red round is won 77% of the time against 87-100% for the rest.
-If it turns out to feel bad, the wheel slice can be made smaller (`WHEEL` in `round.js`).
+**Why Discipline is one category.** Red cards on their own were a category the design started with, and they were
+the problem one: only 11% of cards had any, so most hands had nothing to score, and in the sim a Red round was won
+77% of the time against 87-100% for the rest. Combining them (suggested in review) puts a score on 81% of cards,
+keeps a red worth three yellows, and lifts the category to 97-98%. The top of the list is the right people: Batty
+1997/98 (12 yellows, 3 reds), Phil Neville, Ndidi, Mulumbu. Goalkeepers do get booked (a mean of 0.9 points), so
+they are not dead weight here. The card shows the points; hovering shows the split ("8 yellow, 0 red: 8 + 3 × 0").
+The weights live in `DISCIPLINE_POINTS` in `cards.js`.
 
 ## 3. Hands
 
@@ -84,23 +87,23 @@ returns a `trace` of every step so the UI can show the working.
 support. A goalkeeper **held in your hand** (not played) adds mult to every hand you play: **+3** if he played 30+
 games (first choice), **+2** for 15-29 (rotation), **+1** under 15 (backup). It uses only `games`, which every
 season has. It creates a real choice, because the keeper you need for a Spine is the keeper you would rather hold.
-Measured (sim, 500 runs, Safe Hands on against off): the bare starter squad clears a median of 15 matchdays
+Measured before Discipline was combined (sim, 500 runs, Safe Hands on against off): the bare starter squad clears a median of 15 matchdays
 against 13, random play 3 against 1, and Spine falls from 39% to 28% of plays. Late in a season a flat +3 matters
 less next to managers (24 against 25 for a deck-building bot, which is inside the noise), so it is an
 early-game aid. If it needs to scale, make it a multiplier.
 
 **Editions** (rolled when a pack is opened): shiny +40 chips, holo +6 mult, gold ×1.5 mult.
-**Managers** (14): Park the Bus, Route One, Sweeper Keeper, Total Football, One-Club Man,
+**Managers** (15): Park the Bus, Route One, Sweeper Keeper, Total Football, One-Club Man,
 Golden Boot, Playmaker, Added Time, Vintage Stickers (1990s cards), Super Sub, Captain's Armband and
-three category specialists (Poacher, Creator, Ironman). Clean-sheet and save specialists were removed under rule 2.
-No manager uses the card stats yet.
+four category specialists (Poacher, Creator, Ironman, Hard Man). Clean-sheet and save specialists were removed under rule 2.
+No manager uses the yellow or red card counts directly yet (only through Hard Man's Discipline rounds).
 
 ## 5. A season
 
 **38 matchdays.** Each is one fixture: 8 cards in hand, 4 hands, 3 discards, no reshuffle (Balatro's
 rules). The target climbs geometrically from **100 on matchday 1 to 40,000 on matchday 38**, about
 19% harder each time, rounded to two significant figures. The end value is a tuning knob (`TARGET_END` in
-`round.js`): at 25,000 about 9% of a deck-building bot's seasons finish, at 40,000 about 1.4%, at 55,000 0.4%,
+`round.js`): at 25,000 about 11% of a deck-building bot's seasons finish, at 40,000 about 2%, at 55,000 0.4%,
 at 70,000 none (500 runs each).
 
 **The wheel.** Before each fixture a wheel picks the category, one slice each (equal, adjustable weights). Luck
@@ -167,28 +170,29 @@ favourite hand.
 
 | Bot | Matchdays cleared (of 38) | Best 10% reach | Full seasons |
 |---|---|---|---|
-| random | median 3 | 6 | 0 / 500 |
-| greedy, starter squad only | median 15 | 18 | 0 / 500 |
-| greedy+ | median 25 | 34 | 7 / 500 (1.4%) |
+| random | median 4 | 7 | 0 / 500 |
+| greedy, starter squad only | median 16 | 19 | 0 / 500 |
+| greedy+ | median 26 | 34 | 10 / 500 (2%) |
 
-1. **The curve works.** Random play is dead by matchday 3, a competent player on the bare starter squad runs out of
-   steam around matchday 15, and building a deck gets about 1.7x that. A few runs finish, which suits a roguelike.
+1. **The curve works.** Random play is dead by matchday 4, a competent player on the bare starter squad runs out of
+   steam around matchday 16, and building a deck gets about 1.6x that. A few runs finish, which suits a roguelike.
 2. **Category luck is no longer decisive.** With seven categories (four of them partial) the same starter squad won
-   100% of Games rounds and about 2% of Saves rounds at one target. With five complete stats, a wheel and VAR:
+   100% of Games rounds and about 2% of Saves rounds at one target. With four complete categories, a wheel and VAR:
 
    | category | greedy | greedy+ |
    |---|---|---|
-   | goals | 87% | 95% |
-   | assists | 93% | 96% |
-   | games | 100% | 99% |
-   | yellow cards | 100% | 98% |
-   | red cards | **77%** | 90% |
+   | goals | 80% | 93% |
+   | assists | 88% | 95% |
+   | games | 100% | 98% |
+   | discipline | 98% | 97% |
 
-   Red is the weak one, as expected from section 2.
+   The spread is goals at the bottom and games at the top, about 20 points for the bare squad and 5 for a built
+   deck. (With red cards as a category of their own the weak slice was 77% / 90%; see section 2.) Both bots still
+   spend VAR (4.9 and 4.0 of 5 a season), a little less than before, since no slice needs rescuing.
 3. **Starter squad shape drives the hand mix.** With 4 team-seasons of 6 cards (the first attempt), Back Four and
    Full Strength were 73% of all plays, i.e. the aspirational hands were routine. 3 clubs × 3 seasons is the only
    shape tried that spreads plays across Full Strength, Club Side, Run and the pair hands.
-4. **Spine is still too reliable. Open problem.** It is 28% of the greedy bot's plays and 50% of greedy+'s, because it
+4. **Spine is still too reliable. Open problem.** It is 28% of the greedy bot's plays and 50% of greedy+'s (unchanged by Discipline), because it
    scores 4-5 cards where a pair scores 2 and the deck is small enough (24 cards, 3 discards) to fish for the one
    keeper. Safe Hands helped a little (39% to 28% for the bare squad) by making the keeper worth holding. Candidates:
    score only one card per position; require 5 cards; make keepers rarer in packs; or accept it as the bread-and-butter
@@ -201,4 +205,4 @@ favourite hand.
 ## 8. Not built
 
 Run loop and shop · the sticker album (persistence, page completion, perks) · swaps · boss-fixture rules ·
-sound · saving · managers that use yellow and red cards · a way to earn or buy more VAR.
+sound · saving · managers that use yellow and red cards directly · a way to earn or buy more VAR.

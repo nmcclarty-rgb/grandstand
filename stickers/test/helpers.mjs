@@ -10,9 +10,9 @@ export const mk = (over = {}) => ({
   ...over,
 });
 
-// 1 chip per unit everywhere except goals (2 per goal) and red cards (10), so the sums are checkable by eye.
+// 1 chip per unit except goals and discipline points (2 each), so the sums are checkable by eye.
 export const scale = {
-  goals: { perUnit: 2 }, assists: { perUnit: 1 }, games: { perUnit: 1 }, yellow: { perUnit: 1 }, red: { perUnit: 10 },
+  goals: { perUnit: 2 }, assists: { perUnit: 1 }, games: { perUnit: 1 }, discipline: { perUnit: 2 },
 };
 
 export const loadJson = () => JSON.parse(readFileSync(new URL('../src/data/cards.json', import.meta.url), 'utf8'));

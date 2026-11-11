@@ -9,13 +9,12 @@ export const POSITIONS = ['GK', 'DEF', 'MID', 'FWD'];
 // scaled so the 99th percentile is worth 60 chips.
 //
 // RULE: only stats that exist for every season (1992/93 to 2025/26): goals, assists, games, yellow and red
-// cards. Clean sheets, saves and the like are not recorded for the early seasons, so they are not used.
+// cards. Cards are one category, Discipline, because red cards alone are too rare to be a category. Clean sheets, saves and the like are not recorded for the early seasons, so they are not used.
 export const CATEGORIES = {
-  goals:   { label: 'GOALS',        short: 'GOALS',   unit: 'goals' },
-  assists: { label: 'ASSISTS',      short: 'ASSISTS', unit: 'assists' },
-  games:   { label: 'GAMES PLAYED', short: 'GAMES',   unit: 'games' },
-  yellow:  { label: 'YELLOW CARDS', short: 'YELLOWS', unit: 'yellow cards' },
-  red:     { label: 'RED CARDS',    short: 'REDS',    unit: 'red cards' },
+  goals:      { label: 'GOALS',        short: 'GOALS',      unit: 'goals' },
+  assists:    { label: 'ASSISTS',      short: 'ASSISTS',    unit: 'assists' },
+  games:      { label: 'GAMES PLAYED', short: 'GAMES',      unit: 'games' },
+  discipline: { label: 'DISCIPLINE',   short: 'DISCIPLINE', unit: 'points' },
 };
 export const CATEGORY_KEYS = Object.keys(CATEGORIES);
 
@@ -31,9 +30,19 @@ export const EDITIONS = {
 export const teamKey = (card) => `${card.club}|${card.season}`;
 export const seasonStart = (card) => Number.parseInt(card.season.slice(0, 4), 10);
 
+// DISCIPLINE: the disciplinary record as one score. A yellow card is 1 point, a red card is 3. (Red cards alone are
+// on only ~11% of cards, so as a category of their own most hands had nothing to score; combined, ~80% do.)
+export const DISCIPLINE_POINTS = { yellow: 1, red: 3 };
+
+// A card's number in a category. Four are plain stats on the card; discipline is derived.
+export function statOf(card, category) {
+  if (category === 'discipline') return card.yellow * DISCIPLINE_POINTS.yellow + card.red * DISCIPLINE_POINTS.red;
+  return card[category];
+}
+
 // Chips a card is worth in a category. `scale` is meta.chipScale from cards.json.
 export function cardChips(card, category, scale) {
-  return Math.round(card[category] * scale[category].perUnit);
+  return Math.round(statOf(card, category) * scale[category].perUnit);
 }
 
 // 'goals' -> 'GOALS' etc. for display.

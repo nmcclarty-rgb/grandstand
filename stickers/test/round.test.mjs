@@ -119,8 +119,8 @@ test('the wheel has a slice for every category, and VAR gives you five a season'
 test('a fair wheel lands on every category about equally often', () => {
   const rng = makeRng(7);
   const n = Object.fromEntries(CATEGORY_KEYS.map((k) => [k, 0]));
-  for (let i = 0; i < 10000; i++) n[spinWheel(rng, { goals: 1, assists: 1, games: 1, yellow: 1, red: 1 })]++;
-  for (const k of CATEGORY_KEYS) assert.ok(Math.abs(n[k] / 10000 - 0.2) < 0.02, `${k}: ${n[k]}`);
+  for (let i = 0; i < 10000; i++) n[spinWheel(rng, WHEEL)]++;
+  for (const k of CATEGORY_KEYS) assert.ok(Math.abs(n[k] / 10000 - 1 / CATEGORY_KEYS.length) < 0.02, `${k}: ${n[k]}`);
 });
 
 test('slice sizes are weights, and a zero slice never comes up', () => {

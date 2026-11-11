@@ -4,7 +4,7 @@ import { loadJson, loadPool } from './helpers.mjs';
 import { parseFbrefTable, mergeSeasonFiles, EXPORT_CAP } from '../tools/fbref.mjs';
 import { makeRng } from '../src/engine/rng.js';
 import { starterDeck, openPack, TIERS } from '../src/engine/deck.js';
-import { POSITIONS, CATEGORY_KEYS, teamKey } from '../src/engine/cards.js';
+import { POSITIONS, CATEGORY_KEYS, teamKey, statOf, DISCIPLINE_POINTS } from '../src/engine/cards.js';
 import { evaluateHand } from '../src/engine/hands.js';
 
 const json = loadJson();
@@ -27,7 +27,7 @@ test('every card is well-formed and unique', () => {
     assert.ok(meta.seasons.includes(c.season), `${c.id}: season ${c.season}`);
     assert.ok(meta.clubs[c.club], `${c.id}: club ${c.club}`);
     assert.ok(c.rating >= 1 && c.rating <= 99, `${c.id}: rating ${c.rating}`);
-    for (const k of CATEGORY_KEYS) assert.ok(Number.isInteger(c[k]) && c[k] >= 0, `${c.id}: ${k}=${c[k]}`);
+    for (const k of ['goals', 'assists', 'games', 'yellow', 'red']) assert.ok(Number.isInteger(c[k]) && c[k] >= 0, `${c.id}: ${k}=${c[k]}`);
     // RULE: a card carries only stats that exist for every season. Partial stats (clean sheets, saves, bonus
     // points, price) would be zero for most seasons, so they must not be on a card.
     assert.deepEqual(Object.keys(c).sort(), ['assists', 'club', 'full', 'games', 'goals', 'id', 'name', 'pid', 'pos', 'rating', 'red', 'season', 'yellow'], `${c.id}: unexpected fields`);
@@ -295,8 +295,8 @@ test('starter squads draw on every era, because every card has the same stats', 
 });
 
 test('RULE: the only categories are the stats every season has', () => {
-  assert.deepEqual(CATEGORY_KEYS, ['goals', 'assists', 'games', 'yellow', 'red']);
-  assert.deepEqual(Object.keys(meta.chipScale), ['goals', 'assists', 'games', 'yellow', 'red']);
+  assert.deepEqual(CATEGORY_KEYS, ['goals', 'assists', 'games', 'discipline']);
+  assert.deepEqual(Object.keys(meta.chipScale), ['goals', 'assists', 'games', 'discipline']);
 });
 
 test('RULE: one rating formula for every card, so ratings are comparable across eras', () => {
@@ -314,4 +314,18 @@ test('RULE: one rating formula for every card, so ratings are comparable across 
   const share = (list) => [0, 1, 2, 3].map((e) => list.filter((c) => era(c) === e).length / list.length);
   const all = share(cards), top = share(cards.filter((c) => c.rating >= 90));
   for (let e = 0; e < 4; e++) assert.ok(Math.abs(all[e] - top[e]) < 0.10, `era ${e}: ${all[e].toFixed(2)} of cards, ${top[e].toFixed(2)} of 90+`);
+});
+
+test('Discipline is one category: a yellow card is 1 point, a red card is 3', () => {
+  assert.deepEqual(DISCIPLINE_POINTS, { yellow: 1, red: 3 });
+  assert.equal(statOf({ yellow: 5, red: 1 }, 'discipline'), 8);
+  assert.equal(statOf({ yellow: 0, red: 2 }, 'discipline'), 6);
+  assert.equal(statOf({ goals: 7 }, 'goals'), 7);
+  // the reason it is one category: red cards alone are on a tenth of cards, the combined score on most
+  const share = (f) => cards.filter((c) => f(c) > 0).length / cards.length;
+  assert.ok(share((c) => c.red) < 0.2, `red alone ${share((c) => c.red)}`);
+  assert.ok(share((c) => statOf(c, 'discipline')) > 0.7, `discipline ${share((c) => statOf(c, 'discipline'))}`);
+  // and every card that has a record is worth chips
+  const s = meta.chipScale.discipline;
+  assert.ok(Math.abs(s.p99 * s.perUnit - 60) < 2);
 });
