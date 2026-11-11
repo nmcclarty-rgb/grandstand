@@ -1,10 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { pool } from './helpers.mjs';
-import { RULES, TIER_SLOTS, PRICE_NOISE, newMatch, pick, free, canAfford, maxSpend, firstPicker, positionOf, showdown, universeOf } from '../src/engine/draft.js';
-import { choose, botMove, power, LEVELS } from '../src/engine/bot.js';
-import { scoreHand } from '../../stickers/src/engine/scoring.js';
-import { CATEGORY_KEYS } from '../../stickers/src/engine/cards.js';
+import { RULES, TIER_SLOTS, PRICE_NOISE, newMatch, pick, free, canAfford, maxSpend, firstPicker, positionOf, showdown, universeOf, valueOf } from '../src/engine/draft.js';
+import { choose, botMove, worth, LEVELS } from '../src/engine/bot.js';
+import { CATEGORY_KEYS, statOf } from '../../stickers/src/engine/cards.js';
 
 // play a whole draft with a policy for each side; returns the finished state
 function draft(seed, policy = (s, who) => choose(s, who, 'medium')) {
@@ -13,8 +12,8 @@ function draft(seed, policy = (s, who) => choose(s, who, 'medium')) {
   return s;
 }
 
-test('the rules: £10, five rounds, a board of eight, best of three', () => {
-  assert.deepEqual([RULES.budget, RULES.rounds, RULES.boardSize, RULES.matches], [10, 5, 8, 3]);
+test('the rules: £10, five rounds, a board of eight', () => {
+  assert.deepEqual([RULES.budget, RULES.rounds, RULES.boardSize], [10, 5, 8]);
   assert.equal(TIER_SLOTS.length, RULES.boardSize);
   assert.equal(TIER_SLOTS.filter((t) => t === 1).length, 3, 'three cheap players, so the second picker always has a legal pick');
 });
@@ -129,37 +128,42 @@ test('RULE: every draft always finishes: both teams get five players and nobody 
   }
 });
 
-test('the showdown: three different categories, each team scored as a Sticker Season hand', () => {
-  const s = draft('show');
-  const r = showdown(s);
-  assert.equal(r.matches.length, 3);
-  assert.equal(new Set(r.matches.map((m) => m.category)).size, 3);
-  for (const m of r.matches) {
-    assert.ok(CATEGORY_KEYS.includes(m.category));
-    assert.equal(m.you.total, scoreHand(s.teams.you, { category: m.category, scale: pool.scale }).total);
-    assert.equal(m.bot.total, scoreHand(s.teams.bot, { category: m.category, scale: pool.scale }).total);
-    assert.equal(m.winner, m.you.total > m.bot.total ? 'you' : m.bot.total > m.you.total ? 'bot' : 'draw');
+test('an attribute is rolled before the draft: all four come up, it is the same for a seed, and it does not change', () => {
+  const seen = new Set();
+  for (let i = 0; i < 200; i++) seen.add(newMatch(pool, `c${i}`).category);
+  assert.deepEqual([...seen].sort(), [...CATEGORY_KEYS].sort());
+  assert.equal(newMatch(pool, 'same').category, newMatch(pool, 'same').category);
+  const s = draft('stable');
+  const cat = s.category;
+  assert.equal(showdown(s).category, cat);
+});
+
+test('the showdown is just addition: each team\'s real career totals in the attribute, biggest wins', () => {
+  const tally = (s, who, cat) => s.teams[who].reduce((sum, c) => sum + (cat === 'discipline' ? c.yellow + 3 * c.red : c[cat]), 0);
+  let you = 0, bot = 0, draws = 0;
+  for (let i = 0; i < 400; i++) {
+    const s = draft(`sd${i}`);
+    const cat = s.category;
+    const r = showdown(s);
+    assert.equal(r.you.total, tally(s, 'you', cat));
+    assert.equal(r.bot.total, tally(s, 'bot', cat));
+    assert.equal(r.you.players.length, 5);
+    assert.deepEqual(r.you.players.map((p) => p.value), s.teams.you.map((c) => statOf(c, cat)));
+    assert.deepEqual(r.you.players.map((p) => p.paid), s.paid.you);
+    assert.equal(r.winner, r.you.total > r.bot.total ? 'you' : r.bot.total > r.you.total ? 'bot' : 'draw');
+    assert.equal(s.phase, 'over');
+    if (r.winner === 'you') you++; else if (r.winner === 'bot') bot++; else draws++;
   }
-  assert.equal(s.phase, 'over');
-  assert.equal(r.wins.you + r.wins.bot + r.matches.filter((m) => m.winner === 'draw').length, 3);
+  assert.ok(you > 50 && bot > 50, 'both sides win some');
   assert.throws(() => showdown(newMatch(pool, 'early')), /not picked yet/);
 });
 
-test('the showdown winner: most matches, then the higher total, then a draw', () => {
-  let byMatches = 0, byTotal = 0;
-  for (let i = 0; i < 300; i++) {
-    const s = draft(`w${i}`);
-    const r = showdown(s);
-    if (r.wins.you !== r.wins.bot) {
-      byMatches++;
-      assert.equal(r.winner, r.wins.you > r.wins.bot ? 'you' : 'bot');
-      assert.equal(r.decidedBy, 'matches');
-    } else {
-      byTotal++;
-      assert.equal(r.winner, r.total.you > r.total.bot ? 'you' : r.total.bot > r.total.you ? 'bot' : 'draw');
-    }
-  }
-  assert.ok(byMatches > 200);
+test('discipline counts a yellow card as 1 and a red card as 3; goals, assists and appearances are the career totals', () => {
+  const c = { goals: 7, assists: 3, games: 120, yellow: 5, red: 1 };
+  assert.equal(valueOf(c, 'goals'), 7);
+  assert.equal(valueOf(c, 'assists'), 3);
+  assert.equal(valueOf(c, 'games'), 120);
+  assert.equal(valueOf(c, 'discipline'), 8);
 });
 
 test('the easy bot goes on names: it takes the dearest player it can afford', () => {
@@ -173,20 +177,26 @@ test('the easy bot goes on names: it takes the dearest player it can afford', ()
   assert.ok(dearest / n > 0.95, `${dearest / n}`);
 });
 
-test('the hard bot looks for value: it never takes a star for £5 on round 1 over a better-value player', () => {
+test('the hard bot looks for value: it is not simply buying the dearest, and in the last round it spends what it can', () => {
   let nonStar = 0;
   for (let i = 0; i < 200; i++) {
     const s = newMatch(pool, `h${i}`, { first: 'bot', level: 'hard' });
     const id = choose(s, 'bot', 'hard');
     if (s.board.find((b) => b.card.id === id).price < 5) nonStar++;
   }
-  assert.ok(nonStar > 100, 'it is not simply buying the dearest');
-  // in the last round money left is worth nothing: it spends what it can
+  assert.ok(nonStar > 100);
   const s = newMatch(pool, 'last', { first: 'bot', level: 'hard' });
   while (s.round < 5) { const who = s.turn; pick(s, who, choose(s, who, 'easy')); }
   const id = choose(s, s.turn, 'hard');
   const options = free(s).filter((b) => canAfford(s, s.turn, b.price));
-  assert.equal(id, options.sort((a, b) => power(b.card, pool.scale) - power(a.card, pool.scale))[0].card.id, 'the best player it can afford');
+  assert.equal(id, options.sort((a, b) => worth(b.card, s.category, pool) - worth(a.card, s.category, pool))[0].card.id, 'the best player it can afford for the attribute');
+});
+
+test('worth is a share of the record, so all four attributes are on one 0-100 scale', () => {
+  for (const cat of CATEGORY_KEYS) {
+    const best = Math.max(...pool.cards.map((c) => worth(c, cat, pool)));
+    assert.ok(Math.abs(best - 100) < 1e-9, `${cat}: ${best}`);
+  }
 });
 
 test('botMove plays the bot\'s turn, and the bot never makes an illegal pick at any level', () => {

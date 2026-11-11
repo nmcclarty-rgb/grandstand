@@ -4,7 +4,7 @@
 //   node tools/simulate.mjs --runs 3000
 import { readFileSync } from 'node:fs';
 import { makePool } from '../../stickers/src/engine/deck.js';
-import { newMatch, pick, showdown, RULES } from '../src/engine/draft.js';
+import { newMatch, pick, showdown } from '../src/engine/draft.js';
 import { choose, LEVELS } from '../src/engine/bot.js';
 import * as H from '../src/engine/draft.js';
 import { makeRng } from '../../stickers/src/engine/rng.js';
@@ -47,27 +47,21 @@ for (const a of policies) {
   console.log(line);
 }
 
-// what the policies end up with
-console.log('\nmoney left and team power (mean chips per category) by policy, as "you" against a medium bot');
+// what the policies end up with, and how close the showdowns are
+console.log('\nmoney left by policy, as "you" against a medium bot, and how close the totals are (all matches)');
 for (const a of policies) {
-  let left = 0, pw = 0, n = 0;
-  for (let i = 0; i < 300; i++) {
-    const { s } = play(`stat-${a}-${i}`, a, 'medium');
-    left += s.money.you;
-    pw += s.teams.you.reduce((t, c) => t + ['goals', 'assists', 'games', 'discipline'].reduce((x, k) => x + c.rate[k] * pool.scale[k].perUnit, 0) / 4, 0);
-    n++;
-  }
-  console.log(`${a.padEnd(8)} £${(left / n).toFixed(1)} left, team power ${(pw / n).toFixed(0)}`);
+  let left = 0, n = 0;
+  for (let i = 0; i < 300; i++) { const { s } = play(`stat-${a}-${i}`, a, 'medium'); left += s.money.you; n++; }
+  console.log(`${a.padEnd(8)} £${(left / n).toFixed(1)} left`);
 }
-
-// hand types and series margins
 {
-  const types = {}; let close = 0, n = 0, ties = 0;
+  const by = { goals: [0, 0], assists: [0, 0], games: [0, 0], discipline: [0, 0] }; let close = 0, draws = 0, n = 0;
   for (let i = 0; i < 600; i++) {
     const { r } = play(`h-${i}`, 'hard', 'medium');
-    for (const m of r.matches) { for (const side of ['you', 'bot']) types[m[side].handName] = (types[m[side].handName] ?? 0) + 1; n++; if (Math.abs(m.you.total - m.bot.total) / Math.max(m.you.total, m.bot.total) < 0.1) close++; }
-    if (r.winner === 'draw') ties++;
+    const hi = Math.max(r.you.total, r.bot.total), lo = Math.min(r.you.total, r.bot.total);
+    by[r.category][0]++; by[r.category][1] += (r.winner === 'you');
+    if (hi && (hi - lo) / hi < 0.1) close++; if (r.winner === 'draw') draws++; n++;
   }
-  console.log(`\nhand types in showdowns (hard vs medium): ${Object.entries(types).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${(100 * v / (2 * n)).toFixed(0)}%`).join(', ')}`);
-  console.log(`matches decided by under 10%: ${(100 * close / n).toFixed(0)}%, drawn series: ${ties}`);
+  console.log(`\nhard vs medium by attribute (matches, hard's win %): ${Object.entries(by).map(([k, [m, w]]) => `${k} ${m} / ${(100 * w / m).toFixed(0)}%`).join(', ')}`);
+  console.log(`decided by under 10%: ${(100 * close / n).toFixed(0)}%, draws: ${draws}`);
 }

@@ -1,10 +1,11 @@
 // One tooltip for the whole page. Anything with a data-tip attribute gets it: on hover with a mouse, and on a long press
 // with a finger (a long press does not also pick the sticker). It stays inside the screen and inside an open dialog.
-let tip, pressTimer, swallow = false;
+let tip, pressTimer, swallow = false, current = null;
 
 const find = (t) => (t instanceof Element ? t.closest('[data-tip]') : null);
 
 function show(el) {
+  current = el;
   const host = document.querySelector('dialog[open]') ?? document.body; // a dialog covers the page, so the tip lives inside it
   if (tip.parentElement !== host) host.append(tip);
   tip.textContent = el.dataset.tip;
@@ -29,6 +30,8 @@ export function initTooltips() {
 
   document.addEventListener('mouseover', (e) => { const el = find(e.target); if (el) show(el); else hide(); });
   document.addEventListener('mouseleave', hide);
+  // the thing the tip is about can be redrawn out from under a still mouse: then no mouseout ever comes, so check
+  new MutationObserver(() => { if (current && !current.isConnected) hide(); }).observe(document.body, { childList: true, subtree: true });
   for (const ev of ['scroll', 'resize', 'keydown']) window.addEventListener(ev, hide, true);
 
   // touch: press and hold

@@ -1,6 +1,6 @@
 // The Blind Five page. All the rules live in the engine (draft.js, bot.js); this file draws screens and calls it.
 import { makePool } from '../../../stickers/src/engine/deck.js';
-import { CATEGORIES, firstNameOf, surnameOf } from '../../../stickers/src/engine/cards.js';
+import { CATEGORIES, CATEGORY_KEYS, firstNameOf, surnameOf } from '../../../stickers/src/engine/cards.js';
 import { renderCard } from '../../../stickers/src/ui/card.js';
 import { initTooltips } from '../../../stickers/src/ui/tooltip.js';
 import { RULES, newMatch, pick, positionOf, canAfford, maxSpend, showdown } from '../engine/draft.js';
@@ -33,7 +33,7 @@ function remember(level, outcome) {
   try { const r = recall(); r[level] ??= { w: 0, l: 0, d: 0 }; r[level][outcome]++; localStorage.setItem(RECORD, JSON.stringify(r)); } catch { /* private window */ }
 }
 
-let pool, state, result, level = 'medium', busy = false, token = 0, shownMatches = 0;
+let pool, state, result, level = 'medium', busy = false, token = 0;
 const params = new URLSearchParams(location.search);
 
 const SCREENS = ['loading', 'title', 'draft', 'show'];
@@ -63,6 +63,7 @@ function startMatch(seed) {
   result = null;
   const my = ++token;
   show('draft');
+  $('d-attr').textContent = CATEGORIES[state.category].short;
   renderTeams();
   runRound(my);
 }
@@ -89,7 +90,7 @@ async function runRound(my) {
   $('d-board').classList.remove('waiting');
   renderBoard();
   const first = state.turn === 'you' ? 'You pick first.' : 'The bot picks first.';
-  say(`<b>${LABEL[positionOf(state)]}.</b> ${first}`);
+  say(`<b>${LABEL[positionOf(state)]}.</b> Counting <b>${CATEGORIES[state.category].short}</b>. ${first}`);
   if (state.turn === 'bot') { await sleep(800); await botTurn(my); } else { busy = false; say(`${$('d-say').innerHTML} <b>Your pick.</b>`); }
 }
 
@@ -162,14 +163,15 @@ function renderTeams() {
 function renderAll() { renderBoard(); renderTeams(); renderMoney(); }
 
 // ---- the showdown -----------------------------------------------------------------------------------------------------------
+const UNIT = { goals: 'goals', assists: 'assists', games: 'appearances', discipline: 'discipline points' };
+
 function goShowdown() {
   result = showdown(state);
-  shownMatches = 0;
   show('show');
-  $('s-panel').hidden = true;
-  $('s-say').textContent = 'Both teams are in. Here is who you really bought.';
-  renderCards(null);
-  setActions();
+  $('s-tally').hidden = true;
+  $('s-you').replaceChildren(); $('s-bot').replaceChildren();
+  $('s-say').textContent = `Both teams are in. Counting ${CATEGORIES[result.category].label.toLowerCase()}: the real career totals, added up.`;
+  $('s-actions').replaceChildren(el('button', { class: 'primary', type: 'button', text: 'Reveal the teams', onclick: reveal }));
 }
 
 // what each player cost against what he was: a bargain was priced below his tier, a trap above
@@ -180,94 +182,87 @@ function captionFor(who, c) {
   return el('div', { class: `cap ${tag}`, text: `£${e.price}${tag ? ` · ${tag}` : ''}` });
 }
 
-function renderCards(m) {
+// The Sticker Season card, turned into a Blind Five card: here the REAL career totals are what counts, so each row shows the
+// total (not the 1-99 rating), the counted row is highlighted, and the overall plate is hidden.
+function playerCard(c, category) {
+  const node = renderCard(c, { category });
+  CATEGORY_KEYS.forEach((key, i) => {
+    const li = node.querySelectorAll('.stats li')[i];
+    const total = key === 'discipline' ? c.yellow + 3 * c.red : c[key];
+    li.querySelector('i').textContent = n(total);
+    li.querySelector('em')?.remove();
+    li.dataset.tip = `${n(total)} ${UNIT[key]} in his Premier League career${key === 'discipline' ? ` (${c.yellow} yellow, ${c.red} red)` : ''}`;
+  });
+  node.querySelector('.rating')?.remove();
+  const pos = node.querySelector('.pos');
+  if (pos) pos.textContent = c.pos;
+  return node;
+}
+
+function renderCards() {
   for (const who of ['you', 'bot']) {
-    const scoring = m ? new Set(m[who].scoring) : null;
-    $(`s-${who}`).replaceChildren(...state.teams[who].map((c, i) => el('div', { class: 'pickable' },
-      renderCard(c, { category: m?.category, scale: pool.scale, state: scoring ? (scoring.has(i) ? 'scoring' : 'kicker') : null }),
-      captionFor(who, c))));
+    $(`s-${who}`).replaceChildren(...state.teams[who].map((c) => el('div', { class: 'pickable' }, playerCard(c, result.category), captionFor(who, c))));
   }
 }
 
-function setActions() {
-  const box = $('s-actions');
-  if (shownMatches < RULES.matches) {
-    box.replaceChildren(el('button', { class: 'primary', type: 'button', text: shownMatches === 0 ? `Match 1 of ${RULES.matches}` : `Match ${shownMatches + 1} of ${RULES.matches}`, onclick: playMatch }));
-  } else {
-    box.replaceChildren(
-      el('button', { class: 'primary', type: 'button', text: 'Play again', onclick: () => startMatch('') }),
-      el('button', { class: 'ghost', type: 'button', text: 'Change opponent', onclick: showTitle }));
+async function reveal() {
+  const my = token;
+  $('s-actions').replaceChildren();
+  const tally = $('s-tally');
+  tally.hidden = false;
+  const rows = Array.from({ length: RULES.rounds }, (_, i) => {
+    const y = result.you.players[i], b = result.bot.players[i];
+    const pay = (p) => el('small', { text: `£${p.paid}` });
+    return el('tr', { class: 'pending' },
+      el('td', { class: 'nm' }, y.card.full, pay(y)), el('td', { class: 'v', text: n(y.value) }),
+      el('td', { class: 'pos', text: y.card.pos === b.card.pos ? y.card.pos : `${y.card.pos}/${b.card.pos}` }),
+      el('td', { class: 'v r', text: n(b.value) }), el('td', { class: 'nm r' }, b.card.full, pay(b)));
+  });
+  const totalY = el('td', { class: 'v', text: '0' }), totalB = el('td', { class: 'v r', text: '0' });
+  const total = el('tr', { class: 'total' }, el('td', { class: 'nm', text: 'Total' }), totalY, el('td', { class: 'lbl', text: UNIT[result.category].toUpperCase() }), totalB, el('td'));
+  tally.replaceChildren(el('table', {},
+    el('thead', {}, el('tr', {}, el('th', { colspan: 2, text: 'You' }), el('th'), el('th', { colspan: 2, text: 'The bot' }))),
+    el('tbody', {}, ...rows, total)));
+  renderCards();
+  let y = 0, b = 0;
+  for (let i = 0; i < rows.length; i++) {
+    await sleep(750);
+    if (my !== token) return;
+    rows[i].classList.remove('pending');
+    rows[i].classList.add('hit');
+    y += result.you.players[i].value; b += result.bot.players[i].value;
+    totalY.textContent = n(y); totalB.textContent = n(b);
   }
-}
-
-function countUp(node, to) {
-  if (reduceMotion || to < 40) { node.textContent = n(to); return; }
-  const t0 = performance.now(), dur = 900;
-  const tick = (t) => { const k = Math.min(1, (t - t0) / dur); node.textContent = n(Math.round(to * (1 - (1 - k) ** 3))); if (k < 1) requestAnimationFrame(tick); };
-  requestAnimationFrame(tick);
-}
-
-function side(who, m, label) {
-  const r = m[who];
-  const box = el('div', { class: `side${m.winner === who ? ' win' : ''}` },
-    el('div', { class: 'who', text: label }),
-    el('div', { class: 'hname', text: r.handName }),
-    el('div', { class: 'tot', text: '0' }),
-    el('div', { class: 'sum', text: `${n(r.chips)} chips × ${r.mult} mult` }));
-  countUp(box.querySelector('.tot'), r.total);
-  return box;
-}
-
-function playMatch() {
-  const m = result.matches[shownMatches];
-  shownMatches++;
-  renderCards(m);
-  const panel = $('s-panel');
-  panel.hidden = false;
-  const played = result.matches.slice(0, shownMatches);
-  const chip = (x) => el('span', { class: x.winner === 'you' ? 'w' : x.winner === 'bot' ? 'l' : 'd', text: `${CATEGORIES[x.category].short}: ${x.winner === 'you' ? 'won' : x.winner === 'bot' ? 'lost' : 'drawn'} ${n(x.you.total)}–${n(x.bot.total)}` });
-  const kids = [
-    el('h3', { text: `Match ${shownMatches}: ${CATEGORIES[m.category].label}` }),
-    el('p', { class: 'fine', text: CATEGORIES[m.category].blurb }),
-    el('div', { class: 'vs' }, side('you', m, 'You'), el('div', { class: 'mid', text: 'vs' }), side('bot', m, 'The bot')),
-    el('div', { class: 'series' }, played.map(chip)),
-  ];
-  if (shownMatches === RULES.matches) {
-    const won = result.winner === 'you', draw = result.winner === 'draw';
-    const score = `${result.wins.you}–${result.wins.bot}`;
-    kids.push(el('div', { class: `verdict ${won ? 'won' : draw ? '' : 'lost'}`, text: draw ? 'A draw' : won ? 'You win' : 'The bot wins' }));
-    kids.push(el('p', { class: 'fine', text: `${draw ? 'Level on everything' : `Series ${score}${result.decidedBy === 'total score' ? ', level on matches, decided on total score' : ''}`}. Match code: ${state.seed}.` }));
-    remember(level, won ? 'w' : draw ? 'd' : 'l');
-    $('s-say').textContent = won ? 'Good scouting.' : draw ? 'Honours even.' : 'Back to the scouting report.';
-  } else {
-    $('s-say').textContent = '';
-  }
-  panel.replaceChildren(...kids);
-  setActions();
+  await sleep(500);
+  if (my !== token) return;
+  const won = result.winner === 'you', draw = result.winner === 'draw';
+  total.classList.add(draw ? 'draw' : `win-${result.winner}`);
+  const margin = Math.abs(result.you.total - result.bot.total);
+  $('s-say').innerHTML = draw ? '<b>A draw.</b> Exactly level.'
+    : `<span class="verdict ${won ? 'won' : 'lost'}">${won ? 'You win' : 'The bot wins'}</span> by ${n(margin)} ${UNIT[result.category]}. Match code: ${esc(state.seed)}.`;
+  remember(level, won ? 'w' : draw ? 'd' : 'l');
+  $('s-actions').replaceChildren(
+    el('button', { class: 'primary', type: 'button', text: 'Play again', onclick: () => startMatch('') }),
+    el('button', { class: 'ghost', type: 'button', text: 'Change opponent', onclick: showTitle }));
 }
 
 // ---- the manual ------------------------------------------------------------------------------------------------------------------------
 function buildManual() {
   $('m-body').innerHTML = `
     <h2 id="m-h">How to play</h2>
-    <p><b>The aim.</b> Build the better five-a-side team without going over budget, knowing nothing but names and prices.</p>
-    <h3>The draft</h3>
+    <p><b>The aim.</b> Build a five-a-side team with a higher total than the bot's, knowing nothing about the players but their names and prices.</p>
     <ol>
-      <li>You and the bot each have <b>£${RULES.budget}</b> for the whole team.</li>
-      <li>Each of <b>${RULES.rounds} rounds</b>, the wheel names a position: goalkeepers, defenders, midfielders or forwards. Eight players of that position go on the board with a <b>name and a price</b> of £1 to £5.</li>
-      <li>You and the bot take turns to pick <b>one</b> each. Who picks first swaps every round. Once a player is taken he is gone, and you see what the bot takes as it takes it.</li>
-      <li>You must keep <b>£${RULES.minPrice} for every round still to come</b>, so you can never be locked out.</li>
+      <li><b>Roll which attribute</b> is being counted: <b>goals, assists, appearances or discipline</b> (a yellow card is 1 point, a red card is 3). It is shown all through the draft.</li>
+      <li><b>Pick your team.</b> You and the bot each have <b>£${RULES.budget}</b> for the whole team. Each of <b>${RULES.rounds} rounds</b> the wheel names a position: goalkeepers, defenders, midfielders or forwards. Eight players of that position go on the board with a <b>name and a price</b> of £1 to £5. You and the bot take turns to pick <b>one</b> each; who picks first swaps every round. Once a player is taken he is gone, and you see what the bot takes as it takes it. You must keep <b>£${RULES.minPrice} for every round still to come</b>, so you can never be locked out.</li>
+      <li><b>Add it up.</b> The teams are revealed and each player's <b>real Premier League career total</b> (1992/93 to 2025/26) in the attribute is added up. The biggest total wins.</li>
     </ol>
     <h3>Prices are a hint, not the truth</h3>
-    <p>A £5 is usually a star of his position and a £1 a squad man, but about one player in three in the middle prices is a <b>bargain</b> (cheaper than he is) or a <b>trap</b> (dearer). Prices are by position: the best goalkeeper in the league is a £5 goalkeeper, but goalkeepers score very little in three of the four categories. Everyone on a board has made at least 100 Premier League appearances since 1992/93.</p>
-    <h3>The showdown</h3>
-    <p>The teams are revealed. Three different categories are drawn: <b>goals, assists, appearances or discipline</b> (a yellow card is 1 point, a red card is 3). Each is a match. A team is scored like a hand in Sticker Season: each player is worth chips in the category (his rating out of 99), and players who were <b>team-mates</b> (at the same club in the same season at any point) make a hand with a multiplier: a pair, a trio, a Back Four, an Invincibles. A team with a goalkeeper, a defender, a midfielder and a forward is a <b>Spine</b>. Most matches wins the series; if level, the higher total score.</p>
+    <p>A £5 is usually a star of his position and a £1 a squad man, but about one player in three in the middle prices is a <b>bargain</b> (cheaper than he is) or a <b>trap</b> (dearer). Prices are by position: the best goalkeeper in the league is a £5 goalkeeper, but he will score no goals. Everyone on a board has made at least 100 Premier League appearances.</p>
     <h3>Tips</h3>
     <ul>
-      <li>You do not know which categories will come up. A forward wins goals, a midfielder assists, a long-serving defender appearances, a hard man discipline. Spread your bets, or guess.</li>
+      <li>Think about the attribute. For <b>goals</b>, forwards are worth the money and goalkeepers are worth nothing, so spend nowhere else. For <b>appearances</b>, a long-serving defender or keeper is as good as a star. For <b>discipline</b>, find the hard men.</li>
       <li>Money left at the end is wasted. Spend it, but not on the wrong name.</li>
-      <li>A goalkeeper is the cheapest place to save: he scores almost nothing for goals and assists.</li>
-      <li>Players who were at the same club at the same time score more together. Think who played with whom.</li>
+      <li>A career total rewards a long career: someone who played 15 years beats a brilliant two-season wonder.</li>
     </ul>`;
 }
 

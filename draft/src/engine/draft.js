@@ -1,18 +1,18 @@
 // BLIND FIVE: a budget draft against a bot, on the Sticker Season career cards.
 //
-// You and the bot each build a five-a-side team over five rounds, with £10 each. Every round the wheel names a position;
-// a board of eight players of that position is shown with NAMES AND PRICES ONLY: no stats, no club, no overall. You and the
-// bot take turns to pick one from the board, then the board is gone. After five rounds the two teams are revealed and play
-// a best-of-three showdown: each match names a category (goals, assists, appearances or discipline), and a team is scored
-// exactly as a hand in Sticker Season: its five players are the hand, so team-mates earn Back Four, Invincibles, Spine...
+//   1. Roll which attribute is being counted: goals, assists, appearances or discipline.
+//   2. Pick a five-a-side team. £10 each, five rounds; each round the wheel names a position and a board of eight players of that
+//      position is shown with NAMES AND PRICES ONLY: no stats, no club, no overall. You and the bot take turns to pick one.
+//   3. Add up each team's REAL career totals in that attribute. The biggest total wins.
 //
-// The skill is football knowledge. A price is a hint, not the truth (see PRICE_NOISE): there are bargains and traps.
+// No hands, no multipliers, no ratings: a team is worth the sum of what its players really did. The skill is football knowledge:
+// who scored the goals, who played the games, who got booked. A price is a hint, not the truth (see PRICE_NOISE): there are
+// bargains and traps.
 //
 // Pure state machine (no DOM, no clock). Randomness comes from labelled seed streams, so a seed is a whole match.
 import { makeRng } from '../../../stickers/src/engine/rng.js';
 import { instance } from '../../../stickers/src/engine/deck.js';
-import { scoreHand } from '../../../stickers/src/engine/scoring.js';
-import { CATEGORY_KEYS, POSITIONS } from '../../../stickers/src/engine/cards.js';
+import { CATEGORY_KEYS, POSITIONS, statOf } from '../../../stickers/src/engine/cards.js';
 
 export const RULES = {
   budget: 10,          // each side's money, for the whole team
@@ -21,7 +21,6 @@ export const RULES = {
   minGames: 100,       // only players with 100+ Premier League appearances are on a board: you should have heard of them
   maxPerPosition: 2,   // the wheel never gives one position three times
   minPrice: 1, maxPrice: 5,
-  matches: 3,          // the showdown is best of three categories
 };
 
 // The truth about a board: its eight players' TRUE TIERS (1 cheap to 5 star), by the overall within their position. Three
@@ -65,6 +64,8 @@ const other = (who) => (who === 'you' ? 'bot' : 'you');
 export function newMatch(pool, seed = Date.now(), opts = {}) {
   const state = {
     seed: String(seed), level: opts.level ?? 'medium', phase: 'draft', round: 1,
+    // the attribute being counted, rolled before the draft and known throughout
+    category: opts.category ?? makeRng(`${seed}|category`).pick(CATEGORY_KEYS),
     positions: [], first1: opts.first ?? (makeRng(`${seed}|first`).int(2) ? 'bot' : 'you'),
     money: { you: RULES.budget, bot: RULES.budget }, teams: { you: [], bot: [] }, paid: { you: [], bot: [] },
     board: [], shown: [], turn: null, log: [],
@@ -133,20 +134,18 @@ export function pick(state, who, id) {
 export const free = (state) => state.board.filter((b) => !b.takenBy);
 
 // ---- the showdown -----------------------------------------------------------------------------------------------------------
-// Three different categories, each scored for both teams as a Sticker Season hand. Most matches wins; if level, the higher
-// total score; if still level, a draw.
+// A player's REAL career total in the attribute: goals, assists, appearances, or discipline points (a yellow card is 1, a red 3).
+export const valueOf = (card, category) => statOf(card, category);
+
+// Add each team up. The biggest total wins; equal totals are a draw.
 export function showdown(state) {
   if (state.phase !== 'showdown' && state.phase !== 'over') throw new Error('the teams are not picked yet');
-  const scale = state.pool.scale;
-  const cats = stream(state, 'matches').shuffle([...CATEGORY_KEYS]).slice(0, RULES.matches);
-  const matches = cats.map((category) => {
-    const side = (who) => scoreHand(state.teams[who], { category, scale });
-    const you = side('you'), bot = side('bot');
-    return { category, you, bot, winner: you.total > bot.total ? 'you' : bot.total > you.total ? 'bot' : 'draw' };
-  });
-  const wins = { you: matches.filter((m) => m.winner === 'you').length, bot: matches.filter((m) => m.winner === 'bot').length };
-  const total = { you: matches.reduce((s, m) => s + m.you.total, 0), bot: matches.reduce((s, m) => s + m.bot.total, 0) };
-  const winner = wins.you !== wins.bot ? (wins.you > wins.bot ? 'you' : 'bot') : total.you !== total.bot ? (total.you > total.bot ? 'you' : 'bot') : 'draw';
+  const category = state.category;
+  const side = (who) => {
+    const players = state.teams[who].map((card, i) => ({ card, value: valueOf(card, category), paid: state.paid[who][i] }));
+    return { players, total: players.reduce((sum, p) => sum + p.value, 0) };
+  };
+  const you = side('you'), bot = side('bot');
   state.phase = 'over';
-  return { matches, wins, total, winner, decidedBy: wins.you !== wins.bot ? 'matches' : winner === 'draw' ? 'nothing' : 'total score' };
+  return { category, you, bot, winner: you.total > bot.total ? 'you' : bot.total > you.total ? 'bot' : 'draw' };
 }
