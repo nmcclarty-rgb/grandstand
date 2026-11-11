@@ -99,6 +99,10 @@ test('FBref seasons: anchors, merged exports, mid-season movers', () => {
   assert.equal(get('Ronaldo', '2007-08', 'MUN').goals, 31);
   assert.equal(get('Torres', '2007-08', 'LIV').goals, 24);
   assert.equal(get('Fàbregas', '2007-08', 'ARS').assists, 17);
+  assert.equal(get('Anelka', '2008-09', 'CHE').goals, 19);
+  assert.equal(get('Drogba', '2009-10', 'CHE').goals, 29);
+  assert.equal(get('Rooney', '2009-10', 'MUN').goals, 26);
+  assert.equal(get('Tevez', '2009-10', 'MCI').goals, 23);
   // 2001/02 was a Z-A export plus an A-Z one: surnames at the A end only exist because both were merged
   assert.ok(get('Bergkamp', '2001-02', 'ARS') && get('Anelka', '2001-02', 'LIV'));
   // Sheringham left Forest for Spurs mid-season: two cards, two clubs
@@ -109,7 +113,7 @@ test('FBref seasons: anchors, merged exports, mid-season movers', () => {
     assert.deepEqual([c.cleanSheets, c.saves, c.bonus, c.price, c.points], [0, 0, 0, 0, 0], c.id);
     assert.ok(c.games > 0);
   }
-  assert.deepEqual(meta.sources.fbref, ['1992-93', '1993-94', '1994-95', '1996-97', '1997-98', '1998-99', '1999-00', '2000-01', '2001-02', '2002-03', '2003-04', '2004-05', '2005-06', '2006-07', '2007-08']);
+  assert.deepEqual(meta.sources.fbref, ['1992-93', '1993-94', '1994-95', '1996-97', '1997-98', '1998-99', '1999-00', '2000-01', '2001-02', '2002-03', '2003-04', '2004-05', '2005-06', '2006-07', '2007-08', '2008-09', '2009-10']);
 });
 
 test('every FBref season has a plausible number of goals on the cards', () => {
@@ -240,5 +244,7 @@ test('display names keep compound surnames and drop suffixes', () => {
   // ordinary middle names are not part of the surname
   assert.deepEqual(shown('Ole Gunnar Solskjær'), ['Solskjær']);
   assert.deepEqual(shown('Jimmy Floyd Hasselbaink'), ['Hasselbaink']);
-  assert.ok(cards.filter((c) => c.src === 'fbref').every((c) => c.name.length > 2), 'no stub names like "Jr."');
+  // a suffix left behind ("Jr.") is the bug; a real short mononym ("Jô") is not
+  assert.ok(cards.filter((c) => c.src === 'fbref').every((c) => c.name.length >= 2 && !c.name.endsWith('.')), 'no stub names like "Jr."');
+  assert.deepEqual(shown('Jô'), ['Jô']);
 });
