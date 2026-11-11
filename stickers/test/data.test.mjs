@@ -110,6 +110,10 @@ test('FBref seasons: anchors, merged exports, mid-season movers', () => {
   assert.equal(get('van Persie', '2012-13', 'MUN').goals, 26);
   assert.equal(get('Bale', '2012-13', 'TOT').goals, 21);
   assert.equal(get('Suárez', '2013-14', 'LIV').goals, 31);
+  assert.equal(get('Agüero', '2014-15', 'MCI').goals, 26);
+  assert.equal(get('Kane', '2014-15', 'TOT').goals, 21);
+  assert.equal(get('Vardy', '2015-16', 'LEI').goals, 24);
+  assert.equal(get('Kane', '2015-16', 'TOT').goals, 25);
   assert.equal(get('Sturridge', '2013-14', 'LIV').goals, 21);
   // 2001/02 was a Z-A export plus an A-Z one: surnames at the A end only exist because both were merged
   assert.ok(get('Bergkamp', '2001-02', 'ARS') && get('Anelka', '2001-02', 'LIV'));
@@ -121,7 +125,6 @@ test('FBref seasons: anchors, merged exports, mid-season movers', () => {
     assert.deepEqual([c.cleanSheets, c.saves, c.bonus, c.price, c.points], [0, 0, 0, 0, 0], c.id);
     assert.ok(c.games > 0);
   }
-  assert.deepEqual(meta.sources.fbref, ['1992-93', '1993-94', '1994-95', '1996-97', '1997-98', '1998-99', '1999-00', '2000-01', '2001-02', '2002-03', '2003-04', '2004-05', '2005-06', '2006-07', '2007-08', '2008-09', '2009-10', '2010-11', '2011-12', '2012-13', '2013-14']);
 });
 
 test('every FBref season has a plausible number of goals on the cards', () => {
@@ -255,4 +258,14 @@ test('display names keep compound surnames and drop suffixes', () => {
   // a suffix left behind ("Jr.") is the bug; a real short mononym ("Jô") is not
   assert.ok(cards.filter((c) => c.src === 'fbref').every((c) => c.name.length >= 2 && !c.name.endsWith('.')), 'no stub names like "Jr."');
   assert.deepEqual(shown('Jô'), ['Jô']);
+});
+
+test('every season from 1992/93 to 2025/26 is covered except 1995/96, and the sources do not overlap', () => {
+  const year = (y) => `${y}-${String((y + 1) % 100).padStart(2, '0')}`;
+  const all = Array.from({ length: 2025 - 1992 + 1 }, (_, i) => year(1992 + i));
+  assert.deepEqual(all.filter((x) => !meta.seasons.includes(x)), ['1995-96'], 'missing seasons');
+  assert.deepEqual(meta.seasons, all.filter((x) => x !== '1995-96'));
+  assert.deepEqual(meta.sources.fbref, all.filter((x) => x < '2016-17' && x !== '1995-96'));
+  assert.deepEqual(meta.sources.fpl, all.filter((x) => x >= '2016-17'));
+  assert.ok(meta.sources.fbref.every((x) => !meta.sources.fpl.includes(x)));
 });
