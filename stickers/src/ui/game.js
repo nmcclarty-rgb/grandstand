@@ -35,7 +35,7 @@ function el(tag, props = {}, ...kids) {
 }
 
 // ---- saving -----------------------------------------------------------------------------------------------------
-const SAVE = 'sticker-season:save:v1';
+const SAVE = 'sticker-season:save:v2';
 const BEST = 'sticker-season:best:v1';
 function stash(key, value) {
   try { if (value === null) localStorage.removeItem(key); else localStorage.setItem(key, JSON.stringify(value)); } catch { /* private window: play without saving */ }
