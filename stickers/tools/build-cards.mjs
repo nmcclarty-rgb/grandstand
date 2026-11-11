@@ -53,11 +53,12 @@ const FBREF_CLUBS = {
   'wimbledon': 'WIM', 'wolves': 'WOL', 'wolverhampton wanderers': 'WOL',
 };
 const FBREF_POS = { GK: 'GK', DF: 'DEF', MF: 'MID', FW: 'FWD' };
-const PARTICLES = new Set(['van', 'von', 'de', 'der', 'den', 'di', 'da', 'dos', 'du', 'le', 'la', 'el', 'al', 'ten', 'ter']);
+const PARTICLES = new Set(['van', 'von', 'de', 'der', 'den', 'di', 'da', 'dos', 'du', 'le', 'la', 'el', 'al', 'ten', 'ter',
+  'del', 'della', 'dalla', 'dal', 'degli', 'ben', 'boa', 'santa', 'san', 'vaz']);
 const slug = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 // "Ruud van Nistelrooy" -> "van Nistelrooy"; "Teddy Sheringham" -> "Sheringham"
 function displayName(full) {
-  const parts = full.split(/\s+/);
+  const parts = full.replace(/\s+(jr|sr|jnr|snr)\.?$/i, '').split(/\s+/); // "Alan Kelly Jr." -> Kelly
   let i = parts.length - 1;
   while (i > 1 && PARTICLES.has(parts[i - 1].toLowerCase())) i--;
   return parts.slice(parts.length === 1 ? 0 : i).join(' ');

@@ -95,6 +95,10 @@ test('FBref seasons: anchors, merged exports, mid-season movers', () => {
   assert.equal(get('Johnson', '2004-05', 'CRY').goals, 21);
   assert.equal(get('Henry', '2005-06', 'ARS').goals, 27);
   assert.equal(get('Bent', '2005-06', 'CHA').goals, 18);
+  assert.equal(get('Drogba', '2006-07', 'CHE').goals, 20);
+  assert.equal(get('Ronaldo', '2007-08', 'MUN').goals, 31);
+  assert.equal(get('Torres', '2007-08', 'LIV').goals, 24);
+  assert.equal(get('Fàbregas', '2007-08', 'ARS').assists, 17);
   // 2001/02 was a Z-A export plus an A-Z one: surnames at the A end only exist because both were merged
   assert.ok(get('Bergkamp', '2001-02', 'ARS') && get('Anelka', '2001-02', 'LIV'));
   // Sheringham left Forest for Spurs mid-season: two cards, two clubs
@@ -105,7 +109,7 @@ test('FBref seasons: anchors, merged exports, mid-season movers', () => {
     assert.deepEqual([c.cleanSheets, c.saves, c.bonus, c.price, c.points], [0, 0, 0, 0, 0], c.id);
     assert.ok(c.games > 0);
   }
-  assert.deepEqual(meta.sources.fbref, ['1992-93', '1993-94', '1994-95', '1996-97', '1997-98', '1998-99', '1999-00', '2000-01', '2001-02', '2002-03', '2003-04', '2004-05', '2005-06']);
+  assert.deepEqual(meta.sources.fbref, ['1992-93', '1993-94', '1994-95', '1996-97', '1997-98', '1998-99', '1999-00', '2000-01', '2001-02', '2002-03', '2003-04', '2004-05', '2005-06', '2006-07', '2007-08']);
 });
 
 test('every FBref season has a plausible number of goals on the cards', () => {
@@ -222,4 +226,19 @@ test('a short single export is complete, and disagreeing rows are an error', () 
   const a = fakeRows(0, 10), b = fakeRows(5, 15);
   b[0] = { ...b[0], goals: '9' }; // P5 now has a different goal count in the second file
   assert.throws(() => mergeSeasonFiles('x', [file('a', a), file('b', b)]), /disagrees/);
+});
+
+test('display names keep compound surnames and drop suffixes', () => {
+  const shown = (full) => [...new Set(cards.filter((c) => c.full === full).map((c) => c.name))];
+  assert.deepEqual(shown('Roque Santa Cruz'), ['Santa Cruz']);
+  assert.deepEqual(shown('Luís Boa Morte'), ['Boa Morte']);
+  assert.deepEqual(shown('Samuele Dalla Bona'), ['Dalla Bona']);
+  assert.deepEqual(shown('Tal Ben Haim'), ['Ben Haim']);
+  assert.deepEqual(shown('Asier del Horno'), ['del Horno']);
+  assert.deepEqual(shown('Ricardo Vaz Tê'), ['Vaz Tê']);
+  assert.deepEqual(shown('Alan Kelly Jr.'), ['Kelly']);
+  // ordinary middle names are not part of the surname
+  assert.deepEqual(shown('Ole Gunnar Solskjær'), ['Solskjær']);
+  assert.deepEqual(shown('Jimmy Floyd Hasselbaink'), ['Hasselbaink']);
+  assert.ok(cards.filter((c) => c.src === 'fbref').every((c) => c.name.length > 2), 'no stub names like "Jr."');
 });
