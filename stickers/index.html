@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sticker Season: tabletop</title>
+  <meta name="description" content="Prototype tabletop for a Balatro x Top Trumps x Panini Premier League card game.">
+  <link rel="stylesheet" href="src/ui/style.css">
+</head>
+<body>
+<main>
+  <h1>Sticker <em>Season</em></h1>
+  <p class="sub">Engine prototype. Pick up to five cards; only the cards that make the hand score, in the round's category.</p>
+
+  <div class="bar">
+    <label>Fixture <select id="fixture"></select></label>
+    <label>Category <select id="category"></select></label>
+    <label>Seed <input id="seed" type="number" min="1" step="1" style="width:5.5em"></label>
+    <button id="deal" class="ghost" type="button">Deal again</button>
+  </div>
+
+  <div class="meter">
+    <div class="big" id="score">0<small>of 0</small></div>
+    <div class="pills"><span id="cat"></span><span id="hands"></span><span id="discards"></span><span id="deckleft"></span></div>
+    <div class="track"><div class="fill" id="fill"></div></div>
+  </div>
+  <p class="status" id="status" role="status" aria-live="polite"></p>
+
+  <h2>Your hand</h2>
+  <div class="hand" id="hand"></div>
+
+  <div class="live" id="live">
+    <div>
+      <div class="actions">
+        <button id="play" type="button">PLAY HAND</button>
+        <button id="discard" class="ghost" type="button">DISCARD</button>
+        <button id="clear" class="ghost" type="button">CLEAR</button>
+      </div>
+      <p class="blurb" style="margin:8px 0 0">Keys: 1-8 pick · Enter play · D discard · Esc clear</p>
+    </div>
+    <div class="detail"></div>
+  </div>
+
+  <h2>Managers <span id="mgrcount" style="color:#b7cdbd;font-weight:600"></span></h2>
+  <div class="mgrs" id="mgrs"></div>
+
+  <h2>Editions</h2>
+  <div class="gallery" id="editions"></div>
+
+  <h2>Panini pack <button id="openpack" type="button" style="margin-left:8px">OPEN ANOTHER</button></h2>
+  <div class="gallery" id="pack"></div>
+</main>
+<script type="module" src="src/ui/main.js"></script>
+</body>
+</html>

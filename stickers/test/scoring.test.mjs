@@ -1,0 +1,148 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { scoreHand } from '../src/engine/scoring.js';
+import { mk, scale } from './helpers.mjs';
+
+const ctx = (over = {}) => ({ category: 'goals', scale, jokers: [], handLevels: {}, state: { handsLeft: 4, discardsLeft: 3 }, ...over });
+// a one-two: two Arsenal 17/18 players worth 20 and 10 chips on goals (2 chips per goal)
+const pair = (over = [{}, {}]) => [mk({ goals: 10, ...over[0] }), mk({ goals: 5, ...over[1] })];
+
+test('chips x mult: base hand + each scoring card, then multiply', () => {
+  const r = scoreHand(pair(), ctx());
+  assert.equal(r.type, 'oneTwo');
+  assert.equal(r.chips, 10 + 20 + 10);
+  assert.equal(r.mult, 2);
+  assert.equal(r.total, 80);
+});
+
+test('a kicker adds nothing', () => {
+  const kicker = mk({ club: 'CHE', goals: 50 });
+  const r = scoreHand([...pair(), kicker], ctx());
+  assert.equal(r.total, 80);
+});
+
+test('kickabout scores only the best card in the round category', () => {
+  const cards = [mk({ club: 'ARS', goals: 4, assists: 20 }), mk({ club: 'CHE', goals: 9, assists: 1 })];
+  assert.equal(scoreHand(cards, ctx({ category: 'goals' })).total, (5 + 18) * 1);
+  assert.equal(scoreHand(cards, ctx({ category: 'assists' })).total, (5 + 20) * 1);
+});
+
+test('the category changes what a card is worth, not what hand it makes', () => {
+  const cards = pair([{ assists: 7 }, { assists: 1 }]);
+  assert.equal(scoreHand(cards, ctx({ category: 'assists' })).total, (10 + 7 + 1) * 2);
+});
+
+test('hand training level raises base chips and mult', () => {
+  const r = scoreHand(pair(), ctx({ handLevels: { oneTwo: 3 } }));
+  assert.equal(r.chips, 40 + 30);
+  assert.equal(r.mult, 4);
+  assert.equal(r.total, 280);
+});
+
+test('editions: shiny +40 chips, holo +6 mult, gold x1.5 mult', () => {
+  assert.equal(scoreHand(pair([{ edition: 'shiny' }, {}]), ctx()).total, (40 + 40) * 2);
+  assert.equal(scoreHand(pair([{ edition: 'holo' }, {}]), ctx()).total, 40 * (2 + 6));
+  assert.equal(scoreHand(pair([{ edition: 'gold' }, {}]), ctx()).total, 40 * 3);
+});
+
+test('order matters: a gold card multiplies the mult built so far, a later +mult is not multiplied', () => {
+  // DEF at ARS 17/18: Park the Bus adds +4 on that card's turn.
+  const cards = [mk({ pos: 'DEF', edition: 'gold', goals: 10 }), mk({ pos: 'DEF', goals: 5 })];
+  const r = scoreHand(cards, ctx({ jokers: ['parkTheBus'] }));
+  // card 1: x1.5 -> 3, +4 -> 7 ; card 2: +4 -> 11
+  assert.equal(r.mult, 11);
+  assert.equal(r.total, 40 * 11);
+});
+
+test('the trace adds up to the total', () => {
+  const r = scoreHand(pair([{ edition: 'gold' }, {}]), ctx({ jokers: ['routeOne', 'addedTime'], state: { handsLeft: 1, discardsLeft: 0 } }));
+  const last = r.trace.at(-1);
+  assert.equal(Math.floor(last.runChips * last.runMult), r.total);
+  assert.equal(r.trace[0].src, 'One-Two');
+});
+
+test('unknown manager is an error, not a silent no-op', () => {
+  assert.throws(() => scoreHand(pair(), ctx({ jokers: ['nope'] })), /unknown manager/);
+});
+
+// ---- managers -------------------------------------------------------------------
+const total = (cards, jokers, over = {}) => scoreHand(cards, ctx({ jokers, ...over })).total;
+const club = (c, extra = {}) => mk({ club: c, ...extra });
+
+test('Park the Bus: +4 mult per scoring DEF only', () => {
+  const cards = [mk({ pos: 'DEF', goals: 10 }), mk({ pos: 'MID', goals: 5 })];
+  assert.equal(total(cards, ['parkTheBus']), 40 * (2 + 4));
+});
+
+test('Route One: +30 chips per scoring FWD', () => {
+  const cards = [mk({ pos: 'FWD', goals: 10 }), mk({ pos: 'FWD', goals: 5 })];
+  assert.equal(total(cards, ['routeOne']), (40 + 60) * 2);
+});
+
+test('Sweeper Keeper: x2 only when a GK scores', () => {
+  const withGk = [mk({ pos: 'GK', goals: 10 }), mk({ pos: 'MID', goals: 5 })];
+  assert.equal(total(withGk, ['sweeperKeeper']), 40 * 4);
+  assert.equal(total(pair(), ['sweeperKeeper']), 80);
+});
+
+test('Total Football: +12 mult when scoring cards span 3+ clubs', () => {
+  const spine = ['GK', 'DEF', 'MID', 'FWD'].map((pos, i) => club(['ARS', 'CHE', 'LIV', 'MCI'][i], { pos, goals: 1 }));
+  const plain = scoreHand(spine, ctx());
+  assert.equal(scoreHand(spine, ctx({ jokers: ['totalFootball'] })).mult, plain.mult + 12);
+  assert.equal(total(pair(), ['totalFootball']), 80); // one club only
+});
+
+test('One-Club Man: x1.5 when 2+ scoring cards share a club', () => {
+  assert.equal(total(pair(), ['oneClubMan']), 40 * 3);
+  const single = [club('ARS', { goals: 9 }), club('CHE', { goals: 1 })];
+  assert.equal(total(single, ['oneClubMan']), scoreHand(single, ctx()).total); // kickabout: one scoring card
+});
+
+test('Golden Boot: +1 mult per 5 goals the scoring card scored (any category)', () => {
+  const cards = [mk({ goals: 12 }), mk({ goals: 4 })]; // floor(12/5)=2, floor(4/5)=0
+  const r = scoreHand(cards, ctx({ category: 'assists', jokers: ['goldenBoot'] }));
+  assert.equal(r.mult, 2 + 2);
+});
+
+test('Playmaker: +1 mult per 4 assists', () => {
+  const cards = [mk({ assists: 9 }), mk({ assists: 3 })];
+  assert.equal(scoreHand(cards, ctx({ jokers: ['playmaker'] })).mult, 2 + 2);
+});
+
+test('Added Time: x2 on the last hand only', () => {
+  assert.equal(total(pair(), ['addedTime'], { state: { handsLeft: 1, discardsLeft: 0 } }), 160);
+  assert.equal(total(pair(), ['addedTime'], { state: { handsLeft: 2, discardsLeft: 0 } }), 80);
+});
+
+test('Vintage Stickers: +20 chips per scoring card from 16/17 or 17/18', () => {
+  const cards = [mk({ season: '2016-17', club: 'ARS', goals: 10 }), mk({ season: '2016-17', club: 'ARS', goals: 5 })];
+  assert.equal(total(cards, ['vintage']), (40 + 40) * 2);
+  const modern = [mk({ season: '2018-19', goals: 10 }), mk({ season: '2018-19', goals: 5 })];
+  assert.equal(total(modern, ['vintage']), 80);
+});
+
+test('Super Sub: +15 chips per discard left', () => {
+  assert.equal(total(pair(), ['superSub'], { state: { handsLeft: 4, discardsLeft: 2 } }), (40 + 30) * 2);
+});
+
+test("Captain's Armband: the first scoring card scores twice, editions and all", () => {
+  const cards = pair([{ edition: 'shiny' }, {}]);
+  const r = scoreHand(cards, ctx({ jokers: ['captain'] }));
+  assert.equal(r.chips, 10 + (20 + 40) * 2 + 10);
+  // a kicker is not the "first scoring card"
+  const withKicker = [mk({ club: 'CHE', goals: 99 }), ...pair()];
+  assert.equal(scoreHand(withKicker, ctx({ jokers: ['captain'] })).chips, 10 + 20 * 2 + 10);
+});
+
+test('specialists: x1.5 only in their category', () => {
+  assert.equal(total(pair(), ['poacher'], { category: 'goals' }), 40 * 3);
+  const assistPair = pair([{ assists: 10 }, { assists: 5 }]);
+  assert.equal(total(assistPair, ['poacher'], { category: 'assists' }), (10 + 15) * 2);
+  assert.equal(total(assistPair, ['creator'], { category: 'assists' }), (10 + 15) * 3);
+});
+
+test('managers stack in order: +mult then xmult is not the same as xmult then +mult', () => {
+  const cards = [mk({ pos: 'DEF', goals: 10 }), mk({ pos: 'DEF', goals: 5 })];
+  // onCard +4 per DEF (mult 2 -> 10) happens before onHand x1.5 (-> 15)
+  assert.equal(scoreHand(cards, ctx({ jokers: ['parkTheBus', 'oneClubMan'] })).mult, 15);
+});

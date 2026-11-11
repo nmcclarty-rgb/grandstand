@@ -1,0 +1,6 @@
+// Complete seasons only. 2026-27 is in progress, so its totals would make
+// every card look like a bench player.
+export const SEASONS = [
+  '2016-17', '2017-18', '2018-19', '2019-20', '2020-21',
+  '2021-22', '2022-23', '2023-24', '2024-25', '2025-26',
+];

@@ -1,0 +1,14 @@
+{
+  "name": "grandstand-stickers",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Balatro x Top Trumps x Panini, on the Premier League. Engine prototype.",
+  "scripts": {
+    "fetch": "node tools/fetch-data.mjs",
+    "build:data": "node tools/build-cards.mjs",
+    "test": "node --test \"test/*.test.mjs\"",
+    "simulate": "node tools/simulate.mjs",
+    "start": "python3 -m http.server 8778"
+  }
+}
