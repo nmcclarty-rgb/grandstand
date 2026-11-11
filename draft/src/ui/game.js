@@ -3,13 +3,14 @@ import { makePool } from '../../../stickers/src/engine/deck.js';
 import { CATEGORIES, CATEGORY_KEYS, firstNameOf, surnameOf } from '../../../stickers/src/engine/cards.js';
 import { renderCard } from '../../../stickers/src/ui/card.js';
 import { initTooltips } from '../../../stickers/src/ui/tooltip.js';
-import { RULES, newMatch, pick, positionOf, canAfford, maxSpend, showdown } from '../engine/draft.js';
+import { COMMON, MODES, newMatch, pick, positionOf, canAfford, maxSpend, showdown, rulesOf } from '../engine/draft.js';
 import { botMove } from '../engine/bot.js';
 
 const $ = (id) => document.getElementById(id);
 const n = (x) => x.toLocaleString('en-GB');
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const LABEL = { GK: 'Goalkeepers', DEF: 'Defenders', MID: 'Midfielders', FWD: 'Forwards' };
+const ONE = { GK: 'Goalkeeper', DEF: 'Defender', MID: 'Midfielder', FWD: 'Forward' };
 const SHORT = { GK: 'GK', DEF: 'DEF', MID: 'MID', FWD: 'FWD' };
 const RECORD = 'blind-five:record:v1';
 
@@ -29,11 +30,13 @@ function el(tag, props = {}, ...kids) {
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 function recall() { try { return JSON.parse(localStorage.getItem(RECORD)) ?? {}; } catch { return {}; } }
-function remember(level, outcome) {
-  try { const r = recall(); r[level] ??= { w: 0, l: 0, d: 0 }; r[level][outcome]++; localStorage.setItem(RECORD, JSON.stringify(r)); } catch { /* private window */ }
+function remember(key, outcome) {
+  try { const r = recall(); r[key] ??= { w: 0, l: 0, d: 0 }; r[key][outcome]++; localStorage.setItem(RECORD, JSON.stringify(r)); } catch { /* private window */ }
 }
 
-let pool, state, result, level = 'medium', busy = false, token = 0;
+let pool, state, result, level = 'medium', mode = 'five', busy = false, token = 0;
+const rules = () => rulesOf(state);
+const recordKey = () => `${mode}-${level}`;
 const params = new URLSearchParams(location.search);
 
 const SCREENS = ['loading', 'title', 'draft', 'show'];
@@ -52,18 +55,25 @@ function showTitle() {
   token++;
   busy = false;
   const r = recall();
-  const bits = ['easy', 'medium', 'hard'].filter((l) => r[l]).map((l) => `${l}: ${r[l].w} won, ${r[l].l} lost${r[l].d ? `, ${r[l].d} drawn` : ''}`);
+  const bits = Object.keys(MODES).flatMap((m) => ['easy', 'medium', 'hard'].map((l) => [`${MODES[m].label} ${l}`, r[`${m}-${l}`] ?? (m === 'five' ? r[l] : null)]))
+    .filter(([, v]) => v).map(([k, v]) => `${k}: ${v.w} won, ${v.l} lost${v.d ? `, ${v.d} drawn` : ''}`);
   $('t-record').textContent = bits.length ? `Your record. ${bits.join(' · ')}.` : '';
   show('title');
 }
 
 function startMatch(seed) {
   level = document.querySelector('input[name=level]:checked').value;
-  state = newMatch(pool, seed || Date.now(), { level });
+  mode = document.querySelector('input[name=mode]:checked').value;
+  state = newMatch(pool, seed || Date.now(), { level, mode });
+  document.body.dataset.mode = mode;
   result = null;
   const my = ++token;
   show('draft');
   $('d-attr').textContent = '???';
+  $('d-rounds').textContent = `/${rules().rounds}`;
+  $('d-formation').hidden = mode !== 'eleven';
+  $('d-poslabel').textContent = mode === 'eleven' ? 'Now drafting' : 'The wheel says';
+  $('d-formation-name').textContent = '…';
   renderTeams();
   runRound(my);
 }
@@ -78,19 +88,52 @@ async function spin(final) {
   h.parentElement.classList.remove('spinning');
 }
 
+// 11-a-side: the formation is rolled once, at the start, and the draft then works through it
+async function rollFormation() {
+  const names = ['4-4-2', '4-3-3', '4-5-1', '3-5-2', '3-4-3', '5-3-2'];
+  const h = $('d-pos');
+  h.parentElement.classList.add('spinning');
+  if (!reduceMotion) for (let i = 0; i < 16; i++) { h.textContent = names[i % names.length]; await sleep(55 + i * 16); }
+  h.textContent = state.formation.name;
+  $('d-formation-name').textContent = state.formation.name;
+  h.parentElement.classList.remove('spinning');
+}
+
+// "Defender 2 of 4" for the slot being drafted
+function slotLabel() {
+  const pos = positionOf(state);
+  const same = state.positions.filter((p) => p === pos).length;
+  const nth = state.positions.slice(0, state.round).filter((p) => p === pos).length;
+  return same > 1 ? `${ONE[pos]} ${nth} of ${same}` : ONE[pos];
+}
+
 async function runRound(my) {
   busy = true;
   $('d-round').textContent = state.round;
   renderMoney();
   $('d-board').classList.add('waiting');
-  renderBoard();
-  say(`Round ${state.round} of ${RULES.rounds}: the wheel is spinning…`);
-  await spin(positionOf(state));
-  if (my !== token) return;
+  renderAll();
+  if (mode === 'eleven') {
+    if (state.round === 1) {
+      $('d-pos').textContent = ' ';
+      say('Rolling the formation…');
+      await rollFormation();
+      if (my !== token) return;
+      say(`<b>${state.formation.name}.</b> Both teams play it. You work through it from the goalkeeper to the forwards.`);
+      renderAll();
+      await sleep(1200);
+    } else await sleep(350);
+    if (my !== token) return;
+    $('d-pos').textContent = slotLabel();
+  } else {
+    say(`Round ${state.round} of ${rules().rounds}: the wheel is spinning…`);
+    await spin(positionOf(state));
+    if (my !== token) return;
+  }
   $('d-board').classList.remove('waiting');
-  renderBoard();
+  renderAll();
   const first = state.turn === 'you' ? 'You pick first.' : 'The bot picks first.';
-  say(`<b>${LABEL[positionOf(state)]}.</b> ${first}`);
+  say(`<b>${mode === 'eleven' ? slotLabel() : LABEL[positionOf(state)]}.</b> ${first}`);
   if (state.turn === 'bot') { await sleep(800); await botTurn(my); } else { busy = false; say(`${$('d-say').innerHTML} <b>Your pick.</b>`); }
 }
 
@@ -118,7 +161,7 @@ async function choose(id) {
   if (busy || !state || state.turn !== 'you') return;
   const entry = state.board.find((b) => b.card.id === id);
   if (!entry || entry.takenBy) return;
-  if (!canAfford(state, 'you', entry.price)) { say(`Too dear: you must keep £${RULES.minPrice} for every round still to come. The most you can spend now is <b>£${maxSpend(state, 'you')}</b>.`); return; }
+  if (!canAfford(state, 'you', entry.price)) { say(`Too dear: you must keep £${COMMON.minPrice} for every round still to come. The most you can spend now is <b>£${maxSpend(state, 'you')}</b>.`); return; }
   busy = true;
   const my = token, before = state.round;
   pick(state, 'you', id);
@@ -152,12 +195,28 @@ function renderBoard() {
 }
 
 function renderTeams() {
+  if (mode === 'eleven') return renderPitches();
   for (const who of ['you', 'bot']) {
-    $(`d-${who}`).replaceChildren(...Array.from({ length: RULES.rounds }, (_, i) => {
+    $(`d-${who}`).replaceChildren(...Array.from({ length: rules().rounds }, (_, i) => {
       const c = state.teams[who][i];
       return c ? el('li', { class: `five-slot full ${who}` }, el('span', { class: 'p', text: SHORT[c.pos] }), el('span', { class: 'n', text: c.full }), el('span', { class: 'c', text: `£${state.paid[who][i]}` }))
         : el('li', { class: `five-slot ${who}` }, el('span', { class: 'p' }), el('span', { class: 'n', text: '—' }), el('span', { class: 'c' }));
     }));
+  }
+}
+
+// 11-a-side: each team on a pitch in the formation, goalkeeper at the bottom. Slot i is round i + 1.
+function renderPitches() {
+  for (const who of ['you', 'bot']) {
+    const pitch = $(`p-${who}`);
+    pitch.replaceChildren(...['FWD', 'MID', 'DEF', 'GK'].map((line) => el('div', { class: 'line' },
+      state.positions.map((pos, i) => pos === line ? i : -1).filter((i) => i >= 0).map((i) => {
+        const c = state.teams[who][i];
+        const now = state.phase === 'draft' && i === state.round - 1 && !c;
+        return el('div', { class: `pslot${c ? ' full' : ''}${now ? ' now' : ''}`, title: c ? `${c.full}, £${state.paid[who][i]}` : '' },
+          el('span', { class: 'sn', text: c ? surnameOf(c) : (now ? '?' : '') }),
+          c ? el('span', { class: 'sc', text: `£${state.paid[who][i]}` }) : null);
+      }))));
   }
 }
 function renderAll() { renderBoard(); renderTeams(); renderMoney(); }
@@ -225,7 +284,7 @@ async function reveal() {
   $('s-actions').replaceChildren();
   const tally = $('s-tally');
   tally.hidden = false;
-  const rows = Array.from({ length: RULES.rounds }, (_, i) => {
+  const rows = Array.from({ length: rules().rounds }, (_, i) => {
     const y = result.you.players[i], b = result.bot.players[i];
     const pay = (p) => el('small', { text: `£${p.paid}` });
     return el('tr', { class: 'pending' },
@@ -256,7 +315,7 @@ async function reveal() {
   const margin = Math.abs(result.you.total - result.bot.total);
   $('s-say').innerHTML = draw ? '<b>A draw.</b> Exactly level.'
     : `<span class="verdict ${won ? 'won' : 'lost'}">${won ? 'You win' : 'The bot wins'}</span> by ${n(margin)} ${UNIT[result.category]}. Match code: ${esc(state.seed)}.`;
-  remember(level, won ? 'w' : draw ? 'd' : 'l');
+  remember(recordKey(), won ? 'w' : draw ? 'd' : 'l');
   $('s-actions').replaceChildren(
     el('button', { class: 'primary', type: 'button', text: 'Play again', onclick: () => startMatch('') }),
     el('button', { class: 'ghost', type: 'button', text: 'Change opponent', onclick: showTitle }));
@@ -264,19 +323,25 @@ async function reveal() {
 
 // ---- the manual ------------------------------------------------------------------------------------------------------------------------
 function buildManual() {
+  const five = MODES.five, eleven = MODES.eleven;
   $('m-body').innerHTML = `
     <h2 id="m-h">How to play</h2>
-    <p><b>The aim.</b> Build a five-a-side team with a higher total than the bot's, knowing nothing about the players but their names and prices.</p>
+    <p><b>The aim.</b> Build a team with a higher total than the bot's, knowing nothing about the players but their names and prices.</p>
     <ol>
-      <li><b>Pick your team.</b> You and the bot each have <b>£${RULES.budget}</b> for the whole team. Each of <b>${RULES.rounds} rounds</b> the wheel names a position: goalkeepers, defenders, midfielders or forwards. Eight players of that position go on the board with a <b>name and a price</b> of £1 to £5. You and the bot take turns to pick <b>one</b> each; who picks first swaps every round. Once a player is taken he is gone, and you see what the bot takes as it takes it. You must keep <b>£${RULES.minPrice} for every round still to come</b>, so you can never be locked out.</li>
+      <li><b>Pick your team.</b> You and the bot each have a budget for the whole team: <b>£${five.budget}</b> in 5-a-side, <b>£${eleven.budget}</b> in 11-a-side. Each round a board of eight players of one position goes up with <b>a name and a price</b> of £1 to £5. You and the bot take turns to pick <b>one</b> each; who picks first swaps every round. Once a player is taken he is gone, and you see what the bot takes as it takes it. You must keep <b>£${COMMON.minPrice} for every round still to come</b>, so you can never be locked out.
+        <ul>
+          <li><b>5-a-side</b>: ${five.rounds} rounds. A wheel names the position each round (never one position three times).</li>
+          <li><b>11-a-side</b>: ${eleven.rounds} rounds. A <b>formation</b> (4-4-2, 4-3-3, 4-5-1, 3-5-2, 3-4-3 or 5-3-2) is rolled at the start and both teams play it. You work through it from the goalkeeper to the forwards, so you decide early how much of the money goes into defence and how much is kept for attack.</li>
+        </ul></li>
       <li><b>Roll which attribute</b> is being counted: <b>goals, assists, appearances or discipline</b> (a yellow card is 1 point, a red card is 3). It is rolled <b>after</b> the draft, so you pick without knowing.</li>
       <li><b>Add it up.</b> The teams are revealed and each player's <b>real Premier League career total</b> (1992/93 to 2025/26) in the attribute is added up. The biggest total wins.</li>
     </ol>
     <h3>Prices are a hint, not the truth</h3>
-    <p>A £5 is usually a star of his position and a £1 a squad man, but about one player in three in the middle prices is a <b>bargain</b> (cheaper than he is) or a <b>trap</b> (dearer). Prices are by position: the best goalkeeper in the league is a £5 goalkeeper, but he will score no goals. Everyone on a board has made at least 100 Premier League appearances.</p>
+    <p>A £5 is usually a star of his position and a £1 a squad man, but about one player in three in the middle prices is a <b>bargain</b> (cheaper than he is) or a <b>trap</b> (dearer). Prices are by position: the best goalkeeper in the league is a £5 goalkeeper, but he will score no goals. Everyone on a board has made at least ${COMMON.minGames} Premier League appearances.</p>
     <h3>Tips</h3>
     <ul>
       <li>You do not know the attribute, so buy a team that can win more than one: forwards for goals, midfielders for assists and long-serving players of any position for appearances. Or gamble on one.</li>
+      <li>In 11-a-side every position is a slot: a team of eleven stars is impossible. Spend where the totals are, and find bargains everywhere else.</li>
       <li>A goalkeeper is the cheapest place to save: he will score no goals and make almost no assists, but a long-serving keeper has plenty of appearances.</li>
       <li>Money left at the end is wasted. Spend it, but not on the wrong name.</li>
       <li>A career total rewards a long career: someone who played 15 years beats a brilliant two-season wonder.</li>
@@ -288,6 +353,7 @@ function wire() {
   $('t-new').addEventListener('click', () => startMatch($('t-seed').value.trim()));
   $('t-help').addEventListener('click', () => $('manual').showModal?.());
   $('d-quit').addEventListener('click', showTitle);
+  const m = params.get('mode'); if (m && MODES[m]) document.querySelector(`input[name=mode][value=${m}]`).checked = true;
   const l = params.get('level'); if (['easy', 'medium', 'hard'].includes(l)) document.querySelector(`input[name=level][value=${l}]`).checked = true;
   if (params.get('seed')) $('t-seed').value = params.get('seed');
 }

@@ -114,3 +114,23 @@ h3 { font: 800 13px/1 system-ui; letter-spacing: .12em; text-transform: uppercas
 .rolling.landed { min-width: 0; color: var(--gold); }
 
 #s-say { min-height: 1.6em; }
+
+/* 11-a-side: the formation, and each team on a pitch */
+.pitches { display: none; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 6px; }
+body[data-mode=eleven] .pitches { display: grid; }
+body[data-mode=eleven] .teams { display: none; }
+.formation { margin: 4px 0 0; font: 700 13px system-ui; letter-spacing: .08em; text-transform: uppercase; color: #b7cdbd; }
+.formation b { color: var(--gold); font: 900 18px Impact, sans-serif; letter-spacing: .05em; margin-left: 4px; }
+.pitch { display: flex; flex-direction: column; justify-content: space-around; gap: 8px; min-height: 330px; padding: 12px 6px; border-radius: 10px; border: 2px solid #ffffff55;
+  background: linear-gradient(#ffffff10 0 1px, transparent 1px) 0 50% / 100% 50% no-repeat, repeating-linear-gradient(180deg, #1b6a3d 0 40px, #1f7443 40px 80px); position: relative; }
+.pitch .line { display: flex; justify-content: space-evenly; gap: 4px; }
+.pslot { width: 66px; min-height: 44px; border-radius: 8px; border: 1.5px dashed #ffffff66; background: #0003; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3px 2px; text-align: center; }
+.pslot .sn { font: 800 10.5px/1.1 system-ui; letter-spacing: .02em; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; max-width: 100%; white-space: nowrap; color: #fff; }
+.pslot .sc { font: 900 12px Impact, sans-serif; color: var(--gold); }
+.pslot.full { border-style: solid; border-color: #ffffffaa; background: #0f2a1ccc; }
+.pitches > div:last-child .pslot.full .sc { color: #ff9d8a; }
+.pslot.now { border-color: var(--gold); border-style: solid; background: #f5c54233; animation: pulse 1.4s ease-in-out infinite; }
+.pslot.now .sn { font-size: 18px; color: var(--gold); }
+@keyframes pulse { 50% { box-shadow: 0 0 0 4px #f5c54255; } }
+@media (max-width: 700px) { .pitches { grid-template-columns: 1fr; } .pslot { width: 58px; } .pitch { min-height: 300px; } }
+@media (prefers-reduced-motion: reduce) { .pslot.now { animation: none; } }

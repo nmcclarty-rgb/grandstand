@@ -11,13 +11,15 @@ import { makeRng } from '../../stickers/src/engine/rng.js';
 
 const arg = (name, dflt) => { const i = process.argv.indexOf(`--${name}`); return i > -1 ? Number(process.argv[i + 1]) : dflt; };
 const RUNS = arg('runs', 1000);
+const MODE = process.argv.includes('--mode') ? process.argv[process.argv.indexOf('--mode') + 1] : 'five';
+if (process.argv.includes('--budget')) H.MODES[MODE].budget = arg('budget', H.MODES[MODE].budget);
 const pool = makePool(JSON.parse(readFileSync(new URL('../../stickers/src/data/cards.json', import.meta.url), 'utf8')));
 
 // a novice who picks at random among legal picks
 
 // policy: 'random' or a bot level
 function play(seed, youPolicy, botPolicy) {
-  const s = newMatch(pool, seed, { level: botPolicy });
+  const s = newMatch(pool, seed, { level: botPolicy, mode: MODE });
   const rng = makeRng(`${seed}|rand`);
   while (s.phase === 'draft') {
     const who = s.turn, policy = who === 'you' ? youPolicy : botPolicy;
@@ -31,7 +33,7 @@ function play(seed, youPolicy, botPolicy) {
 }
 
 const policies = ['random', ...LEVELS];
-console.log(`\n${RUNS} matches per pairing. Rows are "you", columns are the opponent. Win % (draws count half).\n`);
+console.log(`\n${MODE}, budget £${H.MODES[MODE].budget}, ${RUNS} matches per pairing. Rows are "you", columns are the opponent. Win % (draws count half).\n`);
 console.log(''.padEnd(10) + policies.map((p) => p.padStart(9)).join(''));
 const stats = {};
 for (const a of policies) {

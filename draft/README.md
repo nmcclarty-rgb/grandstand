@@ -3,6 +3,14 @@
 A **blind budget draft against a bot**, on the [Sticker Season](../stickers/) career cards (every Premier League player with
 100+ appearances, 1992/93 to 2025/26). Inspired by the "you have £10, pick your front three" quiz.
 
+Two games, one engine (pick on the title screen):
+
+| | 5-a-side | 11-a-side |
+|---|---|---|
+| Budget | £10 | £25 |
+| Rounds | 5 | 11 |
+| Which position | a wheel names it each round (never one position three times) | a **formation** is rolled at the start (4-4-2, 4-3-3, 4-5-1, 3-5-2, 3-4-3, 5-3-2) and both teams work through it, goalkeeper first, then defenders, midfielders, forwards |
+
 Three steps:
 
 1. **Pick a team of five** with £10 each over five rounds. Each round the wheel names a position and eight players go on the board with
@@ -15,9 +23,9 @@ No hands, no multipliers, no ratings: none of Sticker Season's rules are used, o
 
 ```bash
 cd draft
-npm test             # 19 tests: boards, prices, budget rules, turn order, every draft finishes, the roll, the totals, the bot levels
+npm test             # 29 tests: boards, prices, budget rules, turn order, every draft finishes, the roll, the totals, formations, the bot levels
 npm run simulate     # the levels play each other; prints win rates and the hands that come up
-npm start            # then open http://localhost:8779/draft/ and play
+npm start            # then open http://localhost:8779/draft/ and play (?mode=eleven&level=hard&seed=abc for a link)
 ```
 
 Same stack as Sticker Season: plain ES modules, no build step. It imports the engine and the card data from `../stickers`.
@@ -59,6 +67,19 @@ tools/simulate.mjs    bots against bots
 - **What the blind roll changes:** you should buy a team that is good at more than one attribute. A long-serving player scores in appearances
   and discipline; a striker only in goals; a goalkeeper in appearances and discipline but never goals.
 
+### 11-a-side (200 matches per pairing, £25; win %, rows are "you")
+
+| you \ opponent | random | easy | medium | hard |
+|---|---|---|---|---|
+| random | 51 | 52 | 19 | 5 |
+| easy | 48 | 49 | 12 | 1 |
+| medium | 86 | 88 | 51 | 22 |
+| hard | 94 | 99 | 77 | 49 |
+
+- **£25 is where the budget bites**: a hard bot ends with 10p left, a random picker with £1.70. At £20 the game is cramped (hard 0.1 left, easy and random indistinguishable); at £30 a random picker leaves £5 unspent and the price-only easy bot starts to win (62% against random), so money stops being the constraint.
+- **A price is much less informative over 11 slots**: easy, which spends on the dearest name it can, blows its money on the goalkeeper and defenders and has nothing left for the forwards, which is what working through a formation back to front does to a fan. Knowing the totals matters much more (medium beats easy 88%, hard beats medium 77%).
+- Working back to front is a rule: a different order (forwards first, or a rolled order) would change this and is untested.
+
 ## Not built
 
-A rematch against the same boards from the other seat · a streak or ladder · a medium level calibrated against real people · an option to roll the attribute before the draft (a knowledge game rather than a gamble) · sound.
+Different budgets or board sizes for 11-a-side, a human-tested medium level, a formation you choose rather than roll, substitutes, the same match from the other seat, a streak or ladder, an option to roll the attribute before the draft, sound.

@@ -9,19 +9,40 @@
 // who scored the goals, who played the games, who got booked. A price is a hint, not the truth (see PRICE_NOISE): there are
 // bargains and traps.
 //
+// TWO MODES, one engine:
+//   five    5-a-side. £10, five rounds, and the WHEEL names the position each round.
+//   eleven  11-a-side. £25, eleven rounds. A FORMATION is rolled at the start (4-4-2, 4-3-3, ...) and the draft works through it back
+//           to front: the goalkeeper, then the defenders, the midfielders, the forwards. Both teams play the same formation.
+//
 // Pure state machine (no DOM, no clock). Randomness comes from labelled seed streams, so a seed is a whole match.
 import { makeRng } from '../../../stickers/src/engine/rng.js';
 import { instance } from '../../../stickers/src/engine/deck.js';
 import { CATEGORY_KEYS, POSITIONS, statOf } from '../../../stickers/src/engine/cards.js';
 
-export const RULES = {
-  budget: 10,          // each side's money, for the whole team
-  rounds: 5,           // one pick each per round: a five-a-side team
+// What is the same in every mode.
+export const COMMON = {
   boardSize: 8,
   minGames: 100,       // only players with 100+ Premier League appearances are on a board: you should have heard of them
-  maxPerPosition: 2,   // the wheel never gives one position three times
   minPrice: 1, maxPrice: 5,
 };
+export const MODES = {
+  five:   { id: 'five',   label: '5-a-side',  budget: 10, rounds: 5,  maxPerPosition: 2 },   // the wheel never gives one position three times
+  eleven: { id: 'eleven', label: '11-a-side', budget: 25, rounds: 11 },
+};
+// the five-a-side rules, for callers that do not care about the mode
+export const RULES = { ...COMMON, ...MODES.five };
+export const rulesOf = (state) => ({ ...COMMON, ...MODES[state.mode] });
+
+// The formations rolled in 11-a-side, with how often: a goalkeeper, then DEF-MID-FWD
+export const FORMATIONS = [
+  { name: '4-4-2', DEF: 4, MID: 4, FWD: 2, weight: 3 },
+  { name: '4-3-3', DEF: 4, MID: 3, FWD: 3, weight: 3 },
+  { name: '4-5-1', DEF: 4, MID: 5, FWD: 1, weight: 2 },
+  { name: '3-5-2', DEF: 3, MID: 5, FWD: 2, weight: 2 },
+  { name: '3-4-3', DEF: 3, MID: 4, FWD: 3, weight: 1 },
+  { name: '5-3-2', DEF: 5, MID: 3, FWD: 2, weight: 1 },
+];
+export const formationPositions = (f) => ['GK', ...Array(f.DEF).fill('DEF'), ...Array(f.MID).fill('MID'), ...Array(f.FWD).fill('FWD')];
 
 // The truth about a board: its eight players' TRUE TIERS (1 cheap to 5 star), by the overall within their position. Three
 // of the eight are always tier 1 (and priced £1): that is what guarantees a legal pick for whoever picks second, however the
@@ -42,7 +63,7 @@ export function universeOf(pool) {
   if (universes.has(pool)) return universes.get(pool);
   const u = {};
   for (const pos of POSITIONS) {
-    const ranked = pool.cards.filter((c) => c.pos === pos && c.games >= RULES.minGames)
+    const ranked = pool.cards.filter((c) => c.pos === pos && c.games >= COMMON.minGames)
       .sort((a, b) => b.rating - a.rating || b.games - a.games || a.id.localeCompare(b.id));
     u[pos] = { 1: [], 2: [], 3: [], 4: [], 5: [] };
     let cut = 0, i = 0;
@@ -60,22 +81,34 @@ const stream = (state, label) => makeRng(`${state.seed}|${label}`);
 const other = (who) => (who === 'you' ? 'bot' : 'you');
 
 // ---- a match -------------------------------------------------------------------------------------------------------------
-// opts.level: the bot's level, 'easy' | 'medium' | 'hard' (see bot.js). opts.first: who picks first in round 1.
+// opts.mode: 'five' (default) or 'eleven'. opts.level: the bot's level, 'easy' | 'medium' | 'hard' (see bot.js).
+// opts.first: who picks first in round 1. opts.formation: force an 11-a-side formation by name (tests).
 export function newMatch(pool, seed = Date.now(), opts = {}) {
+  const mode = opts.mode ?? 'five';
+  if (!MODES[mode]) throw new Error(`unknown mode '${mode}'`);
+  const rules = { ...COMMON, ...MODES[mode] };
   const state = {
-    seed: String(seed), level: opts.level ?? 'medium', phase: 'draft', round: 1,
+    seed: String(seed), mode, level: opts.level ?? 'medium', phase: 'draft', round: 1, formation: null,
     // the attribute being counted: null until the draft is over, then rolled (opts.category forces it, for tests)
     category: null, forcedCategory: opts.category ?? null,
     positions: [], first1: opts.first ?? (makeRng(`${seed}|first`).int(2) ? 'bot' : 'you'),
-    money: { you: RULES.budget, bot: RULES.budget }, teams: { you: [], bot: [] }, paid: { you: [], bot: [] },
+    money: { you: rules.budget, bot: rules.budget }, teams: { you: [], bot: [] }, paid: { you: [], bot: [] },
     board: [], shown: [], turn: null, log: [],
   };
   Object.defineProperty(state, 'pool', { value: pool, enumerable: false });
-  // positions: weighted wheel, but never one position more than maxPerPosition times
-  const rng = stream(state, 'wheel');
-  while (state.positions.length < RULES.rounds) {
-    const pos = rng.weighted(Object.entries(WHEEL));
-    if (state.positions.filter((p) => p === pos).length < RULES.maxPerPosition) state.positions.push(pos);
+  if (mode === 'eleven') {
+    // the formation is rolled once, and the draft works through it: goalkeeper, defenders, midfielders, forwards
+    const roll = stream(state, 'formation');
+    state.formation = opts.formation ? FORMATIONS.find((f) => f.name === opts.formation) : roll.weighted(FORMATIONS.map((f) => [f, f.weight]));
+    if (!state.formation) throw new Error(`unknown formation '${opts.formation}'`);
+    state.positions = formationPositions(state.formation);
+  } else {
+    // positions: weighted wheel, but never one position more than maxPerPosition times
+    const rng = stream(state, 'wheel');
+    while (state.positions.length < rules.rounds) {
+      const pos = rng.weighted(Object.entries(WHEEL));
+      if (state.positions.filter((p) => p === pos).length < rules.maxPerPosition) state.positions.push(pos);
+    }
   }
   dealBoard(state);
   return state;
@@ -83,10 +116,10 @@ export function newMatch(pool, seed = Date.now(), opts = {}) {
 
 export const positionOf = (state) => state.positions[state.round - 1];
 export const firstPicker = (state) => (state.round % 2 === 1 ? state.first1 : other(state.first1));
-export const roundsAfter = (state) => RULES.rounds - state.round;
+export const roundsAfter = (state) => rulesOf(state).rounds - state.round;
 
 // You must keep £1 for each later round. So the most you can spend this round:
-export const maxSpend = (state, who) => state.money[who] - roundsAfter(state) * RULES.minPrice;
+export const maxSpend = (state, who) => state.money[who] - roundsAfter(state) * COMMON.minPrice;
 export const canAfford = (state, who, price) => price <= maxSpend(state, who);
 
 function dealBoard(state) {
@@ -101,7 +134,7 @@ function dealBoard(state) {
     on.add(card.id);
     let price = tier;
     if (tier >= 2 && rng.next() < PRICE_NOISE) price += tier === 5 ? -1 : (rng.next() < 0.5 ? -1 : 1);
-    return { card, price: Math.max(RULES.minPrice, Math.min(RULES.maxPrice, price)), tier, takenBy: null };
+    return { card, price: Math.max(COMMON.minPrice, Math.min(COMMON.maxPrice, price)), tier, takenBy: null };
   });
   rng.shuffle(board);
   state.board = board;
@@ -117,7 +150,7 @@ export function pick(state, who, id) {
   const entry = state.board.find((b) => b.card.id === id);
   if (!entry) throw new Error('that player is not on the board');
   if (entry.takenBy) throw new Error('already picked');
-  if (!canAfford(state, who, entry.price)) throw new Error(`over budget: you must keep £${RULES.minPrice} for every round still to come`);
+  if (!canAfford(state, who, entry.price)) throw new Error(`over budget: you must keep £${COMMON.minPrice} for every round still to come`);
   entry.takenBy = who;
   state.money[who] -= entry.price;
   state.teams[who].push(instance(entry.card, 'base'));
@@ -125,7 +158,7 @@ export function pick(state, who, id) {
   state.log.push({ round: state.round, who, id, name: entry.card.full, price: entry.price, tier: entry.tier });
   state.picksThisRound++;
   if (state.picksThisRound === 1) { state.turn = other(who); return entry; }
-  if (state.round === RULES.rounds) { state.phase = 'showdown'; state.turn = null; return entry; }
+  if (state.round === rulesOf(state).rounds) { state.phase = 'showdown'; state.turn = null; return entry; }
   state.round++;
   dealBoard(state);
   return entry;
