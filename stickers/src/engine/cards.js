@@ -42,12 +42,12 @@ export const ratingFor = (total, record) => (total > 0 ? Math.min(99, Math.max(2
 export const OVR_WEIGHTS = {
   FWD: { goals: 0.60, assists: 0.25, games: 0.15 },
   MID: { goals: 0.25, assists: 0.40, games: 0.35 },
-  DEF: { goals: 0.15, assists: 0.25, games: 0.60 },
+  DEF: { goals: 0.20, assists: 0.30, games: 0.50 },
   GK:  { games: 0.80 },   // no saving stats, so a keeper's overall is how much he played, discounted by 20%
 };
 export const overallOf = (position, rate) => Object.entries(OVR_WEIGHTS[position]).reduce((sum, [k, w]) => sum + w * rate[k], 0);
 
-// Rarity bands of the overall, set from the real distribution so they come out near 61% / 27% / 10% / 2% of the pool.
+// Rarity bands of the overall, set from the real distribution so they come out near 64% / 26% / 9% / 1.5% of the pool.
 // Bronze is most of the pool; an Icon is a legend (Rooney, Shearer, Lampard, Salah, Giggs, Gerrard, Kane, Henry...).
 export const TIER_BANDS = [
   { id: 'bronze', min: 1,  max: 39 },
@@ -103,7 +103,6 @@ export function safeHands(card) {
 // Four, Invincibles) ask whether their cards have a club-season in common.
 export const stintClub = (key) => key.slice(0, key.indexOf('|'));
 export const stintSeason = (key) => key.slice(key.indexOf('|') + 1);
-export const careerYears = (card) => `${card.first.slice(0, 4)}-${card.last.slice(0, 4) === card.first.slice(0, 4) ? '' : card.last.slice(2, 4)}`.replace(/-$/, '');
 
 // ---- names ---------------------------------------------------------------------------------------------------
 // A card stores `full` ("Ian Wright") and `name`, the short display name, which carries an initial when the surname is

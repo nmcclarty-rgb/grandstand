@@ -1,15 +1,16 @@
 // The game: title -> matchday intro (the wheel) -> fixture -> result -> shop -> ... -> champions or sacked.
 // All the rules live in the engine (season.js, round.js). This file only draws screens and calls it.
 import { makePool } from '../engine/deck.js';
-import { CATEGORIES, CATEGORY_KEYS, cardChips, safeHands } from '../engine/cards.js';
+import { CATEGORIES, CATEGORY_KEYS, EDITIONS, cardChips, safeHands } from '../engine/cards.js';
 import { HANDS, HAND_ORDER } from '../engine/hands.js';
+import { upgradedEdition } from '../engine/deck.js';
 import { JOKERS } from '../engine/jokers.js';
 import { playHand, discard, SEASON_LENGTH, VAR_PER_SEASON } from '../engine/round.js';
 import { scoreHand } from '../engine/scoring.js';
 import { bestPlay } from '../engine/advisor.js';
 import {
   ECONOMY, PACKS, newSeason, restore, serialize, useVar, kickOff, finishMatchday, nextMatchday, buy, takePack, rerollShop,
-  rerollCost, priceOf, sellManager, sellValue, releaseCard, trainingPrice,
+  rerollCost, priceOf, sellManager, sellValue, releaseCard, trainingPrice, ownedCopy,
 } from '../engine/season.js';
 import { renderCard } from './card.js';
 import { initTooltips } from './tooltip.js';
@@ -230,7 +231,7 @@ function renderHand(preview) {
     c.tabIndex = 0;
     c.setAttribute('role', 'button');
     c.setAttribute('aria-pressed', String(isSel));
-    c.setAttribute('aria-label', `${card.full}, ${card.club} ${card.season}, ${card.pos}. Press to ${isSel ? 'drop' : 'pick'}.`);
+    c.setAttribute('aria-label', `${card.full}, overall ${card.rating}, ${card.pos}, ${card.club}. Press to ${isSel ? 'drop' : 'pick'}.`);
     c.addEventListener('click', () => toggle(i));
     c.addEventListener('keydown', (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); toggle(i); } });
     hand.append(c);
@@ -382,9 +383,16 @@ function renderShop() {
   // an open pack: choose one sticker to keep
   $('pack-panel').hidden = !packOpen;
   if (packOpen) {
-    $('pk-cards').replaceChildren(...run.pack.cards.map((c) => el('div', { class: 'pickable' },
-      renderCard(c),
-      el('button', { class: 'primary', type: 'button', text: 'Keep', onclick: () => attempt(() => takePack(run, [c.uid]), () => `${c.name} joins the squad.`) }))));
+    // a player you already own is not a second copy: keeping him upgrades yours one edition
+    $('pk-cards').replaceChildren(...run.pack.cards.map((c) => {
+      const mine = ownedCopy(run, c);
+      const up = mine ? EDITIONS[upgradedEdition(mine.edition, c.edition)].label : null;
+      return el('div', { class: 'pickable' },
+        mine ? el('div', { class: 'own-tag', text: `YOU OWN HIM (${EDITIONS[mine.edition].label})` }) : null,
+        renderCard(c),
+        el('button', { class: 'primary', type: 'button', text: mine ? `Upgrade to ${up}` : 'Keep',
+          onclick: () => attempt(() => takePack(run, [c.uid]), ([r]) => (r.upgraded ? `${c.name} upgraded to ${EDITIONS[r.upgraded].label}.` : `${c.name} joins the squad.`)) }));
+    }));
     $('pk-skip').onclick = () => attempt(() => takePack(run, []), () => 'You kept none.');
   }
 
@@ -435,7 +443,7 @@ function openSquad() {
   $('q-note').textContent = canRelease
     ? `Releasing a sticker costs ${money(ECONOMY.releaseCost)}. A smaller squad plays more reliably, but you need at least ${ECONOMY.minDeck}.`
     : 'You can release stickers in the transfer window.';
-  const list = [...run.deck].sort((a, b) => a.club.localeCompare(b.club) || a.season.localeCompare(b.season) || b.rating - a.rating);
+  const list = [...run.deck].sort((a, b) => b.rating - a.rating || a.club.localeCompare(b.club) || a.name.localeCompare(b.name));
   $('q-cards').replaceChildren(...list.map((c) => el('div', { class: 'pickable' },
     renderCard(c),
     canRelease ? el('button', {
@@ -480,25 +488,31 @@ function buildManual() {
   $('m-body').innerHTML = `
     <h2 id="m-h">How to play</h2>
     <p><b>The aim.</b> Survive a 38-game season. Every matchday has a target score. Reach it within four hands and you win the match and get paid. Miss it and you're sacked.</p>
+    <h3>The stickers</h3>
+    <p>Every sticker is <b>one player's whole Premier League career</b> since 1992/93: there is only one Frank Lampard. The big number is his <b>overall</b> (1 to 99) and sets his frame: bronze, silver, gold, or an icon, a legend. Each stat row shows his <b>rating</b> out of 99 and, underneath, the real career total behind it ("177 goals").</p>
+    <p>A rating is measured against the Premier League record: 99 is the best ever (260 goals, 162 assists, 653 games), so a legend and a long-serving squad player look very different. A sticker is worth <b>chips</b> in proportion to his rating, never his raw total.</p>
     <h3>Each matchday</h3>
     <ol>
       <li><b>The wheel</b> picks a stat: goals, assists, games or discipline (a yellow card is 1 point, a red card is 3). Every sticker is worth chips in that stat. <b>VAR</b> overturns the spin and spins again to a different stat: you get five a season, before kick-off only.</li>
       <li><b>You're dealt 8 stickers.</b> Pick up to five and <b>play</b> them as a hand, or <b>discard</b> up to five for new ones. You get four hands and three discards.</li>
-      <li><b>Score = chips × mult.</b> Chips: the hand's base, plus each <i>scoring</i> sticker's number in the stat. Mult: the hand's, plus your managers'. Only the stickers that make the hand score; the rest are kickers and add nothing.</li>
+      <li><b>Score = chips × mult.</b> Chips: the hand's base, plus each <i>scoring</i> sticker's rating in the stat. Mult: the hand's, plus your managers'. Only the stickers that make the hand score; the rest are kickers and add nothing.</li>
     </ol>
     <h3>The hands</h3>
-    <p>Team-mates means the same club <i>and</i> the same season.</p>
+    <p>Two players are <b>team-mates</b> if they were at the same club in the same season at any point in their careers: Lampard and Terry were team-mates for thirteen. A hand asks whether the stickers you play share a club-season.</p>
     <table class="manual-table"><thead><tr><th>Hand</th><th>You need</th><th>Base</th></tr></thead><tbody>${rows}</tbody></table>
     <h3>Goalkeepers</h3>
-    <p>A goalkeeper <b>held in your hand</b>, not played, adds mult to every hand you play: +3 for a first-choice keeper (30+ games), +2 for rotation, +1 for a backup. Play him in a Spine and you lose that. Hold or play?</p>
+    <p>A goalkeeper <b>held in your hand</b>, not played, adds mult to every hand you play: +3 for a first-choice legend (250+ appearances), +2 for a regular (100+), +1 for a deputy. Play him in a Spine and you lose that. Hold or play?</p>
     <h3>The transfer window</h3>
-    <p>Win a matchday and you're paid £${ECONOMY.winPayout}, plus £${ECONOMY.perSpareHand} for each hand you didn't need. Spend it on <b>packs</b> (five stickers, keep one: club and squad packs only deal stickers from clubs and team-seasons you already own), <b>managers</b> (up to ${ECONOMY.managerSlots}; they bend the maths), and <b>training</b> (a hand gets stronger every time you play it). You can reroll the stock, sell a manager for half, or release a sticker for ${money(ECONOMY.releaseCost)}: a smaller squad is more reliable.</p>
+    <p>Win a matchday and you're paid £${ECONOMY.winPayout}, plus £${ECONOMY.perSpareHand} for each hand you didn't need. Spend it on <b>packs</b> (five different players, keep one: club packs deal players who have played for a club in your squad, squad packs players who were team-mates of someone in it), <b>managers</b> (up to ${ECONOMY.managerSlots}; they bend the maths), and <b>training</b> (a hand gets stronger every time you play it). You can reroll the stock, sell a manager for half, or release a sticker for ${money(ECONOMY.releaseCost)}: a smaller squad is more reliable.</p>
+    <h3>Duplicates and foils</h3>
+    <p>You can only own one of each player. If a pack deals you one you already have, keeping him <b>upgrades your copy</b> one edition: base, then shiny (+40 chips), holo (+6 mult), gold (×1.5 mult). Gold stays gold.</p>
     <h3>Tips</h3>
     <ul>
       <li>Build around one or two clubs. Team-mate hands beat star power.</li>
       <li>Look at the strength bars before using VAR: spend it when the wheel lands on a stat your squad is weak in.</li>
       <li>Stuck? Press <b>Hint</b> to see the best hand in your eight.</li>
       <li>Not sure what a number on a sticker means? <b>Hover over it</b> (on a phone, press and hold). Every number explains itself.</li>
+      <li>We only have goals, assists, appearances and cards for all 34 seasons, so there are no tackles or saves: a defender's overall is mostly how long he lasted, and a goalkeeper's is how much he played.</li>
     </ul>`;
 }
 
