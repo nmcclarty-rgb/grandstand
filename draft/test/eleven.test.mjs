@@ -10,13 +10,13 @@ const play = (seed, policy = (s, who) => choose(s, who, 'medium'), opts = {}) =>
   return s;
 };
 
-test('11-a-side rules: £25, eleven rounds, and the five-a-side game is unchanged', () => {
-  assert.deepEqual([MODES.eleven.budget, MODES.eleven.rounds], [25, 11]);
+test('11-a-side rules: £30, eleven rounds, and the five-a-side game is unchanged', () => {
+  assert.deepEqual([MODES.eleven.budget, MODES.eleven.rounds], [30, 11]);
   assert.deepEqual([MODES.five.budget, MODES.five.rounds], [10, 5]);
   const f = newMatch(pool, 'five'), e = newMatch(pool, 'eleven', { mode: 'eleven' });
   assert.equal(f.mode, 'five'); assert.equal(f.formation, null); assert.equal(f.positions.length, 5);
   assert.equal(e.mode, 'eleven'); assert.equal(e.positions.length, 11);
-  assert.equal(e.money.you, 25); assert.equal(f.money.you, 10);
+  assert.equal(e.money.you, 30); assert.equal(f.money.you, 10);
   assert.equal(rulesOf(e).rounds, 11);
   assert.throws(() => newMatch(pool, 'x', { mode: 'seven' }), /unknown mode/);
 });
@@ -85,7 +85,7 @@ test('RULE: every 11-a-side draft finishes, whatever the policy: eleven players 
       const s = play(`f${i}`, policy);
       assert.equal(s.teams.you.length, 11); assert.equal(s.teams.bot.length, 11);
       assert.ok(s.money.you >= 0 && s.money.bot >= 0);
-      assert.equal(s.money.you, 25 - s.paid.you.reduce((a, b) => a + b, 0));
+      assert.equal(s.money.you, 30 - s.paid.you.reduce((a, b) => a + b, 0));
     }
   }
 });

@@ -27,7 +27,7 @@ export const COMMON = {
 };
 export const MODES = {
   five:   { id: 'five',   label: '5-a-side',  budget: 10, rounds: 5,  maxPerPosition: 2 },   // the wheel never gives one position three times
-  eleven: { id: 'eleven', label: '11-a-side', budget: 25, rounds: 11 },
+  eleven: { id: 'eleven', label: '11-a-side', budget: 30, rounds: 11 },
 };
 // the five-a-side rules, for callers that do not care about the mode
 export const RULES = { ...COMMON, ...MODES.five };

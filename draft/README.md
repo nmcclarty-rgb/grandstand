@@ -7,7 +7,7 @@ Two games, one engine (pick on the title screen):
 
 | | 5-a-side | 11-a-side |
 |---|---|---|
-| Budget | £10 | £25 |
+| Budget | £10 | £30 |
 | Rounds | 5 | 11 |
 | Which position | a wheel names it each round (never one position three times) | a **formation** is rolled at the start (4-4-2, 4-3-3, 4-5-1, 3-5-2, 3-4-3, 5-3-2) and both teams work through it, goalkeeper first, then defenders, midfielders, forwards |
 
@@ -79,17 +79,17 @@ tools/simulate.mjs    bots against bots
 - **What the blind roll changes:** you should buy a team that is good at more than one attribute. A long-serving player scores in appearances
   and discipline; a striker only in goals; a goalkeeper in appearances and discipline but never goals.
 
-### 11-a-side (200 matches per pairing, £25; win %, rows are "you")
+### 11-a-side (500 matches per pairing, £30; win %, rows are "you")
 
 | you \ opponent | random | easy | medium | hard |
 |---|---|---|---|---|
-| random | 51 | 52 | 19 | 5 |
-| easy | 48 | 49 | 12 | 1 |
-| medium | 86 | 88 | 51 | 22 |
-| hard | 94 | 99 | 77 | 49 |
+| random | 50 | 40 | 10 | 1 |
+| easy | 62 | 52 | 16 | 2 |
+| medium | 88 | 82 | 54 | 21 |
+| hard | 96 | 98 | 81 | 53 |
 
-- **£25 is where the budget bites**: a hard bot ends with 10p left, a random picker with £1.70. At £20 the game is cramped (hard 0.1 left, easy and random indistinguishable); at £30 a random picker leaves £5 unspent and the price-only easy bot starts to win (62% against random), so money stops being the constraint.
-- **A price is much less informative over 11 slots**: easy, which spends on the dearest name it can, blows its money on the goalkeeper and defenders and has nothing left for the forwards, which is what working through a formation back to front does to a fan. Knowing the totals matters much more (medium beats easy 88%, hard beats medium 77%).
+- **The budget history**: it was £25 (a hard bot ended with 10p left, a random picker £1.70, and a price-only easy bot was no better than a random picker), and playtest feedback was that it needed more money, so it is now £30. At £30 a random picker leaves £5 unspent and a medium bot £3.20, so money binds less and a price now carries more information: easy beats a random picker 62-40. A hard bot still ends with £1.10 left.
+- **A price is less informative over 11 slots than over 5**: the easy bot, which spends on the dearest name it can, still blows its money early on the goalkeeper and defenders. Knowing the totals matters much more (medium beats easy 82%, hard beats medium 81%).
 - Working back to front is a rule: a different order (forwards first, or a rolled order) would change this and is untested.
 
 ## Not built
