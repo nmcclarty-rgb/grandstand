@@ -23,7 +23,7 @@ Plain ES modules, no build step, no dependencies (Node 22+ for the tests and too
 ```
 src/engine/   rng · cards (categories, editions) · hands · jokers (managers) · scoring · round · deck
 src/ui/       card renderer, club colours, tabletop
-src/data/     cards.json: one card per player-season: 1992/93-1994/95, 1996/97, 1997/98, 2002/03, 2003/04, 2016/17-2025/26
+src/data/     cards.json: one card per player-season: 1992/93-1994/95, 1996/97-2003/04, 2016/17-2025/26
 data/fbref/   hand-exported FBref tables (git-ignored); see DESIGN.md §6 for how to add a season
 tools/        fetch-data · fbref (export reader) · build-cards · simulate
 test/         node:test suites

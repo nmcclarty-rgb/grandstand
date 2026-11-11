@@ -81,9 +81,9 @@ Two sources, joined at the cards:
 | Seasons | Source | Stats available |
 |---|---|---|
 | 2016/17 to 2025/26 | the **Fantasy Premier League season archive** ([vaastav/Fantasy-Premier-League](https://github.com/vaastav/Fantasy-Premier-League)), fetched by `tools/fetch-data.mjs` | all seven categories, plus fantasy points |
-| 1992/93 to 1994/95, 1996/97, 1997/98, 2002/03, 2003/04 | **FBref** "Standard Stats" tables, exported by hand (Share & Export, Excel) into `data/fbref/` | games, goals, assists (plus cards, not used yet) |
+| 1992/93 to 1994/95, 1996/97 to 2003/04 | **FBref** "Standard Stats" tables, exported by hand (Share & Export, Excel) into `data/fbref/` | games, goals, assists (plus cards, not used yet) |
 
-Still missing: 1995/96, 1998/99 to 2001/02 (2001/02 has half an export, parked) and 2004/05 to 2015/16: 17 of the 24 seasons before the FPL archive starts. Each extra FBref season is one
+Still missing: 1995/96 and 2004/05 to 2015/16: 13 of the 24 seasons before the FPL archive starts. Each extra FBref season is one
 more export (two files, see below) and no code change unless it names a club the importer doesn't
 know yet; an unknown club stops the build rather than guessing.
 
@@ -102,7 +102,7 @@ know yet; an unknown club stops the build rather than guessing.
 - **Mid-season movers get one card per club** in the FBref seasons (Sheringham: 1 goal at Forest, 21 at Spurs).
   FPL assigns a player to the club they finished the season with, so there it is one card.
 - A "season" needs 270 minutes in either source (three full games). 2026/27 is excluded as incomplete.
-- Counts: 7,404 cards, 2,812 players, 47 clubs. Sanity checks in `test/data.test.mjs`: known season totals
+- Counts: 9,157 cards, 3,036 players, 48 clubs. Sanity checks in `test/data.test.mjs`: known season totals
   for both sources, and the goals on the cards add up to a plausible total for the number of matches
   (about 96% of the real figure; the shortfall is own goals, which FBref does not credit to a player).
 - 2016/17 to 2018/19 ship no `teams.csv`; clubs are mapped from FPL's alphabetical team ids, checked in the tests.
@@ -175,4 +175,4 @@ deck), a random manager per stage, and a training level for its favourite hand.
 
 Run loop and shop · the sticker album (persistence, page completion, perks) · swaps · more
 than one card of the same player as a deliberate mechanic · boss-fixture rules ·
-sound · saving · 1995/96, 1998/99-2001/02 and 2004/05-2015/16 · linking a player across the two sources.
+sound · saving · 1995/96 and 2004/05-2015/16 · linking a player across the two sources.
