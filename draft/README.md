@@ -23,12 +23,24 @@ No hands, no multipliers, no ratings: none of Sticker Season's rules are used, o
 
 ```bash
 cd draft
-npm test             # 29 tests: boards, prices, budget rules, turn order, every draft finishes, the roll, the totals, formations, the bot levels
+npm test             # 30 tests: boards, prices, budget rules, turn order, every draft finishes, the roll, the totals, formations, the bot levels
 npm run simulate     # the levels play each other; prints win rates and the hands that come up
 npm start            # then open http://localhost:8779/draft/ and play (?mode=eleven&level=hard&seed=abc for a link)
 ```
 
 Same stack as Sticker Season: plain ES modules, no build step. It imports the engine and the card data from `../stickers`.
+
+## Publishing
+
+The Claude artifact viewer does not load scripts that climb several folders (`../../../stickers/...`), which is how Blind Five reaches
+Sticker Season's engine in this repo. (It shows "This browser isn't supported", on a phone that is fine in every other way.) So for
+publishing, `tools/stage.mjs` copies everything into one flat tree laid out like Sticker Season's page (`src/engine`, `src/ui`, `src/draft`,
+`src/data`, never more than one `../`) and rewrites the imports; it fails if any import would not resolve. Publish `.stage/blind-five/index.html`
+with the files under it.
+
+```bash
+node tools/stage.mjs      # -> ../.stage/blind-five   (git-ignored)
+```
 
 ```
 src/engine/draft.js   the whole match as a pure state machine: wheel, boards, prices, budget, picks, showdown
