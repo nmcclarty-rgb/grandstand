@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Blind Five</title>
+  <meta name="description" content="A blind budget draft against a bot, on 34 seasons of Premier League careers. £10, five rounds, names and prices only.">
+  <link rel="stylesheet" href="../stickers/src/ui/style.css">
+  <link rel="stylesheet" href="src/ui/style.css">
+</head>
+<body data-screen="loading">
+<main>
+  <section class="screen" id="loading"><p class="lede" id="l-msg">Loading the players…</p></section>
+
+  <section class="screen" id="title" hidden aria-labelledby="t-h">
+    <h1 id="t-h" tabindex="-1">Blind <em>Five</em></h1>
+    <p class="lede">You have <b>£10</b> to build a five-a-side team from 34 seasons of Premier League players. Each round the wheel names a position and eight players go on the board with <b>a name and a price</b>: no stats, no club, nothing else. You and the bot take turns to pick one. Then the two teams are revealed and play a best-of-three.</p>
+    <p class="lede">A price is a hint, not the truth. Know your football.</p>
+    <fieldset class="levels" id="t-levels">
+      <legend>Opponent</legend>
+      <label><input type="radio" name="level" value="easy"><span><b>Easy</b> goes on names: buys the dearest player it can</span></label>
+      <label><input type="radio" name="level" value="medium" checked><span><b>Medium</b> knows the stats, through a fog</span></label>
+      <label><input type="radio" name="level" value="hard"><span><b>Hard</b> knows every stat exactly and hunts for value</span></label>
+    </fieldset>
+    <div class="title-actions">
+      <button id="t-new" class="primary" type="button">Kick off</button>
+      <button id="t-help" class="ghost" type="button">How to play</button>
+      <label class="seedbox">Match code (optional)
+        <input id="t-seed" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="random">
+      </label>
+    </div>
+    <p class="fine seedhelp">Leave it blank for a random match. The same code gives the same wheel and the same boards, so you and a friend can play the same match and compare.</p>
+    <p class="fine" id="t-record"></p>
+    <p class="fine">Built on the <a href="../stickers/">Sticker Season</a> career cards. Player figures are FBref/Opta, 1992/93 to 2025/26.</p>
+  </section>
+
+  <section class="screen" id="draft" hidden aria-labelledby="d-h">
+    <header class="dhud">
+      <div class="dstat"><small>Round</small><b id="d-round">1</b><i>/5</i></div>
+      <div class="dpos"><small>The wheel says</small><h2 id="d-h" tabindex="-1"><span id="d-pos">&nbsp;</span></h2></div>
+      <div class="dstat money"><small>You have</small><b id="d-money">£10</b></div>
+      <div class="dstat money bot"><small>Bot has</small><b id="d-botmoney">£10</b></div>
+    </header>
+    <p class="say" id="d-say" role="status" aria-live="polite"></p>
+    <div class="tiles" id="d-board" aria-label="The board"></div>
+    <div class="teams">
+      <div><h3>Your five</h3><ol class="five" id="d-you"></ol></div>
+      <div><h3>The bot's five</h3><ol class="five" id="d-bot"></ol></div>
+    </div>
+    <div class="actions"><button id="d-quit" class="ghost" type="button">Quit</button></div>
+  </section>
+
+  <section class="screen" id="show" hidden aria-labelledby="s-h">
+    <h2 id="s-h" tabindex="-1" class="bigh">Showdown</h2>
+    <p class="say" id="s-say" role="status" aria-live="polite"></p>
+    <div class="matchpanel" id="s-panel" hidden></div>
+    <div class="actions" id="s-actions"></div>
+    <h3>Your five</h3>
+    <div class="gallery" id="s-you"></div>
+    <h3>The bot's five</h3>
+    <div class="gallery" id="s-bot"></div>
+  </section>
+</main>
+
+<dialog id="manual" aria-labelledby="m-h">
+  <button class="close" type="button" aria-label="Close" onclick="this.closest('dialog').close()">×</button>
+  <div id="m-body"></div>
+</dialog>
+
+<script type="module" src="src/ui/game.js"></script>
+</body>
+</html>

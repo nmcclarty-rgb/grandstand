@@ -1,0 +1,12 @@
+{
+  "name": "grandstand-blind-five",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Blind Five: a budget draft against a bot, on the Sticker Season career cards.",
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\"",
+    "simulate": "node tools/simulate.mjs",
+    "start": "python3 -m http.server 8779 --directory .."
+  }
+}
