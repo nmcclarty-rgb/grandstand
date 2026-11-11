@@ -112,17 +112,17 @@ know yet; an unknown club stops the build rather than guessing.
   and not comparable across eras. It decides pack rarity.
 - Display names come from the full name by a heuristic (last word, plus particles like van/del/Dalla/Boa, minus Jr./Sr.), pinned by tests; an odd one is a one-line fix in `build-cards.mjs`.
 - **The two sources agree where they overlap.** `npm run crosscheck` compares FBref exports for 2016/17 to
-  2019/20 (kept in `data/fbref/overlap/`, git-ignored, not read by the build) with the FPL cards, matched by
-  name and club. Over 4 seasons and ~1,500 players: **goals equal for 99.0%**, **games within 1 for 98.6%**.
+  2021/22 (kept in `data/fbref/overlap/`, git-ignored, not read by the build) with the FPL cards, matched by
+  name and club. Over 6 seasons and ~2,150 matched players: **goals equal for 99.1%**, **games within 1 for 98.6%**.
   The disagreements are mid-season transfers (FPL gives the whole season to the last club: Sanchez shows 9
   for Manchester United where FBref has 2 for them) and one disputed goal (Kane 2017/18: 30 in FBref, 29 in
-  FPL). **Assists equal for only 67.5%**: FPL uses its own assist definition and FBref uses Opta's. So
+  FPL). **Assists equal for only 67.5%** (60% to 71% by season): FPL uses its own assist definition and FBref uses Opta's. So
   an assist is slightly different before and after 2016/17, which matters for Assists rounds.
 - Players are not yet linked across the two sources, so a Hat-trick can only be built within one source:
   Kane's 2015/16 card (FBref) and 2016/17 card (FPL) are different players to the engine. The seasons now join
   up (1996/97 to 2025/26 is unbroken), so this is the next data problem. FBref ids are `fb:<name>:<birth year>`;
-  FPL ids are numbers and carry no birth year in `cards.json`. Name plus club alone matched only 85.5% of
-  players in the cross-check (misses: "Willian", "Bernardo Silva", "Gylfi Sigurdsson" against FPL's full
+  FPL ids are numbers and carry no birth year in `cards.json`. Name plus club alone matched only 84% of
+  players in the cross-check (78% to 90% by season, worse in later seasons) (misses: "Willian", "Bernardo Silva", "Gylfi Sigurdsson" against FPL's full
   legal names, and anyone who moved mid-season), so linking needs a looser name match plus age.
 - The stats are FPL's for 2016+: *bonus points* and *value (£m)* are fantasy concepts used because they are there.
 
