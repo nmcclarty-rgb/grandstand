@@ -39,24 +39,46 @@ export const fbrefNumbers = (row) => ({
   goals: num(row.goals), assists: num(row.assists), yellow: num(row.cards_yellow), red: num(row.cards_red),
 });
 
-// -> Map season -> rows (merged, de-duplicated)
-export async function loadFbrefSeasons(dir) {
-  let files;
-  try { files = await readdir(dir); } catch { return new Map(); }
-  const bySeason = new Map();
-  for (const f of files.sort()) {
-    const m = /^(\d{4}-\d{2}).*\.xls$/i.exec(f);
-    if (!m) continue;
-    const rows = parseFbrefTable(await readFile(join(dir, f), 'utf8'));
-    if (!bySeason.has(m[1])) bySeason.set(m[1], new Map());
-    const seen = bySeason.get(m[1]);
+// FBref cuts an export at this many rows, whatever the season's size.
+export const EXPORT_CAP = 499;
+
+// Merge the exports for one season. files: [{ name, rows }]. Rows that appear in two files must agree.
+// A file at the cap is truncated, so the season is only complete if truncated files overlap each other:
+// with nothing shared, there could be a gap between "where the A-Z one stopped" and "where the Z-A one stopped"
+// (or, with a single file, a whole end of the alphabet missing).
+export function mergeSeasonFiles(season, files) {
+  const merged = new Map();
+  for (const { name, rows } of files) {
     for (const row of rows) {
       const key = `${row.player}|${row.team}|${row.birth_year}`;
       const { ranker, ...rest } = row;
-      const prev = seen.get(key);
-      if (prev && JSON.stringify(prev) !== JSON.stringify(rest)) throw new Error(`${f}: row for ${key} disagrees with an earlier file`);
-      seen.set(key, rest);
+      const prev = merged.get(key);
+      if (prev && JSON.stringify(prev) !== JSON.stringify(rest)) throw new Error(`${season} ${name}: row for ${key} disagrees with an earlier file`);
+      merged.set(key, rest);
     }
   }
-  return new Map([...bySeason].map(([season, rows]) => [season, [...rows.values()]]));
+  const truncated = files.filter((f) => f.rows.length >= EXPORT_CAP);
+  if (truncated.length === 1 && files.length === 1) {
+    throw new Error(`${season}: only one export (${truncated[0].name}) and it is cut off at ${EXPORT_CAP} rows. Add the reverse-sorted export (click the Player header, export again)`);
+  }
+  if (truncated.length >= 2) {
+    const keys = truncated.map((f) => new Set(f.rows.map((r) => `${r.player}|${r.team}|${r.birth_year}`)));
+    const shared = [...keys[0]].filter((k) => keys[1].has(k)).length;
+    if (shared === 0) throw new Error(`${season}: the two truncated exports share no rows, so part of the season is missing`);
+  }
+  return [...merged.values()];
+}
+
+// -> Map season -> rows (merged, de-duplicated, checked for coverage)
+export async function loadFbrefSeasons(dir) {
+  let names;
+  try { names = await readdir(dir); } catch { return new Map(); }
+  const bySeason = new Map();
+  for (const f of names.sort()) {
+    const m = /^(\d{4}-\d{2}).*\.xls$/i.exec(f);
+    if (!m) continue;
+    if (!bySeason.has(m[1])) bySeason.set(m[1], []);
+    bySeason.get(m[1]).push({ name: f, rows: parseFbrefTable(await readFile(join(dir, f), 'utf8')) });
+  }
+  return new Map([...bySeason].map(([season, files]) => [season, mergeSeasonFiles(season, files)]));
 }

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadJson, loadPool } from './helpers.mjs';
-import { parseFbrefTable } from '../tools/fbref.mjs';
+import { parseFbrefTable, mergeSeasonFiles, EXPORT_CAP } from '../tools/fbref.mjs';
 import { makeRng } from '../src/engine/rng.js';
 import { starterDeck, openPack, TIERS } from '../src/engine/deck.js';
 import { POSITIONS, CATEGORY_KEYS, teamKey } from '../src/engine/cards.js';
@@ -82,6 +82,10 @@ test('FBref seasons: anchors, merged exports, mid-season movers', () => {
   assert.equal(get('Owen', '1997-98', 'LIV').goals, 18);
   assert.equal(get('Dublin', '1997-98', 'COV').goals, 18);
   assert.equal(get('Sutton', '1997-98', 'BLA').goals, 18);
+  assert.equal(get('van Nistelrooy', '2002-03', 'MUN').goals, 25);
+  assert.equal(get('Henry', '2002-03', 'ARS').assists, 20);
+  assert.equal(get('Henry', '2003-04', 'ARS').goals, 30);
+  assert.equal(get('Shearer', '2003-04', 'NEW').goals, 22);
   // Sheringham left Forest for Spurs mid-season: two cards, two clubs
   assert.ok(cards.filter((c) => c.pid === get('Sheringham', '1992-93', 'TOT').pid && c.season === '1992-93').length >= 1);
   assert.equal(get('Cantona', '1992-93', 'LEE').goals + get('Cantona', '1992-93', 'MUN').goals, 15);
@@ -90,7 +94,7 @@ test('FBref seasons: anchors, merged exports, mid-season movers', () => {
     assert.deepEqual([c.cleanSheets, c.saves, c.bonus, c.price, c.points], [0, 0, 0, 0, 0], c.id);
     assert.ok(c.games > 0);
   }
-  assert.deepEqual(meta.sources.fbref, ['1992-93', '1993-94', '1994-95', '1996-97', '1997-98']);
+  assert.deepEqual(meta.sources.fbref, ['1992-93', '1993-94', '1994-95', '1996-97', '1997-98', '2002-03', '2003-04']);
 });
 
 test('every FBref season has a plausible number of goals on the cards', () => {
@@ -183,4 +187,28 @@ test('the FBref reader decodes entities and skips repeated header rows', () => {
     `<tr><th data-stat="ranker">2</th><td data-stat="player">Dennis O&apos;Brien &amp; Co</td><td data-stat="team">X</td><td data-stat="position">DF</td><td data-stat="minutes">9</td><td data-stat="goals">0</td><td data-stat="assists">0</td></tr></tbody></table>`;
   const rows = parseFbrefTable(html);
   assert.deepEqual(rows.map((r) => r.player), ['Ole Gunnar Solskjær', "Dennis O'Brien & Co"]);
+});
+
+// ---- coverage guard: FBref exports stop at 499 rows ---------------------------------------------
+const fakeRows = (from, to) => Array.from({ length: to - from }, (_, i) => ({ ranker: String(i + 1), player: `P${from + i}`, team: 'X', birth_year: '1970', goals: '1' }));
+const file = (name, rows) => ({ name, rows });
+
+test('a season with one export cut off at the cap is refused', () => {
+  assert.equal(EXPORT_CAP, 499);
+  assert.throws(() => mergeSeasonFiles('2001-02', [file('z-a.xls', fakeRows(0, 499))]), /only one export .* cut off at 499 rows/);
+});
+
+test('two truncated exports must overlap, or part of the season is missing', () => {
+  // 0-498 and 300-798 overlap on 300-498: the whole 0-798 range is covered
+  const merged = mergeSeasonFiles('x', [file('a', fakeRows(0, 499)), file('b', fakeRows(300, 799))]);
+  assert.equal(merged.length, 799);
+  // 0-498 and 600-1098 share nothing: 499-599 could be missing
+  assert.throws(() => mergeSeasonFiles('x', [file('a', fakeRows(0, 499)), file('b', fakeRows(600, 1099))]), /share no rows/);
+});
+
+test('a short single export is complete, and disagreeing rows are an error', () => {
+  assert.equal(mergeSeasonFiles('x', [file('a', fakeRows(0, 300))]).length, 300);
+  const a = fakeRows(0, 10), b = fakeRows(5, 15);
+  b[0] = { ...b[0], goals: '9' }; // P5 now has a different goal count in the second file
+  assert.throws(() => mergeSeasonFiles('x', [file('a', a), file('b', b)]), /disagrees/);
 });
