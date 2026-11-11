@@ -151,3 +151,11 @@ test('managers stack in order: +mult then xmult is not the same as xmult then +m
   // onCard +4 per DEF (mult 2 -> 10) happens before onHand x1.5 (-> 15)
   assert.equal(scoreHand(cards, ctx({ jokers: ['parkTheBus', 'oneClubMan'] })).mult, 15);
 });
+
+test('RULE: no manager depends on a stat that is missing for some seasons', async () => {
+  const { JOKER_IDS, JOKERS } = await import('../src/engine/jokers.js');
+  assert.equal(JOKER_IDS.length, 14);
+  for (const gone of ['wall', 'shotStopper']) assert.ok(!JOKER_IDS.includes(gone), `${gone} used clean sheets / saves`);
+  // the specialists name their category: it must be one that exists
+  for (const id of ['poacher', 'creator', 'ironman']) assert.match(JOKERS[id].blurb, /GOALS|ASSISTS|GAMES PLAYED/);
+});

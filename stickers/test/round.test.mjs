@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { makeRng } from '../src/engine/rng.js';
-import { startRound, playHand, discard, RULES, fixtureTarget } from '../src/engine/round.js';
+import { startRound, playHand, discard, RULES, fixtureTarget, SEASON_LENGTH } from '../src/engine/round.js';
 import { mk, scale } from './helpers.mjs';
 
 const deck = (n = 24) => Array.from({ length: n }, (_, i) => mk({ goals: i, club: i % 2 ? 'ARS' : 'CHE' }));
@@ -73,8 +73,21 @@ test('no reshuffle: a small deck runs dry and the hand shrinks', () => {
   assert.equal(s.drawPile.length, 0);
 });
 
-test('fixture targets follow the stage table and the league/cup/derby factors', () => {
-  assert.equal(fixtureTarget(0, 0), 100);
-  assert.equal(fixtureTarget(1, 1), 450);
-  assert.equal(fixtureTarget(2, 2), 1600);
+test('a season is 38 matchdays and the target climbs smoothly from 100 to 40,000', () => {
+  assert.equal(SEASON_LENGTH, 38);
+  const targets = Array.from({ length: SEASON_LENGTH }, (_, i) => fixtureTarget(i + 1));
+  assert.equal(targets[0], 100);
+  assert.equal(targets[37], 40000);
+  for (let i = 1; i < targets.length; i++) assert.ok(targets[i] > targets[i - 1], `matchday ${i + 1} must be harder than ${i}`);
+  // geometric: each step is about the same ratio (rounding to 2 figures allows a little wobble)
+  for (let i = 1; i < targets.length; i++) assert.ok(targets[i] / targets[i - 1] > 1.1 && targets[i] / targets[i - 1] < 1.3, `step ${i}`);
+  // two significant figures
+  for (const t of targets) assert.equal(Number(t.toPrecision(2)), t);
+});
+
+test('matchdays outside 1-38 are an error, and the curve can be retuned', () => {
+  assert.throws(() => fixtureTarget(0), /matchday must be 1-38/);
+  assert.throws(() => fixtureTarget(39), /matchday must be 1-38/);
+  assert.throws(() => fixtureTarget(1.5), /matchday must be 1-38/);
+  assert.equal(fixtureTarget(38, { end: 70000 }), 70000);
 });

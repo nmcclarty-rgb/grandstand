@@ -23,7 +23,10 @@ test('every card is well-formed and unique', () => {
     assert.ok(meta.seasons.includes(c.season), `${c.id}: season ${c.season}`);
     assert.ok(meta.clubs[c.club], `${c.id}: club ${c.club}`);
     assert.ok(c.rating >= 1 && c.rating <= 99, `${c.id}: rating ${c.rating}`);
-    for (const k of [...CATEGORY_KEYS, 'points']) assert.ok(Number.isFinite(c[k]) && c[k] >= 0, `${c.id}: ${k}=${c[k]}`);
+    for (const k of CATEGORY_KEYS) assert.ok(Number.isInteger(c[k]) && c[k] >= 0, `${c.id}: ${k}=${c[k]}`);
+    // RULE: a card carries only stats that exist for every season. Partial stats (FPL's clean sheets, saves,
+    // bonus, price, points) would be zero for 24 of 34 seasons, so they must not be on a card.
+    assert.deepEqual(Object.keys(c).sort(), ['assists', 'club', 'full', 'games', 'goals', 'id', 'name', 'pid', 'pos', 'rating', 'season', 'src'], `${c.id}: unexpected fields`);
   }
 });
 
@@ -123,11 +126,8 @@ test('FBref seasons: anchors, merged exports, mid-season movers', () => {
   // Sheringham left Forest for Spurs mid-season: two cards, two clubs
   assert.ok(cards.filter((c) => c.pid === get('Sheringham', '1992-93', 'TOT').pid && c.season === '1992-93').length >= 1);
   assert.equal(get('Cantona', '1992-93', 'LEE').goals + get('Cantona', '1992-93', 'MUN').goals, 15);
-  // one source only has goals, assists and games
-  for (const c of cards.filter((x) => x.src === 'fbref')) {
-    assert.deepEqual([c.cleanSheets, c.saves, c.bonus, c.price, c.points], [0, 0, 0, 0, 0], c.id);
-    assert.ok(c.games > 0);
-  }
+  // both sources give a card the same fields, so any card can stand in any category
+  for (const c of cards.filter((x) => x.src === 'fbref')) assert.ok(c.games > 0, c.id);
 });
 
 test('every FBref season has a plausible number of goals on the cards', () => {
@@ -164,7 +164,6 @@ test('starter deck: 24 mid-table cards, three clubs x three consecutive seasons,
     assert.equal(deck.filter((c) => c.pos === 'GK').length, 2);
     assert.equal(deck.filter((c) => c.pos === 'FWD').length, 6);
     assert.ok(deck.every((c) => c.rating >= 25 && c.rating <= 80), 'starter squad is mid-table, not stars');
-    assert.ok(deck.every((c) => c.src === 'fpl'), 'starter squad needs full stat lines; 1990s cards come from packs');
     const clubs = new Map();
     for (const c of deck) clubs.set(c.club, (clubs.get(c.club) ?? new Set()).add(c.season));
     assert.equal(clubs.size, 3, `seed ${seed}: clubs`);
@@ -271,4 +270,38 @@ test('every season from 1992/93 to 2025/26 is covered, from exactly one source',
   assert.deepEqual(meta.sources.fbref, all.filter((x) => x < '2016-17'));
   assert.deepEqual(meta.sources.fpl, all.filter((x) => x >= '2016-17'));
   assert.ok(meta.sources.fbref.every((x) => !meta.sources.fpl.includes(x)));
+});
+
+test('starter squads draw on every era, because every card has the same stats', () => {
+  const pool = loadPool();
+  let nineties = 0, twenties = 0;
+  for (let seed = 1; seed <= 300; seed++) {
+    const deck = starterDeck(pool, makeRng(`era${seed}`));
+    if (deck.some((c) => c.season < '2000')) nineties++;
+    if (deck.some((c) => c.season >= '2020')) twenties++;
+  }
+  assert.ok(nineties > 30, `1990s cards in only ${nineties} of 300 starter squads`);
+  assert.ok(twenties > 30, `2020s cards in only ${twenties} of 300 starter squads`);
+});
+
+test('RULE: the only categories are the stats every season has', () => {
+  assert.deepEqual(CATEGORY_KEYS, ['goals', 'assists', 'games']);
+  assert.deepEqual(Object.keys(meta.chipScale), ['goals', 'assists', 'games']);
+});
+
+test('RULE: one rating formula for every card, so ratings are comparable across sources', () => {
+  const score = (c) => (c.pos === 'GK' ? c.games : c.goals * 2 + c.assists + c.games * 0.15);
+  for (const pos of POSITIONS) {
+    const group = cards.filter((c) => c.pos === pos).sort((a, b) => score(a) - score(b));
+    for (let i = 1; i < group.length; i++) {
+      assert.ok(group[i].rating >= group[i - 1].rating, `${pos}: ${group[i - 1].id} (${score(group[i - 1])}) rated above ${group[i].id} (${score(group[i])})`);
+    }
+    const r = group.map((c) => c.rating).sort((a, b) => a - b);
+    assert.ok(r[r.length >> 1] > 30 && r[r.length >> 1] < 70, `${pos} median rating ${r[r.length >> 1]}`);
+  }
+  // not skewed to an era: the top decile is spread across the four decades roughly like the cards are
+  const era = (c) => (c.season < '2000' ? 0 : c.season < '2010' ? 1 : c.season < '2020' ? 2 : 3);
+  const share = (list) => [0, 1, 2, 3].map((e) => list.filter((c) => era(c) === e).length / list.length);
+  const all = share(cards), top = share(cards.filter((c) => c.rating >= 90));
+  for (let e = 0; e < 4; e++) assert.ok(Math.abs(all[e] - top[e]) < 0.10, `era ${e}: ${all[e].toFixed(2)} of cards, ${top[e].toFixed(2)} of 90+`);
 });

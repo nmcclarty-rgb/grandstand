@@ -5,16 +5,15 @@
 
 export const POSITIONS = ['GK', 'DEF', 'MID', 'FWD'];
 
-// The Top Trumps bit: each fixture names one category, and a card's chips are its
-// number in that category, scaled so the 99th percentile is worth 60 chips.
+// The Top Trumps bit: each fixture names one category, and a card's number in it becomes its chips,
+// scaled so the 99th percentile is worth 60 chips.
+//
+// RULE: only stats that exist for every season (1992/93 to 2025/26). FPL has more (clean sheets, saves,
+// bonus, price) but only from 2016/17, so they are not used anywhere in the game.
 export const CATEGORIES = {
-  goals:       { label: 'GOALS',        short: 'GOALS',   unit: 'goals' },
-  assists:     { label: 'ASSISTS',      short: 'ASSISTS', unit: 'assists' },
-  games:       { label: 'GAMES PLAYED', short: 'GAMES',   unit: 'games' },
-  cleanSheets: { label: 'CLEAN SHEETS', short: 'CLEAN SHEETS', unit: 'clean sheets' },
-  saves:       { label: 'SAVES',        short: 'SAVES',   unit: 'saves' },
-  bonus:       { label: 'BONUS POINTS', short: 'BONUS',   unit: 'bonus pts' },
-  price:       { label: 'VALUE (£m)',   short: 'VALUE',   unit: '£m' },
+  goals:   { label: 'GOALS',        short: 'GOALS',   unit: 'goals' },
+  assists: { label: 'ASSISTS',      short: 'ASSISTS', unit: 'assists' },
+  games:   { label: 'GAMES PLAYED', short: 'GAMES',   unit: 'games' },
 };
 export const CATEGORY_KEYS = Object.keys(CATEGORIES);
 

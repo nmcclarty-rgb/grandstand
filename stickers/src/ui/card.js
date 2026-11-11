@@ -3,7 +3,7 @@ import { CATEGORIES, CATEGORY_KEYS, EDITIONS, cardChips } from '../engine/cards.
 import { CLUB_COLOURS, inkOn } from './clubs.js';
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-const fmt = (key, v) => (key === 'price' ? `£${v.toFixed(1)}m` : String(v));
+const fmt = (key, v) => String(v);
 const season = (s) => `${s.slice(0, 4)}/${s.slice(5)}`; // 2017-18 -> 2017/18
 
 // A head-and-shoulders silhouette in the club shirt. No photo, no likeness.

@@ -79,8 +79,6 @@ const list = [
   specialist('poacher', 'Poacher', 'goals'),
   specialist('creator', 'Creator', 'assists'),
   specialist('ironman', 'Ironman', 'games'),
-  specialist('wall', 'The Wall', 'cleanSheets'),
-  specialist('shotStopper', 'Shot Stopper', 'saves'),
 ];
 
 export const JOKERS = Object.fromEntries(list.map((j) => [j.id, j]));

@@ -4,15 +4,20 @@ import { scoreHand } from './scoring.js';
 
 export const RULES = { handSize: 8, hands: 4, discards: 3 };
 
-// Balatro's ante curve (small blind), ×1 / ×1.5 / ×2 for the three fixtures of a stage.
-// Placeholder until the balance sim says otherwise: see tools/simulate.mjs.
-export const STAGE_BASE = [100, 300, 800, 2000, 5000, 11000, 20000, 35000];
-export const FIXTURE_KINDS = [
-  { id: 'league', name: 'League', factor: 1 },
-  { id: 'cup',    name: 'Cup tie', factor: 1.5 },
-  { id: 'derby',  name: 'Derby',  factor: 2 },
-];
-export const fixtureTarget = (stage, slot, base = STAGE_BASE) => Math.round(base[stage] * FIXTURE_KINDS[slot].factor);
+// A season is 38 matchdays, as in the league. Each is one fixture with its own target, climbing smoothly
+// (geometrically) from TARGET_START to TARGET_END. The end value is a tuning knob: see tools/simulate.mjs.
+export const SEASON_LENGTH = 38;
+export const TARGET_START = 100;
+export const TARGET_END = 40000; // tools/simulate.mjs: ~2% of a deck-building bot's seasons finish at this value
+
+// Two significant figures, so targets read as 120 or 1,400 and not 118 or 1,396.
+const nice = (x) => { const p = 10 ** (Math.floor(Math.log10(x)) - 1); return Math.round(x / p) * p; };
+
+// matchday: 1..38
+export function fixtureTarget(matchday, { start = TARGET_START, end = TARGET_END, length = SEASON_LENGTH } = {}) {
+  if (!Number.isInteger(matchday) || matchday < 1 || matchday > length) throw new Error(`matchday must be 1-${length}`);
+  return nice(start * (end / start) ** ((matchday - 1) / (length - 1)));
+}
 
 // run: { deck: [card instances], jokers: [ids], handLevels: {}, scale }
 export function startRound(run, { target, category, rng, rules = RULES }) {

@@ -24,9 +24,9 @@ export const instance = (card, edition = 'base') => ({ ...card, uid: `u${++uidCo
 // which is what keeps Spine from being the answer to everything). Cards are mid-table
 // (rating 25-80), the most-played first, dealt round-robin across the team-seasons.
 export const STARTER_SHAPE = { clubs: 3, seasons: 3, positions: { GK: 2, DEF: 8, MID: 8, FWD: 6 } };
-// Starter cards must be mid-table and have a full stat line. 1990s cards only record goals, assists and games,
-// so a squad of them scores nothing in four of the seven categories; they arrive through packs instead.
-const MIDTABLE = (c) => c.rating >= 25 && c.rating <= 80 && c.src === 'fpl';
+// Starter cards are mid-table (rating 25-80). Every card has the same three stats whatever its era, so any
+// era can supply a starter squad.
+const MIDTABLE = (c) => c.rating >= 25 && c.rating <= 80;
 
 export function starterDeck(pool, rng, shape = STARTER_SHAPE) {
   const { clubs: nClubs, seasons: nSeasons, positions } = { ...STARTER_SHAPE, ...shape };

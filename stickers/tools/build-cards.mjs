@@ -1,4 +1,5 @@
-// Turn the raw FPL season files into one card per player-season:
+// Turn the raw season files (FPL archive for 2016/17 onward, FBref exports before) into one
+// card per player-season:
 //   stickers/src/data/cards.json
 //
 //   node stickers/tools/build-cards.mjs
@@ -6,6 +7,10 @@
 // A card is a *player in a season* (Panini album style: "Salah, Liverpool
 // 2017/18"), not a player. Same player, different season = different card, with
 // a shared `pid` so the engine can recognise career arcs.
+//
+// RULE: a card carries only stats that exist for EVERY season in the data set: goals, assists, games
+// (minutes / 90). FPL also has clean sheets, saves, bonus points and price, but only from 2016/17, so
+// they are deliberately left out rather than being zero for the first 24 seasons.
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -70,11 +75,6 @@ for (const season of SEASONS) {
       goals: int(p.goals_scored),
       assists: int(p.assists),
       games: Math.round(minutes / 90),
-      cleanSheets: int(p.clean_sheets),
-      saves: int(p.saves),
-      bonus: int(p.bonus),
-      price: int(p.now_cost) / 10,
-      points: int(p.total_points),
     });
   }
 }
@@ -97,7 +97,6 @@ for (const season of fbrefSeasons) {
       id: `${pid}-${season}-${club}`, src: 'fbref', pid,
       name: displayName(row.player), full: row.player, pos, club, season,
       goals: n.goals, assists: n.assists, games: Math.round(n.minutes / 90),
-      cleanSheets: 0, saves: 0, bonus: 0, price: 0, points: 0, // FBref has none of these for the 1990s
     });
     kept++;
   }
@@ -107,29 +106,26 @@ const allSeasons = [...fbrefSeasons, ...SEASONS];
 
 if (unknownClubs.size) throw new Error(`club names missing for: ${[...unknownClubs].join(', ')}`);
 
-// Overall rating: percentile within position and within source (1-99). It is the Top Trumps
-// headline number and decides pack rarity. FPL cards rank on fantasy points. FBref cards have
-// none, so they rank on goal involvement and availability; a keeper has neither, so on games.
-// Ranking within a source stops a 1990s striker being measured against a 2020s one.
-const score = (c) => (c.src === 'fpl' ? c.points : c.pos === 'GK' ? c.games : c.goals * 2 + c.assists + c.games * 0.15);
-for (const src of ['fpl', 'fbref']) {
-  for (const pos of Object.values(POS)) {
-    const group = cards.filter((c) => c.src === src && c.pos === pos).sort((a, b) => score(a) - score(b));
-    if (group.length < 2) { group.forEach((c) => { c.rating = 50; }); continue; }
-    let i = 0;
-    while (i < group.length) {
-      let j = i;
-      while (j + 1 < group.length && score(group[j + 1]) === score(group[i])) j++;
-      const pct = ((i + j) / 2) / (group.length - 1);
-      for (let k = i; k <= j; k++) group[k].rating = Math.max(1, Math.min(99, Math.round(pct * 98) + 1));
-      i = j + 1;
-    }
+// Overall rating: percentile within position across the whole data set (1-99). It is the Top Trumps
+// headline number and decides pack rarity. One formula for every card, built only from the stats every
+// season has: goal involvement plus availability; a keeper has neither, so goalkeepers rank on games.
+// (FPL's fantasy points would be better, but they only exist from 2016/17.)
+const score = (c) => (c.pos === 'GK' ? c.games : c.goals * 2 + c.assists + c.games * 0.15);
+for (const pos of Object.values(POS)) {
+  const group = cards.filter((c) => c.pos === pos).sort((a, b) => score(a) - score(b));
+  let i = 0;
+  while (i < group.length) {
+    let j = i;
+    while (j + 1 < group.length && score(group[j + 1]) === score(group[i])) j++;
+    const pct = ((i + j) / 2) / (group.length - 1);
+    for (let k = i; k <= j; k++) group[k].rating = Math.max(1, Math.min(99, Math.round(pct * 98) + 1));
+    i = j + 1;
   }
 }
 
 // Chip scale per category: the 99th percentile of non-zero values is worth 60 chips,
 // so no category is inherently stronger than another.
-const CATEGORY_KEYS = ['goals', 'assists', 'games', 'cleanSheets', 'saves', 'bonus', 'price'];
+const CATEGORY_KEYS = ['goals', 'assists', 'games'];
 const chipScale = {};
 for (const key of CATEGORY_KEYS) {
   const vals = cards.map((c) => c[key]).filter((v) => v > 0).sort((a, b) => a - b);

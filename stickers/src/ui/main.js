@@ -1,7 +1,7 @@
 // The tabletop: deal a squad, pick up to five cards, see the hand and the arithmetic.
 import { makePool, starterDeck, openPack } from '../engine/deck.js';
 import { makeRng } from '../engine/rng.js';
-import { startRound, playHand, discard, fixtureTarget, FIXTURE_KINDS, STAGE_BASE } from '../engine/round.js';
+import { startRound, playHand, discard, fixtureTarget, SEASON_LENGTH } from '../engine/round.js';
 import { scoreHand } from '../engine/scoring.js';
 import { CATEGORIES, CATEGORY_KEYS } from '../engine/cards.js';
 import { JOKERS, JOKER_IDS } from '../engine/jokers.js';
@@ -14,7 +14,7 @@ const params = new URLSearchParams(location.search);
 
 let pool, round, rng;
 let seed = Number(params.get('seed')) || 1;
-let fixture = 0;
+let matchday = Math.min(38, Math.max(1, Number(params.get('matchday')) || 1));
 let categoryChoice = params.get('category') || 'goals';
 let selected = [];
 const managers = new Set((params.get('managers') || '').split(',').filter((id) => JOKERS[id]));
@@ -34,7 +34,7 @@ function newDeal() {
   rng = makeRng(`table:${seed}`);
   const run = { deck: starterDeck(pool, rng), jokers: [...managers], handLevels: {}, scale: pool.scale };
   const category = categoryChoice === 'random' ? rng.pick(CATEGORY_KEYS) : categoryChoice;
-  round = startRound(run, { target: fixtureTarget(Math.floor(fixture / 3), fixture % 3), category, rng });
+  round = startRound(run, { target: fixtureTarget(matchday), category, rng });
   selected = [];
   render();
 }
@@ -168,11 +168,9 @@ async function init() {
   cat.addEventListener('change', () => { categoryChoice = cat.value; newDeal(); });
 
   const fx = $('fixture');
-  fx.innerHTML = Array.from({ length: STAGE_BASE.length * 3 }, (_, i) => {
-    const s = Math.floor(i / 3), k = i % 3;
-    return `<option value="${i}">${s + 1}.${k + 1} ${FIXTURE_KINDS[k].name}: ${n(fixtureTarget(s, k))}</option>`;
-  }).join('');
-  fx.addEventListener('change', () => { fixture = Number(fx.value); newDeal(); });
+  fx.innerHTML = Array.from({ length: SEASON_LENGTH }, (_, i) => `<option value="${i + 1}">Matchday ${i + 1}: ${n(fixtureTarget(i + 1))}</option>`).join('');
+  fx.value = String(matchday);
+  fx.addEventListener('change', () => { matchday = Number(fx.value); newDeal(); });
 
   $('seed').value = seed;
   $('seed').addEventListener('change', (e) => { seed = Number(e.target.value) || 1; newDeal(); });

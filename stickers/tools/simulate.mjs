@@ -2,18 +2,22 @@
 //
 //   node tools/simulate.mjs                  # 200 runs per bot
 //   node tools/simulate.mjs --runs 500 --seed 7
+//   node tools/simulate.mjs --end 50000      # tune the last matchday's target (default 40000)
+//
+// A season is 38 matchdays. After every win the greedy+ bot gets a pack; every 5th matchday it also gets a
+// manager and a training level.
 //
 // Three bots, three questions:
 //   random      plays 1-5 random cards.            "How bad is not trying?"
 //   greedy      best-scoring hand it can find,     "How far does a competent player get with
 //               discards when behind pace.          nothing but the starter squad?"
 //   greedy+     greedy, plus a pack after every win (keeps the 2 cards that best fit its deck),
-//               a random manager after every stage, and a training level for its favourite hand.
+//               a random manager every 5 matchdays, and a training level for its favourite hand.
 //               "Does the curve still bite once the economy is feeding the deck?"
 import { readFileSync } from 'node:fs';
 import { makeRng } from '../src/engine/rng.js';
 import { makePool, starterDeck, openPack, STARTER_SHAPE } from '../src/engine/deck.js';
-import { startRound, playHand, discard, fixtureTarget, FIXTURE_KINDS, STAGE_BASE } from '../src/engine/round.js';
+import { startRound, playHand, discard, fixtureTarget, SEASON_LENGTH, TARGET_START, TARGET_END } from '../src/engine/round.js';
 import { scoreHand } from '../src/engine/scoring.js';
 import { CATEGORY_KEYS, cardChips, teamKey } from '../src/engine/cards.js';
 import { JOKER_IDS } from '../src/engine/jokers.js';
@@ -25,6 +29,8 @@ const arg = (name, dflt) => {
 const RUNS = arg('runs', 200);
 const SEED = arg('seed', 1);
 const MAX_MANAGERS = 5;
+const MILESTONE = 5; // matchdays between manager / training rewards
+const TARGETS = { start: arg('start', TARGET_START), end: arg('end', TARGET_END) };
 const SHAPE = { clubs: arg('clubs', STARTER_SHAPE.clubs), seasons: arg('seasons', STARTER_SHAPE.seasons) };
 const pool = makePool(JSON.parse(readFileSync(new URL('../src/data/cards.json', import.meta.url), 'utf8')));
 
@@ -79,31 +85,29 @@ function playRun(botName, rewarded, seed) {
   const run = { deck: starterDeck(pool, rng, SHAPE), jokers: [], handLevels: {}, scale: pool.scale };
   const results = [];
   const played = {};
-  for (let stage = 0; stage < STAGE_BASE.length; stage++) {
-    for (let slot = 0; slot < FIXTURE_KINDS.length; slot++) {
-      const category = rng.pick(CATEGORY_KEYS);
-      const s = startRound(run, { target: fixtureTarget(stage, slot), category, rng });
-      let guard = 0;
-      while (s.status === 'playing' && guard++ < 50) bots[botName](s, rng);
-      results.push({ won: s.status === 'won', score: s.score, handsLeft: s.handsLeft, plays: s.plays.map((p) => p.type) });
-      for (const p of s.plays) played[p.type] = (played[p.type] ?? 0) + 1;
-      if (s.status !== 'won') return results;
-      if (rewarded) {
-        // a player builds around what they already own: prefer team-mates and club-mates
-        const teams = new Set(run.deck.map((c) => teamKey(c)));
-        const clubs = new Set(run.deck.map((c) => c.club));
-        const want = (c) => c.rating + (teams.has(teamKey(c)) ? 60 : 0) + (clubs.has(c.club) ? 30 : 0);
-        const pack = openPack(pool, rng).sort((a, b) => want(b) - want(a));
-        run.deck.push(...pack.slice(0, 2));
-        if (slot === 2) {
-          if (run.jokers.length < MAX_MANAGERS) {
-            const free = JOKER_IDS.filter((id) => !run.jokers.includes(id));
-            run.jokers.push(rng.pick(free));
-          }
-          // training: level up the hand you play most
-          const fav = Object.entries(played).sort((a, b) => b[1] - a[1])[0]?.[0];
-          if (fav) run.handLevels[fav] = (run.handLevels[fav] ?? 1) + 1;
+  for (let matchday = 1; matchday <= SEASON_LENGTH; matchday++) {
+    const category = rng.pick(CATEGORY_KEYS);
+    const s = startRound(run, { target: fixtureTarget(matchday, TARGETS), category, rng });
+    let guard = 0;
+    while (s.status === 'playing' && guard++ < 50) bots[botName](s, rng);
+    results.push({ won: s.status === 'won', score: s.score, handsLeft: s.handsLeft, category, plays: s.plays.map((p) => p.type) });
+    for (const p of s.plays) played[p.type] = (played[p.type] ?? 0) + 1;
+    if (s.status !== 'won') return results;
+    if (rewarded) {
+      // a player builds around what they already own: prefer team-mates and club-mates
+      const teams = new Set(run.deck.map((c) => teamKey(c)));
+      const clubs = new Set(run.deck.map((c) => c.club));
+      const want = (c) => c.rating + (teams.has(teamKey(c)) ? 60 : 0) + (clubs.has(c.club) ? 30 : 0);
+      const pack = openPack(pool, rng).sort((a, b) => want(b) - want(a));
+      run.deck.push(...pack.slice(0, 2));
+      if (matchday % MILESTONE === 0) {
+        if (run.jokers.length < MAX_MANAGERS) {
+          const free = JOKER_IDS.filter((id) => !run.jokers.includes(id));
+          run.jokers.push(rng.pick(free));
         }
+        // training: level up the hand you play most
+        const fav = Object.entries(played).sort((a, b) => b[1] - a[1])[0]?.[0];
+        if (fav) run.handLevels[fav] = (run.handLevels[fav] ?? 1) + 1;
       }
     }
   }
@@ -120,29 +124,39 @@ const table = {};
 const t0 = Date.now();
 for (const [label, bot, rewarded] of configs) {
   const runs = Array.from({ length: RUNS }, (_, i) => playRun(bot, rewarded, `${SEED}:${label}:${i}`));
-  const total = STAGE_BASE.length * FIXTURE_KINDS.length;
-  const reached = Array(total).fill(0), cleared = Array(total).fill(0), spare = Array(total).fill(0);
+  const reached = Array(SEASON_LENGTH).fill(0), cleared = Array(SEASON_LENGTH).fill(0), spare = Array(SEASON_LENGTH).fill(0);
   for (const r of runs) r.forEach((x, i) => { reached[i]++; if (x.won) { cleared[i]++; spare[i] += x.handsLeft; } });
   table[label] = { reached, cleared, spare, runs };
 }
 
 const pct = (n, d) => (d ? `${String(Math.round((100 * n) / d)).padStart(3)}%` : '  - ');
-console.log(`\n${RUNS} runs per bot, seed ${SEED}  (${((Date.now() - t0) / 1000).toFixed(1)}s)\n`);
-console.log('fixture            target |  random    |  greedy    |  greedy+   |  spare hands (greedy+)');
-console.log('-'.repeat(96));
-STAGE_BASE.forEach((_, stage) => FIXTURE_KINDS.forEach((k, slot) => {
-  const i = stage * 3 + slot;
+console.log(`\n${RUNS} runs per bot, seed ${SEED}, targets ${TARGETS.start} -> ${TARGETS.end}  (${((Date.now() - t0) / 1000).toFixed(1)}s)\n`);
+console.log('matchday   target |  random    |  greedy    |  greedy+   |  spare hands (greedy+)');
+console.log('-'.repeat(86));
+for (let i = 0; i < SEASON_LENGTH; i++) {
   const cell = (l) => `${pct(table[l].cleared[i], table[l].reached[i])} of ${String(table[l].reached[i]).padStart(3)}`;
   const sp = table['greedy+'].cleared[i] ? (table['greedy+'].spare[i] / table['greedy+'].cleared[i]).toFixed(1) : '-';
-  console.log(`${String(stage + 1)}.${slot + 1} ${k.name.padEnd(8)} ${String(fixtureTarget(stage, slot)).padStart(11)} | ${cell('random')} | ${cell('greedy')} | ${cell('greedy+')} | ${sp}`);
-}));
-console.log('-'.repeat(96));
+  console.log(`${String(i + 1).padStart(5)} ${String(fixtureTarget(i + 1, TARGETS)).padStart(10)} | ${cell('random')} | ${cell('greedy')} | ${cell('greedy+')} | ${sp}`);
+}
+console.log('-'.repeat(86));
 for (const [label] of configs) {
   const deaths = table[label].runs.map((r) => r.length - (r.at(-1).won ? 0 : 1));
   deaths.sort((a, b) => a - b);
   const median = deaths[Math.floor(deaths.length / 2)];
-  const wins = table[label].runs.filter((r) => r.length === STAGE_BASE.length * 3 && r.at(-1).won).length;
-  console.log(`${label.padEnd(8)} median fixtures cleared: ${String(median).padStart(2)} of 24   full seasons: ${wins}/${RUNS}`);
+  const p90 = deaths[Math.floor(deaths.length * 0.9)];
+  const wins = table[label].runs.filter((r) => r.length === SEASON_LENGTH && r.at(-1).won).length;
+  console.log(`${label.padEnd(8)} matchdays cleared: median ${String(median).padStart(2)}, best 10% reach ${String(p90).padStart(2)} of ${SEASON_LENGTH}   full seasons: ${wins}/${RUNS}`);
+}
+
+// ---- does the category you draw decide the result? ------------------------------------
+console.log('\nwin rate by category (all fixtures played)');
+console.log('category'.padEnd(10) + configs.slice(1).map(([l]) => l.padStart(10)).join(''));
+for (const cat of CATEGORY_KEYS) {
+  console.log(cat.padEnd(10) + configs.slice(1).map(([l]) => {
+    let w = 0, n = 0;
+    for (const r of table[l].runs) for (const x of r) if (x.category === cat) { n++; if (x.won) w++; }
+    return pct(w, n).padStart(10);
+  }).join(''));
 }
 
 // ---- which hands do the bots actually make? -------------------------------------------
