@@ -17,8 +17,13 @@ const decode = (s) => s
   .trim();
 
 export function parseFbrefTable(html) {
-  const body = html.split('</thead>')[1];
+  const [head, body] = html.split('</thead>');
   if (!body) throw new Error('no <thead>: is this an FBref table export?');
+  // FBref has several tables per season (Standard Stats, Playing Time, Shooting...). Only Standard
+  // Stats has goals and assists; importing another would silently produce a season of zeros.
+  const columns = new Set([...head.matchAll(/<th[^>]*data-stat="([^"]+)"/g)].map((m) => m[1]));
+  const missing = ['player', 'team', 'position', 'minutes', 'goals', 'assists'].filter((c) => !columns.has(c));
+  if (missing.length) throw new Error(`not a Standard Stats table (no ${missing.join(', ')} column); re-export the "Standard Stats" table`);
   const rows = [];
   for (const [, tr] of body.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)) {
     const row = {};

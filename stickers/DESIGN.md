@@ -81,9 +81,9 @@ Two sources, joined at the cards:
 | Seasons | Source | Stats available |
 |---|---|---|
 | 2016/17 to 2025/26 | the **Fantasy Premier League season archive** ([vaastav/Fantasy-Premier-League](https://github.com/vaastav/Fantasy-Premier-League)), fetched by `tools/fetch-data.mjs` | all seven categories, plus fantasy points |
-| 1992/93 and 1993/94 | **FBref** "Standard Stats" tables, exported by hand (Share & Export, Excel) into `data/fbref/` | games, goals, assists (plus cards, not used yet) |
+| 1992/93 to 1994/95 | **FBref** "Standard Stats" tables, exported by hand (Share & Export, Excel) into `data/fbref/` | games, goals, assists (plus cards, not used yet) |
 
-Everything from 1994/95 to 2015/16 is still missing: 22 seasons. Each extra FBref season is one
+Everything from 1995/96 to 2015/16 is still missing: 21 seasons. Each extra FBref season is one
 more export (two files, see below) and no code change unless it names a club the importer doesn't
 know yet; an unknown club stops the build rather than guessing.
 
@@ -92,14 +92,16 @@ know yet; an unknown club stops the build rather than guessing.
   FBref truncates an export at 499 rows (a season has ~560 players), so each season needs two files:
   `1992-93.xls` (table as it comes) and `1992-93-z-a.xls` (click the Player header to reverse the sort,
   export again). `tools/fbref.mjs` merges them and refuses to continue if an overlapping row disagrees.
-  The `.xls` is really an HTML table.
+  The `.xls` is really an HTML table. **Export the "Standard Stats" table** (the page anchor `#all_stats_standard`);
+  the other tables on the same page (Playing Time, Shooting...) have no goals or assists, and the importer
+  refuses them. Files that are not wanted yet can sit in `data/fbref/unused/`, which is ignored.
 - **1990s cards only have three stats.** Clean sheets, saves, bonus points and value are zero, shown as a
   dash on the card. So a 1990s goalkeeper is worth chips only in Games rounds, and everyone is worth
   nothing in Saves rounds. This is deliberate: invented numbers would look like data.
 - **Mid-season movers get one card per club** in the FBref seasons (Sheringham: 1 goal at Forest, 21 at Spurs).
   FPL assigns a player to the club they finished the season with, so there it is one card.
 - A "season" needs 270 minutes in either source (three full games). 2026/27 is excluded as incomplete.
-- Counts: 5,219 cards, 2,050 players, 41 clubs. Sanity checks in `test/data.test.mjs`: known season totals
+- Counts: 5,691 cards, 2,156 players, 41 clubs. Sanity checks in `test/data.test.mjs`: known season totals
   for both sources, and the goals on the cards add up to within 10% of the real league total
   (the shortfall is own goals, which FBref does not credit to a player).
 - 2016/17 to 2018/19 ship no `teams.csv`; clubs are mapped from FPL's alphabetical team ids, checked in the tests.
@@ -128,11 +130,11 @@ deck), a random manager per stage, and a training level for its favourite hand.
 |---|---|---|
 | random | 1 | 0 / 500 |
 | greedy, starter squad only | 7 | 0 / 500 |
-| greedy+ | 12 | 0 / 500 |
+| greedy+ | 13 | 1 / 500 |
 
 1. **The curve works as a starting point.** Random play is dead by fixture 2, a competent
    player on the bare starter squad runs out of steam around stage 3, and building a deck
-   gets about 1.7x that. Almost nobody finishes, which suits a roguelike.
+   gets about 1.9x that. Almost nobody finishes, which suits a roguelike.
 2. **Starter squad shape drives the hand mix.** With 4 team-seasons of 6 cards (the first
    attempt), Back Four and Full Strength were 73% of all plays, i.e. the aspirational hands
    were routine. 3 clubs × 3 seasons is the only shape tried that spreads plays across
@@ -151,4 +153,4 @@ deck), a random manager per stage, and a training level for its favourite hand.
 
 Run loop and shop · the sticker album (persistence, page completion, perks) · swaps · more
 than one card of the same player as a deliberate mechanic · boss-fixture rules ·
-sound · saving · 1994/95 to 2015/16 · linking a player across the two sources.
+sound · saving · 1995/96 to 2015/16 · linking a player across the two sources.

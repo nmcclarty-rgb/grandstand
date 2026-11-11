@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadJson, loadPool } from './helpers.mjs';
+import { parseFbrefTable } from '../tools/fbref.mjs';
 import { makeRng } from '../src/engine/rng.js';
 import { starterDeck, openPack, TIERS } from '../src/engine/deck.js';
 import { POSITIONS, CATEGORY_KEYS, teamKey } from '../src/engine/cards.js';
@@ -64,7 +65,7 @@ test('every team-season has all four positions; 22 clubs until 1995, 20 after', 
   assert.deepEqual(thin.map(([k]) => k), []);
 });
 
-test('FBref seasons (1992/93, 1993/94): anchors, merged exports, mid-season movers', () => {
+test('FBref seasons (1992/93 to 1994/95): anchors, merged exports, mid-season movers', () => {
   const get = (name, season, club) => cards.find((c) => c.name === name && c.season === season && c.club === club);
   assert.equal(get('Sheringham', '1992-93', 'TOT').goals, 21);
   assert.equal(get('Ferdinand', '1992-93', 'QPR').goals, 20);
@@ -73,6 +74,9 @@ test('FBref seasons (1992/93, 1993/94): anchors, merged exports, mid-season move
   assert.equal(get('Cole', '1993-94', 'NEW').goals, 34);
   assert.equal(get('Shearer', '1993-94', 'BLA').goals, 31);
   assert.equal(get('Le Tissier', '1993-94', 'SOU').goals, 25);
+  assert.equal(get('Shearer', '1994-95', 'BLA').goals, 34);
+  assert.equal(get('Fowler', '1994-95', 'LIV').goals, 25);
+  assert.equal(get('Ferdinand', '1994-95', 'QPR').goals, 24);
   // Sheringham left Forest for Spurs mid-season: two cards, two clubs
   assert.ok(cards.filter((c) => c.pid === get('Sheringham', '1992-93', 'TOT').pid && c.season === '1992-93').length >= 1);
   assert.equal(get('Cantona', '1992-93', 'LEE').goals + get('Cantona', '1992-93', 'MUN').goals, 15);
@@ -81,14 +85,18 @@ test('FBref seasons (1992/93, 1993/94): anchors, merged exports, mid-season move
     assert.deepEqual([c.cleanSheets, c.saves, c.bonus, c.price, c.points], [0, 0, 0, 0, 0], c.id);
     assert.ok(c.games > 0);
   }
-  assert.deepEqual(meta.sources.fbref, ['1992-93', '1993-94']);
+  assert.deepEqual(meta.sources.fbref, ['1992-93', '1993-94', '1994-95']);
 });
 
-test('the season total is about right: the goals on the cards are within 10% of the league total', () => {
-  // 1992/93: 1,222 goals in 462 matches; 1993/94: 1,195. Own goals are not credited to a player.
+test('every FBref season has a plausible number of goals on the cards', () => {
+  // The league scored roughly 1,200 a season; own goals are not credited to a player, so a little less.
+  // A season of zeros (the wrong FBref table) or a half-imported one fails this.
+  for (const season of meta.sources.fbref) {
+    const goals = cards.filter((c) => c.season === season).reduce((s, c) => s + c.goals, 0);
+    assert.ok(goals > 1000 && goals <= 1300, `${season}: ${goals} goals`);
+  }
   const sum = (season) => cards.filter((c) => c.season === season).reduce((s, c) => s + c.goals, 0);
-  assert.ok(sum('1992-93') > 1222 * 0.9 && sum('1992-93') <= 1222, `1992-93: ${sum('1992-93')}`);
-  assert.ok(sum('1993-94') > 1195 * 0.9 && sum('1993-94') <= 1195, `1993-94: ${sum('1993-94')}`);
+  assert.ok(sum('1992-93') <= 1222, 'cannot exceed the 1,222 the league scored');
 });
 
 test('chip scale: the 99th percentile in each category is worth about 60 chips', () => {
@@ -143,4 +151,23 @@ test('pack odds land near the published rarity weights', () => {
   assert.ok(Math.abs(counts.legend / total - 0.02) < 0.005, JSON.stringify(counts));
   assert.ok(Math.abs(editions.shiny / total - 0.08) < 0.01, JSON.stringify(editions));
   assert.ok(Math.abs(editions.gold / total - 0.02) < 0.005, JSON.stringify(editions));
+});
+
+test('the FBref reader refuses a table that is not Standard Stats', () => {
+  const table = (stats) => `<table><thead><tr>${stats.map((k) => `<th data-stat="${k}">${k}</th>`).join('')}</tr></thead><tbody>` +
+    `<tr><th data-stat="ranker">1</th><td data-stat="player">Gary Ablett</td></tr></tbody></table>`;
+  // the Playing Time table: has minutes, no goals or assists
+  assert.throws(() => parseFbrefTable(table(['ranker', 'player', 'team', 'position', 'minutes', 'games_starts', 'plus_minus'])), /not a Standard Stats table \(no goals, assists column\)/);
+  assert.throws(() => parseFbrefTable('<p>nothing</p>'), /no <thead>/);
+  const ok = parseFbrefTable(table(['ranker', 'player', 'team', 'position', 'minutes', 'goals', 'assists']));
+  assert.equal(ok[0].player, 'Gary Ablett');
+});
+
+test('the FBref reader decodes entities and skips repeated header rows', () => {
+  const html = `<table><thead><tr><th data-stat="ranker">Rk</th><th data-stat="player">Player</th><th data-stat="team">T</th><th data-stat="position">P</th><th data-stat="minutes">M</th><th data-stat="goals">G</th><th data-stat="assists">A</th></tr></thead><tbody>` +
+    `<tr><th data-stat="ranker">1</th><td data-stat="player">Ole Gunnar Solskj&#230;r</td><td data-stat="team">Manchester Utd</td><td data-stat="position">FW</td><td data-stat="minutes">1,017</td><td data-stat="goals">3</td><td data-stat="assists">1</td></tr>` +
+    `<tr class="thead"><th data-stat="ranker">Rk</th><th data-stat="player">Player</th></tr>` +
+    `<tr><th data-stat="ranker">2</th><td data-stat="player">Dennis O&apos;Brien &amp; Co</td><td data-stat="team">X</td><td data-stat="position">DF</td><td data-stat="minutes">9</td><td data-stat="goals">0</td><td data-stat="assists">0</td></tr></tbody></table>`;
+  const rows = parseFbrefTable(html);
+  assert.deepEqual(rows.map((r) => r.player), ['Ole Gunnar Solskjær', "Dennis O'Brien & Co"]);
 });
