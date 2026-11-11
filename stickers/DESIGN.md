@@ -100,19 +100,50 @@ No manager uses the yellow or red card counts directly yet (only through Hard Ma
 
 ## 5. A season
 
-**38 matchdays.** Each is one fixture: 8 cards in hand, 4 hands, 3 discards, no reshuffle (Balatro's
-rules). The target climbs geometrically from **100 on matchday 1 to 40,000 on matchday 38**, about
-19% harder each time, rounded to two significant figures. The end value is a tuning knob (`TARGET_END` in
-`round.js`): at 25,000 about 11% of a deck-building bot's seasons finish, at 40,000 about 2%, at 55,000 0.4%,
-at 70,000 none (500 runs each).
+**38 matchdays.** Each is one fixture: 8 cards in hand, 4 hands, 3 discards, no reshuffle (Balatro's rules). The
+target climbs geometrically from **100 on matchday 1 to 40,000 on matchday 38**, about 17% harder each time, rounded
+to two significant figures. The end value is a tuning knob (`TARGET_END` in `round.js`), set with the sim on the real
+economy: a shopping bot finishes 12% of seasons at 30,000, 4% at 40,000, 1% at 50,000 and none at 80,000.
 
-**The wheel.** Before each fixture a wheel picks the category, one slice each (equal, adjustable weights). Luck
-decides the fixture; the deck you have built decides how well you cope, and building for more than one stat is
-the answer to the wheel.
+**The flow** (`season.js`, a pure state machine the page, the tests and the bots all drive):
+
+1. **Intro.** The wheel has picked the matchday's category. You may use VAR, then kick off.
+2. **The fixture.** Reach the target within four hands.
+3. **Win:** you are paid and the shop opens (after matchday 38 you are champions). **Lose:** you are sacked, and the
+   season is over.
+
+**The wheel.** One slice per category (equal weights, adjustable in `WHEEL`). Luck decides the fixture; the squad you
+have built decides how well you cope, and building for more than one stat is the answer to the wheel.
 
 **VAR.** You have **5 reviews a season**. VAR overturns the spin and spins again, to a **different** category.
-Only before you play a hand. It is the player's agency against the wheel, and it is scarce on purpose.
-(Sim: both bots spend all five every season, so five may be too few, or the bot policy too eager. A human will tell.)
+Only before kick-off. Both bots spend all five every season, so it is scarce enough to matter.
+
+**Money.** You start with £4. A win pays **£4 plus £1 for each hand you did not need** (£4 to £7).
+
+**The shop**, after every win:
+
+| Offer | Price | Notes |
+|---|---|---|
+| Sticker Pack | £4 | five stickers from anywhere |
+| Club Pack | £6 | five stickers from clubs already in your squad |
+| Squad Pack | £8 | five stickers from team-seasons already in your squad (this is how you build Back Four and Invincibles) |
+| Manager | £4-£7 (their cost) | up to 5 slots; sell one for half |
+| Training | £3 + £2 per level the hand already has | the hand you play most, plus one other. +chips and +mult every time you play it |
+| Reroll | £2, then £3, £4... | replaces the stock |
+| Release a sticker | £1 | thins the squad; the squad cannot go under 16 |
+
+Two packs, two managers and two trainings are in stock; packs are Sticker / Club / Squad in the ratio 5:3:2. A pack
+is opened at once and **you keep one of the five**.
+
+*Why keep one, not two* (sim): a shopping bot reached a median of 29 matchdays keeping one and 27 keeping two. A
+squad that bloats plays less reliably (the keep-two bot had 76 stickers by matchday 30), so keep-one is both simpler and
+better. *Why training offers your favourite hand:* with a random hand on offer, the first shop offered "Training:
+Kickabout" and the bot trained every hand once; offering the hand you play most lifted the shopping bot from a 2% to a
+12% finish rate at the same targets, which is why the target curve was re-measured afterwards.
+
+**Saving.** Everything random comes from labelled seed streams (spins, deals, shop stock, pack contents), so a seed
+is a whole season and a save is small. The page saves in the shop and at each matchday intro (`localStorage`). A
+fixture in progress is not saved: after a reload you kick off again and get the **same deal** (same seed).
 
 **Starter squad**: 24 mid-table cards (rating 25-80): 3 clubs × 3 consecutive calendar seasons,
 2 GK / 8 DEF / 8 MID / 6 FWD. Any era can supply one (every card has the same stats), so a squad
@@ -162,33 +193,33 @@ colours are used, but no crests, logos or photos: the art is a generic silhouett
 
 ## 7. What the simulator found
 
-`npm run simulate`: three bots, 500 runs each, deterministic from a seed. The wheel picks every category.
-`random` plays 1-5 random cards. `greedy` plays the best-scoring hand, discards when behind pace, never discards a
-keeper, and spends VAR when its deck is weak in the spun category. `greedy+` is `greedy` plus a pack after each win
-(keeps the two cards that best fit its deck), and every 5th matchday a random manager and a training level for its
-favourite hand.
+`npm run simulate`: three bots, 500 runs each, deterministic from a seed, playing whole seasons **through the real
+season engine** (spin, VAR, kick-off, payout, shop). `random` plays 1-5 random cards and never uses VAR. `greedy` plays
+the best-scoring hand, discards when behind pace, never discards a keeper, and spends VAR when its deck is weak in the
+spun category; it earns money but never shops. `greedy+` also shops: managers first, then training for its favourite
+hand, then the best pack it can afford, keeping the one sticker that best fits its squad. It never rerolls or sells.
 
 | Bot | Matchdays cleared (of 38) | Best 10% reach | Full seasons |
 |---|---|---|---|
 | random | median 4 | 7 | 0 / 500 |
-| greedy, starter squad only | median 16 | 19 | 0 / 500 |
-| greedy+ | median 26 | 34 | 10 / 500 (2%) |
+| greedy, no shop | median 16 | 19 | 0 / 500 |
+| greedy+, shops | median 31 | 36 | 19 / 500 (4%) |
 
-1. **The curve works.** Random play is dead by matchday 4, a competent player on the bare starter squad runs out of
-   steam around matchday 16, and building a deck gets about 1.6x that. A few runs finish, which suits a roguelike.
+1. **The curve works, and the shop is worth about 2x.** Random play is dead by matchday 4, a competent player on the bare
+   starter squad runs out of steam around matchday 16, and shopping roughly doubles that. A few runs finish, which suits
+   a roguelike.
 2. **Category luck is no longer decisive.** With seven categories (four of them partial) the same starter squad won
    100% of Games rounds and about 2% of Saves rounds at one target. With four complete categories, a wheel and VAR:
 
    | category | greedy | greedy+ |
    |---|---|---|
-   | goals | 80% | 93% |
-   | assists | 88% | 95% |
-   | games | 100% | 98% |
+   | goals | 80% | 95% |
+   | assists | 87% | 95% |
+   | games | 100% | 99% |
    | discipline | 98% | 97% |
 
-   The spread is goals at the bottom and games at the top, about 20 points for the bare squad and 5 for a built
-   deck. (With red cards as a category of their own the weak slice was 77% / 90%; see section 2.) Both bots still
-   spend VAR (4.9 and 4.0 of 5 a season), a little less than before, since no slice needs rescuing.
+   The spread is goals at the bottom and games at the top, about 20 points for the bare squad and 4 for a built deck.
+   Combining yellow and red cards into Discipline took that slice from 77% to 98% (section 2).
 3. **Starter squad shape drives the hand mix.** With 4 team-seasons of 6 cards (the first attempt), Back Four and
    Full Strength were 73% of all plays, i.e. the aspirational hands were routine. 3 clubs × 3 seasons is the only
    shape tried that spreads plays across Full Strength, Club Side, Run and the pair hands.
@@ -197,12 +228,19 @@ favourite hand.
    keeper. Safe Hands helped a little (39% to 28% for the bare squad) by making the keeper worth holding. Candidates:
    score only one card per position; require 5 cards; make keepers rarer in packs; or accept it as the bread-and-butter
    hand and let managers and training make the group hands outscale it. Needs a human playtest.
-5. **Never made by either bot:** Invincibles, Back Four, Dynasty. They need deck-building the bot doesn't do
+5. **Money is not what limits the shopping bot.** It fills all five manager slots by matchday 5, then buys packs, and ends
+   every shop with about £8 unspent. By matchday 30 it holds 46 stickers (from 24). So prices could be harsher without
+   changing the sim, and the real constraint is choosing well: which manager, which hand to train, which sticker to
+   keep. That is a design question for a human playtest. The bot's release heuristic made no measurable difference, so
+   release is a player tool, not something the economy leans on.
+6. **Never made by either bot:** Invincibles, Back Four, Dynasty. They need deck-building the bot doesn't do
    (collecting several seasons of one club or one player). That is the intent (they are the chase) but it means
    they are untested under real play. Because players now keep one id across 2016, a Hat-trick or Dynasty can span
    any seasons of a career.
 
 ## 8. Not built
 
-Run loop and shop · the sticker album (persistence, page completion, perks) · swaps · boss-fixture rules ·
-sound · saving · managers that use yellow and red cards directly · a way to earn or buy more VAR.
+The sticker album (persistence between seasons, page completion, perks) · swaps · boss-fixture rules · sound ·
+managers that use yellow and red card counts directly · a way to earn or buy more VAR · interest on saved money ·
+anything that spends the unspent £8 the bot ends each shop with · a second pair of eyes: **nobody has playtested this
+yet except bots**. The first human season is the most valuable thing to do next.

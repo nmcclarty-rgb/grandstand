@@ -11,7 +11,8 @@ export function makePool(json) {
     if (!byTeam.has(k)) byTeam.set(k, []);
     byTeam.get(k).push(c);
   }
-  return { cards, scale: json.meta.chipScale, seasons: json.meta.seasons, clubs: json.meta.clubs, byTeam };
+  const byId = new Map(cards.map((c) => [c.id, c]));
+  return { cards, byId, scale: json.meta.chipScale, seasons: json.meta.seasons, clubs: json.meta.clubs, byTeam };
 }
 
 let uidCounter = 0;
@@ -74,8 +75,12 @@ export const TIERS = [
 ];
 export const EDITION_ODDS = [['base', 86], ['shiny', 8], ['holo', 4], ['gold', 2]];
 
-export function openPack(pool, rng, size = 5) {
-  const tiers = TIERS.map((t) => ({ ...t, cards: pool.cards.filter((c) => c.rating >= t.min && c.rating <= t.max) }));
+// filter: optional predicate on a card. A club pack only draws from clubs you own, a squad pack only from team-seasons
+// you own; rarity odds apply within whatever the pool leaves.
+export function openPack(pool, rng, size = 5, { filter } = {}) {
+  const cards = filter ? pool.cards.filter(filter) : pool.cards;
+  if (!cards.length) throw new Error('no cards match this pack');
+  const tiers = TIERS.map((t) => ({ ...t, cards: cards.filter((c) => c.rating >= t.min && c.rating <= t.max) })).filter((t) => t.cards.length);
   return Array.from({ length: size }, () => {
     const tier = rng.weighted(tiers.map((t) => [t, t.weight]));
     return instance(rng.pick(tier.cards), rng.weighted(EDITION_ODDS));

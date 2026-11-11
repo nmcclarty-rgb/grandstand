@@ -8,7 +8,7 @@ export const RULES = { handSize: 8, hands: 4, discards: 3 };
 // (geometrically) from TARGET_START to TARGET_END. The end value is a tuning knob: see tools/simulate.mjs.
 export const SEASON_LENGTH = 38;
 export const TARGET_START = 100;
-export const TARGET_END = 40000; // tools/simulate.mjs: ~2% of a deck-building bot's seasons finish at this value (11% at 25,000, none at 70,000)
+export const TARGET_END = 40000; // tools/simulate.mjs, real economy: ~4% of a shopping bot's seasons finish here (12% at 30,000, 1% at 50,000, none at 80,000)
 
 // Two significant figures, so targets read as 120 or 1,400 and not 118 or 1,396.
 const nice = (x) => { const p = 10 ** (Math.floor(Math.log10(x)) - 1); return Math.round(x / p) * p; };

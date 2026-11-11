@@ -4,23 +4,23 @@
 //   node tools/simulate.mjs --runs 500 --seed 7
 //   node tools/simulate.mjs --end 50000      # tune the last matchday's target (default 40000)
 //
-// A season is 38 matchdays. After every win the greedy+ bot gets a pack; every 5th matchday it also gets a
-// manager and a training level.
+// A season is 38 matchdays, played through the real season engine (spin, VAR, kick-off, payout, shop).
 //
 // Three bots, three questions:
-//   random      plays 1-5 random cards.            "How bad is not trying?"
-//   greedy      best-scoring hand it can find,     "How far does a competent player get with
-//               discards when behind pace.          nothing but the starter squad?"
-//   greedy+     greedy, plus a pack after every win (keeps the 2 cards that best fit its deck),
-//               a random manager every 5 matchdays, and a training level for its favourite hand.
-//               "Does the curve still bite once the economy is feeding the deck?"
+//   random      plays 1-5 random cards, never uses VAR.   "How bad is not trying?"
+//   greedy      best-scoring hand it can find, discards when behind pace, never discards a keeper, spends VAR when
+//               its deck is weak in the spun category. Earns money but never shops.
+//               "How far does a competent player get with nothing but the starter squad?"
+//   greedy+     greedy that also shops: managers, then training for its favourite hand, then the best pack it can
+//               afford (keeps the two stickers that fit its squad).
+//               "Does the economy turn a squad into something that can finish a season?"
 import { readFileSync } from 'node:fs';
 import { makeRng } from '../src/engine/rng.js';
-import { makePool, starterDeck, openPack, STARTER_SHAPE } from '../src/engine/deck.js';
-import { startRound, playHand, discard, fixtureTarget, SEASON_LENGTH, TARGET_START, TARGET_END, spinWheel, WHEEL, VAR_PER_SEASON } from '../src/engine/round.js';
-import { scoreHand } from '../src/engine/scoring.js';
+import { makePool, STARTER_SHAPE } from '../src/engine/deck.js';
+import { playHand, discard, fixtureTarget, SEASON_LENGTH, TARGET_START, TARGET_END, VAR_PER_SEASON } from '../src/engine/round.js';
+import { newSeason, useVar, kickOff, finishMatchday, nextMatchday, buy, takePack, priceOf, releaseCard, ECONOMY } from '../src/engine/season.js';
+import { bestPlay as advisorBestPlay } from '../src/engine/advisor.js';
 import { CATEGORY_KEYS, cardChips, teamKey } from '../src/engine/cards.js';
-import { JOKER_IDS } from '../src/engine/jokers.js';
 
 const arg = (name, dflt) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -28,38 +28,16 @@ const arg = (name, dflt) => {
 };
 const RUNS = arg('runs', 200);
 const SEED = arg('seed', 1);
-const MAX_MANAGERS = 5;
-const MILESTONE = 5; // matchdays between manager / training rewards
+// economy knobs, for tuning: --pick N (stickers kept from a pack), --win N (payout), --release 1 (the bot thins its squad)
+if (process.argv.includes('--pick')) ECONOMY.pick = arg('pick', ECONOMY.pick);
+if (process.argv.includes('--win')) ECONOMY.winPayout = arg('win', ECONOMY.winPayout);
+const RELEASE = arg('release', 0);
 const TARGETS = { start: arg('start', TARGET_START), end: arg('end', TARGET_END) };
 const SHAPE = { clubs: arg('clubs', STARTER_SHAPE.clubs), seasons: arg('seasons', STARTER_SHAPE.seasons) };
 const pool = makePool(JSON.parse(readFileSync(new URL('../src/data/cards.json', import.meta.url), 'utf8')));
 
 // ---- bots ---------------------------------------------------------------------------
-function subsets(n, maxSize) {
-  const out = [];
-  const rec = (start, cur) => {
-    if (cur.length) out.push([...cur]);
-    if (cur.length === maxSize) return;
-    for (let i = start; i < n; i++) { cur.push(i); rec(i + 1, cur); cur.pop(); }
-  };
-  rec(0, []);
-  return out;
-}
-const SUBSETS = subsets(8, 5);
-
-function ctxOf(s, held) {
-  return { category: s.category, scale: s.scale, jokers: s.jokers, handLevels: s.handLevels, held, state: { handsLeft: s.handsLeft, discardsLeft: s.discardsLeft } };
-}
-function bestPlay(s) {
-  let best = null;
-  for (const idx of SUBSETS) {
-    if (idx[idx.length - 1] >= s.hand.length) continue;
-    const held = s.hand.filter((_, i) => !idx.includes(i)); // a keeper left in hand adds Safe Hands
-    const r = scoreHand(idx.map((i) => s.hand[i]), ctxOf(s, held));
-    if (!best || r.total > best.total) best = { idx, total: r.total, scoring: r.scoring };
-  }
-  return best;
-}
+const bestPlay = advisorBestPlay;
 
 const bots = {
   random(s, rng) {
@@ -80,45 +58,63 @@ const bots = {
   },
 };
 
-// ---- a run --------------------------------------------------------------------------
-function playRun(botName, rewarded, seed) {
-  const rng = makeRng(`${seed}`);
-  const run = { deck: starterDeck(pool, rng, SHAPE), jokers: [], handLevels: {}, scale: pool.scale };
+// ---- a season, played through the real season engine --------------------------------------------------------
+const deckStrength = (run, cat) => run.deck.map((c) => cardChips(c, cat, pool.scale)).sort((a, b) => b - a).slice(0, 8).reduce((a, b) => a + b, 0);
+
+// The shopping bot: managers first (they multiply everything), then training for the hand it plays most, then the best
+// pack it can afford, keeping the two stickers that fit its squad. It never rerolls and never sells.
+function shop(run, played) {
+  const want = (c, teams, clubs) => c.rating + (teams.has(teamKey(c)) ? 60 : 0) + (clubs.has(c.club) ? 30 : 0);
+  const fav = Object.entries(played).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([h]) => h);
+  for (let guard = 0; guard < 20; guard++) {
+    const open = run.shop.offers.filter((o) => !o.bought && priceOf(run, o) <= run.money);
+    const mgr = open.find((o) => o.kind === 'manager' && run.jokers.length < ECONOMY.managerSlots);
+    const trn = open.find((o) => o.kind === 'training' && fav.includes(o.hand));
+    const packs = open.filter((o) => o.kind === 'pack').sort((a, b) => priceOf(run, b) - priceOf(run, a));
+    const pick = mgr ?? trn ?? packs[0];
+    if (!pick) return;
+    buy(run, pick.slot);
+    if (run.pack) {
+      const teams = new Set(run.deck.map(teamKey)), clubs = new Set(run.deck.map((c) => c.club));
+      const best = [...run.pack.cards].sort((a, b) => want(b, teams, clubs) - want(a, teams, clubs)).slice(0, ECONOMY.pick);
+      takePack(run, best.map((c) => c.uid));
+    }
+  }
+  // thin the squad: release the stickers that fit it least, keeping two keepers (they are worth holding)
+  if (RELEASE) {
+    const teams = new Set(), clubs = new Set();
+    const count = (m, k) => m.set(k, (m.get(k) ?? 0) + 1);
+    const tc = new Map(), cc = new Map();
+    for (const c of run.deck) { count(tc, teamKey(c)); count(cc, c.club); }
+    const keep = (c) => c.rating + 25 * (tc.get(teamKey(c)) - 1) + 10 * (cc.get(c.club) - 1);
+    const out = [...run.deck].filter((c) => c.pos !== 'GK').sort((a, b) => keep(a) - keep(b));
+    for (const c of out) {
+      if (run.deck.length <= Math.max(ECONOMY.minDeck, RELEASE) || run.money < ECONOMY.releaseCost + 4) break;
+      releaseCard(run, c.uid);
+    }
+  }
+}
+
+function playRun(botName, shops, seed) {
+  const rng = makeRng(`${seed}:bot`);
+  const run = newSeason(pool, seed, { targets: TARGETS });
   const results = [];
-  const played = {};
-  let varLeft = VAR_PER_SEASON, varUsed = 0;
   results.varUsed = 0;
-  for (let matchday = 1; matchday <= SEASON_LENGTH; matchday++) {
-    let category = spinWheel(rng);
+  const played = {};
+  while (run.status === 'playing') {
     // VAR: a bot that knows its deck overturns a spin that lands on a category the deck is weak in
-    if (botName !== 'random' && varLeft > 0) {
-      const strength = (cat) => run.deck.map((c) => cardChips(c, cat, pool.scale)).sort((a, b) => b - a).slice(0, 8).reduce((a, b) => a + b, 0);
-      const best = Math.max(...CATEGORY_KEYS.map(strength));
-      if (strength(category) < 0.5 * best) { category = spinWheel(rng, WHEEL, { not: category }); varLeft--; varUsed++; results.varUsed = varUsed; }
+    if (botName !== 'random' && run.varLeft > 0) {
+      const best = Math.max(...CATEGORY_KEYS.map((c) => deckStrength(run, c)));
+      if (deckStrength(run, run.fixture.category) < 0.5 * best) { useVar(run); results.varUsed++; }
     }
-    const s = startRound(run, { target: fixtureTarget(matchday, TARGETS), category, rng });
+    const category = run.fixture.category;
+    const round = kickOff(run);
     let guard = 0;
-    while (s.status === 'playing' && guard++ < 50) bots[botName](s, rng);
-    results.push({ won: s.status === 'won', score: s.score, handsLeft: s.handsLeft, category, plays: s.plays.map((p) => p.type) });
-    for (const p of s.plays) played[p.type] = (played[p.type] ?? 0) + 1;
-    if (s.status !== 'won') return results;
-    if (rewarded) {
-      // a player builds around what they already own: prefer team-mates and club-mates
-      const teams = new Set(run.deck.map((c) => teamKey(c)));
-      const clubs = new Set(run.deck.map((c) => c.club));
-      const want = (c) => c.rating + (teams.has(teamKey(c)) ? 60 : 0) + (clubs.has(c.club) ? 30 : 0);
-      const pack = openPack(pool, rng).sort((a, b) => want(b) - want(a));
-      run.deck.push(...pack.slice(0, 2));
-      if (matchday % MILESTONE === 0) {
-        if (run.jokers.length < MAX_MANAGERS) {
-          const free = JOKER_IDS.filter((id) => !run.jokers.includes(id));
-          run.jokers.push(rng.pick(free));
-        }
-        // training: level up the hand you play most
-        const fav = Object.entries(played).sort((a, b) => b[1] - a[1])[0]?.[0];
-        if (fav) run.handLevels[fav] = (run.handLevels[fav] ?? 1) + 1;
-      }
-    }
+    while (round.status === 'playing' && guard++ < 50) bots[botName](round, rng);
+    for (const p of round.plays) played[p.type] = (played[p.type] ?? 0) + 1;
+    const fin = finishMatchday(run);
+    results.push({ won: fin.won, handsLeft: round.handsLeft, category, plays: round.plays.map((p) => p.type), managers: run.jokers.length, deck: run.deck.length, money: run.money });
+    if (run.phase === 'shop') { if (shops) shop(run, played); nextMatchday(run); }
   }
   return results;
 }
@@ -126,8 +122,8 @@ function playRun(botName, rewarded, seed) {
 // ---- report -------------------------------------------------------------------------
 const configs = [
   ['random', 'random', false],
-  ['greedy', 'greedy', false],
-  ['greedy+', 'greedy', true],
+  ['greedy', 'greedy', false],     // earns money but never shops
+  ['greedy+', 'greedy', true],     // shops
 ];
 const table = {};
 const t0 = Date.now();
@@ -159,6 +155,14 @@ for (const [label] of configs) {
 
 const used = (l) => (table[l].runs.reduce((a, r) => a + r.varUsed, 0) / RUNS).toFixed(1);
 console.log(`\nVAR reviews used per season (of ${VAR_PER_SEASON}): greedy ${used('greedy')}, greedy+ ${used('greedy+')}`);
+
+// ---- what the shopping bot ends up with ----------------------------------------------------------------------
+{
+  const rows = table['greedy+'].runs;
+  const at = (md) => { const r = rows.filter((x) => x.length >= md).map((x) => x[md - 1]); return r.length ? { n: r.length, managers: r.reduce((a, x) => a + x.managers, 0) / r.length, deck: r.reduce((a, x) => a + x.deck, 0) / r.length, money: r.reduce((a, x) => a + x.money, 0) / r.length } : null; };
+  console.log('\ngreedy+ after matchday: managers owned / squad size / unspent money  (runs still going)');
+  for (const md of [5, 10, 15, 20, 25, 30]) { const x = at(md); if (x) console.log(`  ${String(md).padStart(2)}: ${x.managers.toFixed(1)} / ${x.deck.toFixed(0)} / £${x.money.toFixed(0)}  (${x.n})`); }
+}
 
 // ---- does the category you draw decide the result? ------------------------------------
 console.log('\nwin rate by category (all fixtures played)');

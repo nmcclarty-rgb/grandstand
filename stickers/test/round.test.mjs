@@ -142,3 +142,18 @@ test('VAR spins again to a different category, and the same seed gives the same 
   assert.notEqual(seq(5), seq(6));
   assert.throws(() => spinWheel(makeRng(1), { goals: 1 }, { not: 'goals' }), /no slices/);
 });
+
+test('the advisor finds the best hand: it beats every other selection', async () => {
+  const { bestPlay } = await import('../src/engine/advisor.js');
+  const { scoreHand } = await import('../src/engine/scoring.js');
+  // a pair of team-mates with the big numbers is better than the five biggest numbers that share nothing
+  const mates = [mk({ club: 'ARS', goals: 6 }), mk({ club: 'ARS', goals: 5 })];
+  const loners = ['CHE', 'LIV', 'MCI', 'TOT', 'EVE', 'WHU'].map((club, i) => mk({ club, goals: 9 - i }));
+  const s = startRound(run([...mates, ...loners]), { target: 1e9, category: 'goals', rng: makeRng(1) });
+  const best = bestPlay(s);
+  assert.equal(best.total, scoreHand(best.idx.map((i) => s.hand[i]), { category: 'goals', scale, jokers: [], handLevels: {}, held: s.hand.filter((_, i) => !best.idx.includes(i)), state: { handsLeft: 4, discardsLeft: 3 } }).total);
+  for (const idx of [[0], [0, 1], [2, 3, 4, 5, 6], [0, 2, 3]]) {
+    const total = scoreHand(idx.map((i) => s.hand[i]), { category: 'goals', scale, jokers: [], handLevels: {}, held: s.hand.filter((_, i) => !idx.includes(i)), state: { handsLeft: 4, discardsLeft: 3 } }).total;
+    assert.ok(best.total >= total, `${idx} scored ${total} but the advisor's best is ${best.total}`);
+  }
+});

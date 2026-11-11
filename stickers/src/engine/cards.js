@@ -11,10 +11,10 @@ export const POSITIONS = ['GK', 'DEF', 'MID', 'FWD'];
 // RULE: only stats that exist for every season (1992/93 to 2025/26): goals, assists, games, yellow and red
 // cards. Cards are one category, Discipline, because red cards alone are too rare to be a category. Clean sheets, saves and the like are not recorded for the early seasons, so they are not used.
 export const CATEGORIES = {
-  goals:      { label: 'GOALS',        short: 'GOALS',      unit: 'goals' },
-  assists:    { label: 'ASSISTS',      short: 'ASSISTS',    unit: 'assists' },
-  games:      { label: 'GAMES PLAYED', short: 'GAMES',      unit: 'games' },
-  discipline: { label: 'DISCIPLINE',   short: 'DISCIPLINE', unit: 'points' },
+  goals:      { label: 'GOALS',        short: 'GOALS',      unit: 'goals',  blurb: 'Every sticker is worth chips for the goals it scored.' },
+  assists:    { label: 'ASSISTS',      short: 'ASSISTS',    unit: 'assists', blurb: 'Every sticker is worth chips for the assists it made.' },
+  games:      { label: 'GAMES PLAYED', short: 'GAMES',      unit: 'games',  blurb: 'Every sticker is worth chips for the games it played.' },
+  discipline: { label: 'DISCIPLINE',   short: 'DISCIPLINE', unit: 'points', blurb: 'Every sticker is worth chips for its record: a yellow card is 1 point, a red card is 3.' },
 };
 export const CATEGORY_KEYS = Object.keys(CATEGORIES);
 
