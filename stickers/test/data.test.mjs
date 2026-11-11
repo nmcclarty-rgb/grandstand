@@ -103,6 +103,10 @@ test('FBref seasons: anchors, merged exports, mid-season movers', () => {
   assert.equal(get('Drogba', '2009-10', 'CHE').goals, 29);
   assert.equal(get('Rooney', '2009-10', 'MUN').goals, 26);
   assert.equal(get('Tevez', '2009-10', 'MCI').goals, 23);
+  assert.equal(get('Berbatov', '2010-11', 'MUN').goals, 20);
+  assert.equal(get('Tevez', '2010-11', 'MCI').goals, 20);
+  assert.equal(get('van Persie', '2011-12', 'ARS').goals, 30);
+  assert.equal(get('Agüero', '2011-12', 'MCI').goals, 23);
   // 2001/02 was a Z-A export plus an A-Z one: surnames at the A end only exist because both were merged
   assert.ok(get('Bergkamp', '2001-02', 'ARS') && get('Anelka', '2001-02', 'LIV'));
   // Sheringham left Forest for Spurs mid-season: two cards, two clubs
@@ -113,7 +117,7 @@ test('FBref seasons: anchors, merged exports, mid-season movers', () => {
     assert.deepEqual([c.cleanSheets, c.saves, c.bonus, c.price, c.points], [0, 0, 0, 0, 0], c.id);
     assert.ok(c.games > 0);
   }
-  assert.deepEqual(meta.sources.fbref, ['1992-93', '1993-94', '1994-95', '1996-97', '1997-98', '1998-99', '1999-00', '2000-01', '2001-02', '2002-03', '2003-04', '2004-05', '2005-06', '2006-07', '2007-08', '2008-09', '2009-10']);
+  assert.deepEqual(meta.sources.fbref, ['1992-93', '1993-94', '1994-95', '1996-97', '1997-98', '1998-99', '1999-00', '2000-01', '2001-02', '2002-03', '2003-04', '2004-05', '2005-06', '2006-07', '2007-08', '2008-09', '2009-10', '2010-11', '2011-12']);
 });
 
 test('every FBref season has a plausible number of goals on the cards', () => {
