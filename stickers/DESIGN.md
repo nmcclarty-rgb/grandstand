@@ -112,17 +112,17 @@ know yet; an unknown club stops the build rather than guessing.
   and not comparable across eras. It decides pack rarity.
 - Display names come from the full name by a heuristic (last word, plus particles like van/del/Dalla/Boa, minus Jr./Sr.), pinned by tests; an odd one is a one-line fix in `build-cards.mjs`.
 - **The two sources agree where they overlap.** `npm run crosscheck` compares FBref exports for 2016/17 to
-  2023/24 (kept in `data/fbref/overlap/`, git-ignored, not read by the build) with the FPL cards, matched by
-  name and club. Over 8 seasons and ~2,800 matched players: **goals equal for 99.2%**, **games within 1 for 98.5%**.
-  The disagreements are mid-season transfers (FPL gives the whole season to the last club: Sanchez shows 9
-  for Manchester United where FBref has 2 for them) and one disputed goal (Kane 2017/18: 30 in FBref, 29 in
-  FPL). **Assists equal for only 67.5%** (60% to 73% by season): FPL uses its own assist definition and FBref uses Opta's. So
+  2025/26, i.e. every FPL season (kept in `data/fbref/overlap/`, git-ignored, not read by the build) with the FPL cards, matched by
+  name and club. Over 10 seasons and ~3,500 matched players: **goals equal for 99.1%**, **games within 1 for 98.5%**.
+  The disagreements are mid-season transfers (FPL gives the whole season to the last club: Semenyo 2025/26 shows 17 for
+  Manchester City where FBref has 7 for them) and one disputed goal (Kane 2017/18: 30 in FBref, 29 in
+  FPL). **Assists equal for only 68.5%** (60% to 73% by season): FPL uses its own assist definition and FBref uses Opta's. So
   an assist is slightly different before and after 2016/17, which matters for Assists rounds.
 - Players are not yet linked across the two sources, so a Hat-trick can only be built within one source:
   Kane's 2015/16 card (FBref) and 2016/17 card (FPL) are different players to the engine. The seasons now join
   up (1996/97 to 2025/26 is unbroken), so this is the next data problem. FBref ids are `fb:<name>:<birth year>`;
-  FPL ids are numbers and carry no birth year in `cards.json`. Name plus club alone matched only 81% of
-  players in the cross-check (73% to 90% by season, falling steadily: 2023/24 is the worst) (misses: "Willian", "Bernardo Silva", "Gylfi Sigurdsson" against FPL's full
+  FPL ids are numbers and carry no birth year in `cards.json`. Name plus club alone matched only 80% of
+  players in the cross-check (73% to 90% by season, falling with recency) (misses: "Willian", "Bernardo Silva", "Gylfi Sigurdsson" against FPL's full
   legal names, and anyone who moved mid-season), so linking needs a looser name match plus age.
 - The stats are FPL's for 2016+: *bonus points* and *value (£m)* are fantasy concepts used because they are there.
 
