@@ -17,7 +17,7 @@
 import { readFileSync } from 'node:fs';
 import { makeRng } from '../src/engine/rng.js';
 import { makePool, STARTER_SHAPE } from '../src/engine/deck.js';
-import { playHand, discard, fixtureTarget, SEASON_LENGTH, TARGET_START, TARGET_END, VAR_PER_SEASON } from '../src/engine/round.js';
+import { playHand, discard, fixtureTarget, SEASON_LENGTH, TARGET_START, TARGET_END, TARGET_BEND, VAR_PER_SEASON } from '../src/engine/round.js';
 import { newSeason, useVar, kickOff, finishMatchday, nextMatchday, buy, takePack, priceOf, releaseCard, ECONOMY } from '../src/engine/season.js';
 import { bestPlay as advisorBestPlay } from '../src/engine/advisor.js';
 import { CATEGORY_KEYS, cardChips } from '../src/engine/cards.js';
@@ -31,8 +31,9 @@ const SEED = arg('seed', 1);
 // economy knobs, for tuning: --pick N (stickers kept from a pack), --win N (payout), --release 1 (the bot thins its squad)
 if (process.argv.includes('--pick')) ECONOMY.pick = arg('pick', ECONOMY.pick);
 if (process.argv.includes('--win')) ECONOMY.winPayout = arg('win', ECONOMY.winPayout);
+if (process.argv.includes('--markup')) ECONOMY.managerMarkup = arg('markup', ECONOMY.managerMarkup);
 const RELEASE = arg('release', 0);
-const TARGETS = { start: arg('start', TARGET_START), end: arg('end', TARGET_END) };
+const TARGETS = { start: arg('start', TARGET_START), end: arg('end', TARGET_END), bend: arg('bend', TARGET_BEND) };
 const SHAPE = { clubs: arg('clubs', STARTER_SHAPE.clubs), seasons: arg('seasons', STARTER_SHAPE.seasons) };
 const pool = makePool(JSON.parse(readFileSync(new URL('../src/data/cards.json', import.meta.url), 'utf8')));
 
@@ -137,7 +138,7 @@ for (const [label, bot, rewarded] of configs) {
 }
 
 const pct = (n, d) => (d ? `${String(Math.round((100 * n) / d)).padStart(3)}%` : '  - ');
-console.log(`\n${RUNS} runs per bot, seed ${SEED}, targets ${TARGETS.start} -> ${TARGETS.end}  (${((Date.now() - t0) / 1000).toFixed(1)}s)\n`);
+console.log(`\n${RUNS} runs per bot, seed ${SEED}, targets ${TARGETS.start} -> ${TARGETS.end} (bend ${TARGETS.bend})  (${((Date.now() - t0) / 1000).toFixed(1)}s)\n`);
 console.log('matchday   target |  random    |  greedy    |  greedy+   |  spare hands (greedy+)');
 console.log('-'.repeat(86));
 for (let i = 0; i < SEASON_LENGTH; i++) {

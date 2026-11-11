@@ -74,14 +74,17 @@ test('no reshuffle: a small deck runs dry and the hand shrinks', () => {
   assert.equal(s.drawPile.length, 0);
 });
 
-test('a season is 38 matchdays and the target climbs smoothly from 100 to 40,000', () => {
+test('a season is 38 matchdays and the target climbs smoothly from 800 to 40,000', () => {
   assert.equal(SEASON_LENGTH, 38);
   const targets = Array.from({ length: SEASON_LENGTH }, (_, i) => fixtureTarget(i + 1));
-  assert.equal(targets[0], 100);
+  assert.equal(targets[0], 800);
   assert.equal(targets[37], 40000);
   for (let i = 1; i < targets.length; i++) assert.ok(targets[i] > targets[i - 1], `matchday ${i + 1} must be harder than ${i}`);
-  // geometric: each step is about the same ratio (rounding to 2 figures allows a little wobble)
-  for (let i = 1; i < targets.length; i++) assert.ok(targets[i] / targets[i - 1] > 1.1 && targets[i] / targets[i - 1] < 1.3, `step ${i}`);
+  // front-loaded (TARGET_BEND): the early steps are the big ones, and the late climb is gentler than a pure geometric curve
+  const steps = targets.slice(1).map((t, i) => t / targets[i]);
+  assert.ok(steps[0] > steps.at(-1), 'the first step is bigger than the last');
+  for (const [i, r] of steps.entries()) assert.ok(r > 1.04 && r < 1.4, `step ${i + 1}: ${r}`);
+  assert.ok(targets[18] > 800 * (40000 / 800) ** 0.5, 'the middle of the season is harder than a pure geometric curve');
   // two significant figures
   for (const t of targets) assert.equal(Number(t.toPrecision(2)), t);
 });

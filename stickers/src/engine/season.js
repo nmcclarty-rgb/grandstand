@@ -23,6 +23,7 @@ export const ECONOMY = {
   trainingBase: 3, trainingStep: 2, // a hand's next level costs base + step x (levels it already has)
   releaseCost: 1, minDeck: 16,
   managerSlots: 5,
+  managerMarkup: 2,      // a manager's shop price is his cost x this (his sale value stays on his cost)
   sellRatio: 0.5,
 };
 
@@ -127,7 +128,7 @@ function makeShop(run, rerolls) {
     offers.push({ slot: `p${i}`, kind: 'pack', type, price: ECONOMY.pack[type], bought: false });
   }
   const free = JOKER_IDS.filter((id) => !run.jokers.includes(id));
-  rng.shuffle(free).slice(0, 2).forEach((id, i) => offers.push({ slot: `m${i}`, kind: 'manager', id, price: JOKERS[id].cost, bought: false }));
+  rng.shuffle(free).slice(0, 2).forEach((id, i) => offers.push({ slot: `m${i}`, kind: 'manager', id, price: JOKERS[id].cost * ECONOMY.managerMarkup, bought: false }));
   // training: the hand you play most (a random one before you have played any), and one other at random
   const favourite = Object.entries(run.played).sort((a, b) => b[1] - a[1])[0]?.[0] ?? rng.pick(HAND_ORDER);
   offers.push({ slot: 't0', kind: 'training', hand: favourite, bought: false });

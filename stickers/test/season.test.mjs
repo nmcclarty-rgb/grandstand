@@ -39,7 +39,7 @@ test('a new season: matchday 1, £4, a 24-card squad, 5 VARs, a category already
   assert.equal(run.phase, 'intro');
   assert.equal(run.status, 'playing');
   assert.ok(CATEGORY_KEYS.includes(run.fixture.category));
-  assert.equal(run.fixture.target, 100);
+  assert.equal(run.fixture.target, 800);
   assert.deepEqual(run.jokers, []);
 });
 
@@ -80,7 +80,7 @@ test('kick-off deals 8 cards with the matchday target and the spun category', ()
   const round = kickOff(run);
   assert.equal(run.phase, 'play');
   assert.equal(round.hand.length, 8);
-  assert.equal(round.target, 100);
+  assert.equal(round.target, 800);
   assert.equal(round.category, run.fixture.category);
   assert.throws(() => kickOff(run), /cannot kick off/);
 });
@@ -126,7 +126,7 @@ test('the shop has two packs, two managers you do not own and two trainings, and
   assert.deepEqual(kinds, ['manager', 'manager', 'pack', 'pack', 'training', 'training']);
   const managers = run.shop.offers.filter((o) => o.kind === 'manager');
   assert.equal(new Set(managers.map((o) => o.id)).size, 2);
-  for (const m of managers) assert.equal(m.price, JOKERS[m.id].cost);
+  for (const m of managers) assert.equal(m.price, JOKERS[m.id].cost * ECONOMY.managerMarkup);
   const packs = run.shop.offers.filter((o) => o.kind === 'pack');
   for (const p of packs) assert.equal(p.price, ECONOMY.pack[p.type]);
 });

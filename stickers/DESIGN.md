@@ -144,9 +144,14 @@ No manager uses the yellow or red card counts directly yet (only through Hard Ma
 ## 5. A season
 
 **38 matchdays.** Each is one fixture: 8 cards in hand, 4 hands, 3 discards, no reshuffle (Balatro's rules). The
-target climbs geometrically from **100 on matchday 1 to 40,000 on matchday 38**, about 17% harder each time, rounded
-to two significant figures. The end value is a tuning knob (`TARGET_END` in `round.js`), set with the sim on the real
-economy: a shopping bot finishes 12% of seasons at 30,000, 4% at 40,000, 1% at 50,000 and none at 80,000.
+target climbs from **800 on matchday 1 to 40,000 on matchday 38**, rounded to two significant figures, on a curve that is
+**front-loaded** (`TARGET_BEND` 0.7 in `round.js`): a pure geometric curve would be about 17% harder each day, the bend
+makes the early steps the big ones and the late ones gentler. A few targets: matchday 5 is 1,800, 10 is 3,400, 20 is 9,300,
+30 is 22,000. **Why it was retuned:** the first career-card build kept the old 100-to-40,000 curve and was far too easy
+(playtest: "the cumulative scores on the cards clear the targets quite easily"). Ratings made a card worth up to 60 chips
+and a starter-squad hand scores 600 to 1,000 on matchday 1, so for 20 matchdays the bots won every fixture with a single
+hand (spare hands: 3.0 of 4). Starting at 800 and bending the curve makes the bare starter squad fail around matchday 7.
+The end value is a tuning knob (`TARGET_END`).
 
 **The flow** (`season.js`, a pure state machine the page, the tests and the bots all drive):
 
@@ -170,7 +175,7 @@ Only before kick-off. Both bots spend all five every season, so it is scarce eno
 | Sticker Pack | £4 | five different players from anywhere |
 | Club Pack | £6 | five players who have played for a club in your squad |
 | Squad Pack | £8 | five players who were team-mates of someone in your squad (they share a club-season with one of your players: this is how you build Back Four and Invincibles) |
-| Manager | £4-£7 (their cost) | up to 5 slots; sell one for half |
+| Manager | £8-£14 (twice their cost, `managerMarkup`) | up to 5 slots; sell one for half of their cost (£2-£3) |
 | Training | £3 + £2 per level the hand already has | the hand you play most, plus one other. +chips and +mult every time you play it |
 | Reroll | £2, then £3, £4... | replaces the stock |
 | Release a sticker | £1 | thins the squad; the squad cannot go under 16 |
@@ -270,14 +275,20 @@ upgrade for one it owns). It never rerolls or sells. Numbers below are from the 
 
 | Bot | Matchdays cleared (of 38) | Best 10% reach | Full seasons |
 |---|---|---|---|
-| random | median 8 | 10 | 0 / 300 |
-| greedy, no shop | median 20 | 22 | 0 / 300 |
-| greedy+, shops | median 33 | 36 | 6 / 300 (2%) |
+| random | median 0 | 1 | 0 / 300 |
+| greedy, no shop | median 7 | 9 | 0 / 300 |
+| greedy+, shops | median 25 | 34 | 7 / 300 (2%) |
 
-1. **The curve still works on career cards.** Random play is dead by matchday 8, a competent player on the bare starter
-   squad runs out around 20, and shopping carries a bot to the low 30s. The season-card build was 4 / 16 / 31 with 4% finishing; the targets
-   were left at 40,000 and the finish rate dropped to 2%, so a human, who plays better than the bot, should finish more
-   often. Career ratings are gentler early than the old per-season numbers, and the starter squad is more coherent.
+1. **The first career curve was too easy; this one is not.** With the old 100-to-40,000 curve the bare squad cleared a median
+   20 matchdays and won every early fixture with one hand. Now: random play fails matchday 1 about 4 times in 5, the bare
+   squad dies around matchday 7, and a shopping bot reaches 25 with spare hands falling from 2.2 (matchday 1) to 1.3 (25)
+   to 0.7 (30). Two levers did it, in this order of effect: a **higher, front-loaded target curve** (800, bend 0.7) and
+   **managers at double price** (£8-£14: the shopping bot used to own all five by matchday 5 and now has 1.5 then, 3.5 by
+   15 and 4.5 by 25). Raising only the start (to 700 or 1,000, unbent) made early days harder but left the shopping bot
+   with a long stretch of 2.5 spare hands in the middle of the season, which is the "easy" the playtest felt.
+   Triple price was too much (a shopping bot clears a median 16). **Still true:** the shopping bot wins most fixtures with
+   about two hands until matchday 20; the curve gets hard in the 25s, not before. If a human still finds the middle easy,
+   next levers are training prices, a lower win payout, or a flat target on the last quarter.
 2. **Category luck is small.** Win rates by category: goals 92% / 96%, assists 93% / 96%, appearances 99%, discipline 97% / 98%
    (greedy / greedy+). **The bots never use VAR**: with ratings, every category is worth about the same to a balanced
    squad, so a bot never sees a category it is "weak in". VAR is a tool for a squad built around goals that draws appearances,

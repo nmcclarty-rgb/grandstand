@@ -7,16 +7,19 @@ export const RULES = { handSize: 8, hands: 4, discards: 3 };
 // A season is 38 matchdays, as in the league. Each is one fixture with its own target, climbing smoothly
 // (geometrically) from TARGET_START to TARGET_END. The end value is a tuning knob: see tools/simulate.mjs.
 export const SEASON_LENGTH = 38;
-export const TARGET_START = 100;
-export const TARGET_END = 40000; // tools/simulate.mjs, real economy: ~4% of a shopping bot's seasons finish here (12% at 30,000, 1% at 50,000, none at 80,000)
+export const TARGET_START = 800;
+export const TARGET_END = 40000; // tools/simulate.mjs on career cards, with TARGET_BEND and managers at double price: a shopping bot clears a median 25 matchdays, ~2% finish
+
+// bend < 1 front-loads the climb: the early matchdays are harder and the late ones climb more slowly (1 is a pure geometric curve).
+export const TARGET_BEND = 0.7;
 
 // Two significant figures, so targets read as 120 or 1,400 and not 118 or 1,396.
 const nice = (x) => { const p = 10 ** (Math.floor(Math.log10(x)) - 1); return Math.round(x / p) * p; };
 
 // matchday: 1..38
-export function fixtureTarget(matchday, { start = TARGET_START, end = TARGET_END, length = SEASON_LENGTH } = {}) {
+export function fixtureTarget(matchday, { start = TARGET_START, end = TARGET_END, length = SEASON_LENGTH, bend = TARGET_BEND } = {}) {
   if (!Number.isInteger(matchday) || matchday < 1 || matchday > length) throw new Error(`matchday must be 1-${length}`);
-  return nice(start * (end / start) ** ((matchday - 1) / (length - 1)));
+  return nice(start * (end / start) ** (((matchday - 1) / (length - 1)) ** bend));
 }
 
 // ---- the wheel ---------------------------------------------------------------------------------------------
