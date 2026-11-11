@@ -15,6 +15,7 @@ npm run fetch        # download the FPL season files (raw, git-ignored)
 npm run build:data   # FPL + data/fbref/*.xls -> src/data/cards.json (committed, so you can skip the two above)
 npm test             # 63 tests: hand rules, exact scoring arithmetic, managers, rounds, data anchors
 npm run simulate     # bots play whole runs; prints where the target curve breaks
+npm run crosscheck   # FBref vs FPL where they overlap (needs exports in data/fbref/overlap/)
 npm start            # http://localhost:8778 : the tabletop
 ```
 
@@ -25,7 +26,7 @@ src/engine/   rng · cards (categories, editions) · hands · jokers (managers) 
 src/ui/       card renderer, club colours, tabletop
 src/data/     cards.json: one card per player-season: every season 1992/93 to 2025/26 except 1995/96
 data/fbref/   hand-exported FBref tables (git-ignored); see DESIGN.md §6 for how to add a season
-tools/        fetch-data · fbref (export reader) · build-cards · simulate
+tools/        fetch-data · fbref (export reader) · clubs · build-cards · simulate · crosscheck
 test/         node:test suites
 ```
 

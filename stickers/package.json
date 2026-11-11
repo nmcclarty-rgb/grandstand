@@ -9,6 +9,7 @@
     "build:data": "node tools/build-cards.mjs",
     "test": "node --test \"test/*.test.mjs\"",
     "simulate": "node tools/simulate.mjs",
-    "start": "python3 -m http.server 8778"
+    "start": "python3 -m http.server 8778",
+    "crosscheck": "node tools/crosscheck.mjs"
   }
 }

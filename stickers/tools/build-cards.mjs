@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { parseCsvObjects } from './csv.mjs';
 import { SEASONS } from './seasons.mjs';
 import { loadFbrefSeasons, fbrefNumbers } from './fbref.mjs';
+import { CLUB_NAMES, FBREF_CLUBS } from './clubs.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MIN_MINUTES = 270; // three full games: below that a "season" is a cameo, not a sticker
@@ -22,35 +23,6 @@ const LEGACY_TEAMS = {
   '2016-17': ['ARS','BOU','BUR','CHE','CRY','EVE','HUL','LEI','LIV','MCI','MUN','MID','SOU','STK','SUN','SWA','TOT','WAT','WBA','WHU'],
   '2017-18': ['ARS','BOU','BHA','BUR','CHE','CRY','EVE','HUD','LEI','LIV','MCI','MUN','NEW','SOU','STK','SWA','TOT','WAT','WBA','WHU'],
   '2018-19': ['ARS','BOU','BHA','BUR','CAR','CHE','CRY','EVE','FUL','HUD','LEI','LIV','MCI','MUN','NEW','SOU','TOT','WAT','WHU','WOL'],
-};
-export const CLUB_NAMES = {
-  ARS: 'Arsenal', AVL: 'Aston Villa', BOU: 'Bournemouth', BRE: 'Brentford', BHA: 'Brighton',
-  BUR: 'Burnley', CAR: 'Cardiff', CHE: 'Chelsea', CRY: 'Crystal Palace', EVE: 'Everton',
-  FUL: 'Fulham', HUD: 'Huddersfield', HUL: 'Hull', IPS: 'Ipswich', LEE: 'Leeds', LEI: 'Leicester',
-  LIV: 'Liverpool', LUT: 'Luton', MCI: 'Man City', MUN: 'Man Utd', MID: 'Middlesbrough',
-  NEW: 'Newcastle', NOR: 'Norwich', NFO: "Nott'm Forest", SHU: 'Sheffield Utd', SOU: 'Southampton', STK: 'Stoke',
-  SUN: 'Sunderland', SWA: 'Swansea', TOT: 'Spurs', WAT: 'Watford', WBA: 'West Brom',
-  WHU: 'West Ham', WOL: 'Wolves',
-  BAR: 'Barnsley', BIR: 'Birmingham', BLA: 'Blackburn', BLP: 'Blackpool', BOL: 'Bolton', BRA: 'Bradford City',
-  CHA: 'Charlton', COV: 'Coventry', DER: 'Derby', OLD: 'Oldham', POR: 'Portsmouth', REA: 'Reading',
-  QPR: 'QPR', SHW: 'Sheffield Wed', SWI: 'Swindon', WIG: 'Wigan', WIM: 'Wimbledon',
-};
-// FBref spells clubs its own way; keyed by lower-case name. An unknown club is an error, not a guess.
-const FBREF_CLUBS = {
-  'arsenal': 'ARS', 'aston villa': 'AVL', 'barnsley': 'BAR', 'birmingham city': 'BIR', 'blackburn': 'BLA',
-  'blackburn rovers': 'BLA', 'blackpool': 'BLP', 'bolton': 'BOL', 'bolton wanderers': 'BOL', 'bournemouth': 'BOU',
-  'bradford city': 'BRA', 'brighton': 'BHA', 'burnley': 'BUR', 'cardiff city': 'CAR', 'charlton athletic': 'CHA',
-  'chelsea': 'CHE', 'coventry city': 'COV', 'crystal palace': 'CRY', 'derby county': 'DER', 'everton': 'EVE',
-  'fulham': 'FUL', 'huddersfield town': 'HUD', 'hull city': 'HUL', 'ipswich town': 'IPS', 'leeds united': 'LEE',
-  'leicester': 'LEI', 'leicester city': 'LEI', 'liverpool': 'LIV', 'manchester city': 'MCI', 'manchester utd': 'MUN',
-  'manchester united': 'MUN', 'middlesbrough': 'MID', 'newcastle': 'NEW', 'newcastle utd': 'NEW', 'newcastle united': 'NEW',
-  'norwich city': 'NOR', 'nottingham': 'NFO', "nott'ham forest": 'NFO', 'nottingham forest': 'NFO',
-  'oldham athletic': 'OLD', 'portsmouth': 'POR', 'qpr': 'QPR', 'queens park rangers': 'QPR', 'reading': 'REA',
-  'sheffield united': 'SHU', 'sheffield utd': 'SHU', 'sheffield weds': 'SHW', 'sheffield wednesday': 'SHW',
-  'southampton': 'SOU', 'stoke city': 'STK', 'sunderland': 'SUN', 'swansea city': 'SWA', 'swindon': 'SWI', 'swindon town': 'SWI',
-  'tottenham': 'TOT', 'tottenham hotspur': 'TOT', 'watford': 'WAT', 'west brom': 'WBA',
-  'west bromwich albion': 'WBA', 'west ham': 'WHU', 'west ham united': 'WHU', 'wigan athletic': 'WIG',
-  'wimbledon': 'WIM', 'wolves': 'WOL', 'wolverhampton wanderers': 'WOL',
 };
 const FBREF_POS = { GK: 'GK', DF: 'DEF', MF: 'MID', FW: 'FWD' };
 const PARTICLES = new Set(['van', 'von', 'de', 'der', 'den', 'di', 'da', 'dos', 'du', 'le', 'la', 'el', 'al', 'ten', 'ter',
