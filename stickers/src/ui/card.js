@@ -1,25 +1,21 @@
 // Draws one sticker: Panini border and foil, Top Trumps stat block.
-import { CATEGORIES, CATEGORY_KEYS, EDITIONS, cardChips, safeHands, statOf } from '../engine/cards.js';
-import { CLUB_COLOURS, inkOn } from './clubs.js';
+import { CATEGORIES, CATEGORY_KEYS, EDITIONS, cardChips, safeHands, statOf, surnameOf, firstNameOf } from '../engine/cards.js';
+import { cardTips } from './tips.js';
+import { CLUB_COLOURS, CLUB_LABELS, inkOn } from './clubs.js';
+import { badgeSvg } from './badge.js';
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const fmt = (key, v) => String(v);
 const season = (s) => `${s.slice(0, 4)}/${s.slice(5)}`; // 2017-18 -> 2017/18
-
-// A head-and-shoulders silhouette in the club shirt. No photo, no likeness.
-const bust = (c1, c2) => `
-<svg viewBox="0 0 100 80" aria-hidden="true">
-  <path d="M6 80 C8 56 26 50 50 50 C74 50 92 56 94 80 Z" fill="${c1}"/>
-  <path d="M38 50 L50 62 L62 50 Z" fill="${c2}"/>
-  <rect x="43" y="40" width="14" height="14" rx="5" fill="#2b2f36"/>
-  <ellipse cx="50" cy="27" rx="15" ry="18" fill="#2b2f36"/>
-</svg>`;
 
 // card: a card or card instance. opts: { category, scale, selected, state: 'scoring'|'kicker'|null }
 export function renderCard(card, opts = {}) {
   const { category, scale, selected = false, state = null } = opts;
   const [c1, c2] = CLUB_COLOURS[card.club] ?? ['#444444', '#ffffff'];
   const edition = card.edition ?? 'base';
+  const first = firstNameOf(card);
+  const sur = surnameOf(card);
+  const tips = cardTips(card, { category, scale });
   const el = document.createElement('div');
   el.className = `card ed-${edition}${selected ? ' selected' : ''}${state ? ` is-${state}` : ''}`;
   el.style.setProperty('--c1', c1);
@@ -30,22 +26,21 @@ export function renderCard(card, opts = {}) {
 
   const rows = CATEGORY_KEYS.map((key) => {
     const v = statOf(card, key);
-    const tip = key === 'discipline' ? ` title="${card.yellow} yellow, ${card.red} red: ${card.yellow} + 3 x ${card.red}"` : '';
     const active = key === category;
-    const chips = active && scale ? `<b class="chips">${cardChips(card, key, scale)}</b>` : '';
-    return `<li${tip} class="${active ? 'active' : ''}${v === 0 ? ' zero' : ''}"><span>${CATEGORIES[key].short}</span><i>${v === 0 ? '–' : fmt(key, v)}</i>${chips}</li>`;
+    const chips = active && scale ? `<b class="chips" data-tip="${esc(tips.chips[key])}">${cardChips(card, key, scale)}</b>` : '';
+    return `<li data-tip="${esc(tips.rows[key])}" class="${active ? 'active' : ''}${v === 0 ? ' zero' : ''}"><span>${CATEGORIES[key].short}</span><i>${v === 0 ? '–' : fmt(key, v)}</i>${chips}</li>`;
   }).join('');
 
   el.innerHTML = `
-    <div class="band"><span>${esc(card.club)}</span><span>${season(card.season)}</span></div>
+    <div class="band" data-tip="${esc(tips.band)}"><span class="club">${esc(CLUB_LABELS[card.club] ?? card.club)}</span><span>${season(card.season)}</span></div>
     <div class="art">
-      <div class="rating"><small>OVR</small>${card.rating}</div>
-      <div class="pos">${card.pos}</div>
-      ${bust(c1, c2)}
-      ${card.pos === 'GK' ? `<div class="abil" title="Held in your hand, not played: +${safeHands(card)} mult to every hand you play">SAFE HANDS +${safeHands(card)}</div>` : ''}
-      ${edition !== 'base' ? `<div class="edtag">${EDITIONS[edition].label}</div>` : ''}
+      <div class="rating" data-tip="${esc(tips.rating)}"><small>OVR</small>${card.rating}</div>
+      <div class="pos" data-tip="${esc(tips.pos)}">${card.pos}</div>
+      ${badgeSvg(card.club)}
+      ${tips.ability ? `<div class="abil" data-tip="${esc(tips.ability)}">SAFE HANDS +${safeHands(card)}</div>` : ''}
+      ${edition !== 'base' ? `<div class="edtag" data-tip="${esc(tips.edition)}">${EDITIONS[edition].label}</div>` : ''}
     </div>
-    <div class="name">${esc(card.name)}</div>
+    <div class="name${first ? '' : ' solo'}${sur.length > 15 ? ' xl' : sur.length > 11 ? ' long' : ''}" data-tip="${esc(tips.name)}">${first ? `<small>${esc(first)}</small>` : ''}<span>${esc(sur)}</span></div>
     <ul class="stats">${rows}</ul>`;
   return el;
 }

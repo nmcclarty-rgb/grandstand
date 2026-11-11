@@ -12,6 +12,7 @@ import {
   rerollCost, priceOf, sellManager, sellValue, releaseCard, trainingPrice,
 } from '../engine/season.js';
 import { renderCard } from './card.js';
+import { initTooltips } from './tooltip.js';
 
 const $ = (id) => document.getElementById(id);
 const n = (x) => x.toLocaleString('en-GB');
@@ -229,7 +230,7 @@ function renderHand(preview) {
     c.tabIndex = 0;
     c.setAttribute('role', 'button');
     c.setAttribute('aria-pressed', String(isSel));
-    c.setAttribute('aria-label', `${card.name}, ${card.club} ${card.season}, ${card.pos}. Press to ${isSel ? 'drop' : 'pick'}.`);
+    c.setAttribute('aria-label', `${card.full}, ${card.club} ${card.season}, ${card.pos}. Press to ${isSel ? 'drop' : 'pick'}.`);
     c.addEventListener('click', () => toggle(i));
     c.addEventListener('keydown', (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); toggle(i); } });
     hand.append(c);
@@ -497,6 +498,7 @@ function buildManual() {
       <li>Build around one or two clubs. Team-mate hands beat star power.</li>
       <li>Look at the strength bars before using VAR: spend it when the wheel lands on a stat your squad is weak in.</li>
       <li>Stuck? Press <b>Hint</b> to see the best hand in your eight.</li>
+      <li>Not sure what a number on a sticker means? <b>Hover over it</b> (on a phone, press and hold). Every number explains itself.</li>
     </ul>`;
 }
 
@@ -537,6 +539,7 @@ async function init() {
   buildWheel();
   buildManual();
   wire();
+  initTooltips();
   window.__game = { get run() { return run; }, pool };   // for tests and the curious
   if (params.get('seed')) $('t-seed').value = params.get('seed');
   showTitle();

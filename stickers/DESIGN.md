@@ -188,8 +188,30 @@ games, yellow, red, rating. Nothing else; a test whitelists the fields.
   The cross-check tool was removed with the second source.
 
 **Before this goes public:** FBref's figures are Opta's, and Sports Reference's terms apply to republishing them.
-The cards use real player names. Fine for a private prototype; a public release needs a licensing decision. Club
-colours are used, but no crests, logos or photos: the art is a generic silhouette.
+The cards use real player names. Fine for a private prototype; a public release needs a licensing decision. There are
+no photos and no real crests or logos (see "The card face"); the badges are generated.
+
+### The card face
+
+There are no headshots in the data, so a card is built from what we have. Top band: the club's name and the season.
+Art panel: a pale sunburst in the club's kit colours with the **club badge**, the overall rating (top left), the
+position (top right), and an edition tag or the goalkeeper's Safe Hands badge (bottom). Name band: the **first name**
+above the **surname** (a mononym such as Rodri or Willian has no first name; 94 do). Four stat rows, with the active
+category highlighted and its chips beside it.
+
+- **Badges are generated, not real crests.** Real club crests are trademarks and need licensed artwork, and we have none.
+  Each badge is a shield in the club's kit colours and a pattern that loosely follows its kit (stripes, hoops, halves, a
+  sash), with the club code. Fifty-one clubs, all distinct. `badge.js` is the one place to change when real artwork exists.
+- **First names** are derived from the stored full name (`firstNameOf` in `cards.js`): the first given name, or the part
+  after the surname for the surname-first names FBref writes ("Son Heung-min"). Tested on every card. The first name is also
+  what separates Ian Wright from Mark Wright now, so the card face no longer needs the initial ("I.Wright"), which stays
+  only in the short name used in the scoring trace.
+- **Every number explains itself on hover** (on a phone, press and hold): the rating, the position, the club and season,
+  the name, each stat, the chips, the keeper's Safe Hands, the edition. The wording is a pure function (`tips.js`) tested on
+  every card in every category, so a tip never says "undefined". It says, for example, "6 discipline points: 6 yellow cards
+  × 1 + 0 red cards × 3" and "Worth 58 chips in this matchday's games played round: 37 × 1.58 chips each". The 42-game
+  seasons say so ("scaled to 38"). One tooltip serves the whole page and lives inside an open dialog, because a dialog covers
+  the page.
 
 ## 7. What the simulator found
 

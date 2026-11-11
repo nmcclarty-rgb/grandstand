@@ -56,3 +56,25 @@ export function safeHands(card) {
   if (card.pos !== 'GK') return 0;
   return card.games >= 30 ? 3 : card.games >= 15 ? 2 : 1;
 }
+
+// ---- names ---------------------------------------------------------------------------------------------------
+// A card stores `full` ("Ian Wright") and `name`, the short display name, which carries an initial when the surname is
+// shared by four or more players ("I.Wright"). The card face shows the first name above the surname, so it needs the
+// two parts: the surname without the initial, and the first name.
+export const surnameOf = (card) => card.name.replace(/^[A-Z]\./, '');
+
+// The first given name: "Jimmy Floyd Hasselbaink" -> "Jimmy". '' for a mononym (Rodri, Willian, Jô). FBref writes some
+// East Asian names surname-first ("Son Heung-min"), so the first name is what follows the surname there.
+export function firstNameOf(card) {
+  const sur = surnameOf(card);
+  const full = card.full.replace(/\s+(jr|sr|jnr|snr)\.?$/i, '');
+  if (full === sur) return '';
+  if (full.startsWith(`${sur} `)) return full.slice(sur.length + 1).split(' ')[0];
+  const head = full.endsWith(` ${sur}`) ? full.slice(0, -sur.length - 1) : full;
+  if (/^El Hadji\b/.test(head)) return 'El Hadji';
+  return head.split(' ')[0];
+}
+
+// 1992/93 to 1994/95 were 42-game seasons (22 clubs); their counting stats are scaled to 38 games in the build
+// (meta.scaled in cards.json says the same, and a test keeps the two in step).
+export const SCALED_SEASONS = ['1992-93', '1993-94', '1994-95'];

@@ -4,7 +4,7 @@ import { loadJson, loadPool } from './helpers.mjs';
 import { parseFbrefTable, mergeSeasonFiles, EXPORT_CAP } from '../tools/fbref.mjs';
 import { makeRng } from '../src/engine/rng.js';
 import { starterDeck, openPack, TIERS } from '../src/engine/deck.js';
-import { POSITIONS, CATEGORY_KEYS, teamKey, statOf, DISCIPLINE_POINTS } from '../src/engine/cards.js';
+import { POSITIONS, CATEGORY_KEYS, teamKey, statOf, DISCIPLINE_POINTS, surnameOf, firstNameOf } from '../src/engine/cards.js';
 import { evaluateHand } from '../src/engine/hands.js';
 
 const json = loadJson();
@@ -328,4 +328,130 @@ test('Discipline is one category: a yellow card is 1 point, a red card is 3', ()
   // and every card that has a record is worth chips
   const s = meta.chipScale.discipline;
   assert.ok(Math.abs(s.p99 * s.perUnit - 60) < 2);
+});
+
+test('first name and surname for the card face', () => {
+  const split = (full) => { const c = cards.find((x) => x.full === full); return [firstNameOf(c), surnameOf(c)]; };
+  assert.deepEqual(split('Ian Wright'), ['Ian', 'Wright']);                 // the card face drops the initial: the first name replaces it
+  assert.deepEqual(split('Adam Smith'), ['Adam', 'Smith']);
+  assert.deepEqual(split('Alan Shearer'), ['Alan', 'Shearer']);
+  assert.deepEqual(split('Cesc Fàbregas'), ['Cesc', 'Fàbregas']);
+  assert.deepEqual(split('Jimmy Floyd Hasselbaink'), ['Jimmy', 'Hasselbaink']);  // the first of several given names
+  assert.deepEqual(split('Ole Gunnar Solskjær'), ['Ole', 'Solskjær']);
+  assert.deepEqual(split('Alexis Mac Allister'), ['Alexis', 'Mac Allister']);    // a compound surname stays whole
+  assert.deepEqual(split('Roque Santa Cruz'), ['Roque', 'Santa Cruz']);
+  assert.deepEqual(split('Ruud van Nistelrooy'), ['Ruud', 'van Nistelrooy']);
+  assert.deepEqual(split('Alan Kelly Jr.'), ['Alan', 'Kelly']);               // a suffix is not a name
+  assert.deepEqual(split('Son Heung-min'), ['Heung-min', 'Son']);             // FBref writes this one surname-first
+  assert.deepEqual(split('Ki Sung-yueng'), ['Sung-yueng', 'Ki']);
+  assert.deepEqual(split('El Hadji Diouf'), ['El Hadji', 'Diouf']);           // "El Hadji" is a first name
+  assert.deepEqual(split('Al Bangura'), ['Al', 'Bangura']);                   // and "Al" is one too
+  for (const mononym of ['Rodri', 'Willian', 'Jô']) assert.deepEqual(split(mononym), ['', mononym], mononym);
+});
+
+test('every card splits into a first name and a surname that both come from its full name', () => {
+  let mononyms = 0;
+  for (const c of cards) {
+    const sur = surnameOf(c), first = firstNameOf(c);
+    assert.ok(sur.length > 0, `${c.id}: no surname`);
+    assert.ok(c.full.includes(sur), `${c.id}: surname '${sur}' is not in '${c.full}'`);
+    assert.ok(!/^[A-Z]\./.test(sur), `${c.id}: the initial is still on the surname`);
+    if (first === '') { mononyms++; assert.ok(!c.full.includes(' '), `${c.id}: '${c.full}' has a first name we lost`); continue; }
+    assert.ok(c.full.includes(first), `${c.id}: first name '${first}' is not in '${c.full}'`);
+    assert.notEqual(first, sur, c.id);
+  }
+  assert.ok(mononyms > 50 && mononyms < 400, `${mononyms} mononyms`);
+});
+
+test('two different players who share a surname are told apart by first name on the card', () => {
+  // the reason the face shows a first name: Ian Wright and Mark Wright are both "Wright"
+  const wrights = [...new Map(cards.filter((c) => surnameOf(c) === 'Wright').map((c) => [c.pid, firstNameOf(c)])).values()];
+  assert.ok(wrights.length >= 4);
+  assert.ok(wrights.includes('Ian') && wrights.includes('Mark'));
+});
+
+// ---- the card face: badges and tooltips --------------------------------------------------------------------------
+test('every club has a name, kit colours and a valid badge pattern', async () => {
+  const { CLUB_COLOURS, CLUB_LABELS, CLUB_PATTERNS, PATTERNS } = await import('../src/ui/clubs.js');
+  for (const k of Object.keys(meta.clubs)) {
+    assert.ok(CLUB_LABELS[k], `${k}: no label`);
+    assert.ok(CLUB_COLOURS[k], `${k}: no colours`);
+    assert.ok(PATTERNS.includes(CLUB_PATTERNS[k] ?? 'solid'), `${k}: pattern ${CLUB_PATTERNS[k]}`);
+  }
+  assert.deepEqual(Object.keys(CLUB_PATTERNS).filter((k) => !meta.clubs[k]), [], 'a pattern for a club that is not in the data');
+});
+
+test('the badge is a shield with the club code, in the club colours, with its own clip path', async () => {
+  const { badgeSvg } = await import('../src/ui/badge.js');
+  const { CLUB_COLOURS } = await import('../src/ui/clubs.js');
+  const ids = new Set();
+  for (const k of Object.keys(meta.clubs)) {
+    const svg = badgeSvg(k);
+    assert.ok(svg.startsWith('<svg') && svg.trim().endsWith('</svg>'), k);
+    assert.ok(svg.includes(`>${k}</text>`), `${k}: the code is on the badge`);
+    assert.ok(svg.toLowerCase().includes(CLUB_COLOURS[k][0].toLowerCase()), `${k}: primary colour`);
+    const id = /clipPath id="(bd\d+)"/.exec(svg)[1];
+    assert.ok(!ids.has(id), `${k}: clip path id ${id} is reused`);   // two badges on one page must not share an id
+    ids.add(id);
+  }
+  assert.match(badgeSvg('NEW'), /<rect x="22"/, 'Newcastle is striped');
+  assert.doesNotMatch(badgeSvg('ARS'), /<polygon/, 'Arsenal is a plain shield');
+});
+
+test('the scaled seasons the card tooltips mention are the ones the build scaled', async () => {
+  const { SCALED_SEASONS } = await import('../src/engine/cards.js');
+  assert.deepEqual(SCALED_SEASONS, meta.scaled.seasons);
+});
+
+test('tooltips say what each number is, with the right numbers', async () => {
+  const { cardTips } = await import('../src/ui/tips.js');
+  const get = (full, season, club) => cards.find((c) => c.full === full && c.season === season && (!club || c.club === club));
+  const henry = get('Thierry Henry', '2003-04');
+  const t = cardTips(henry, { category: 'goals', scale: meta.chipScale });
+  assert.equal(t.band, 'Arsenal, 2003/04 season');
+  assert.equal(t.name, 'Thierry Henry');
+  assert.equal(t.rows.goals, '30 goals in 2003/04');
+  assert.equal(t.rows.assists, '6 assists in 2003/04');
+  assert.match(t.rows.games, /^37 games played in 2003\/04 \(minutes ÷ 90\)$/);
+  const y = henry.yellow, r = henry.red;
+  assert.equal(t.rows.discipline, `${y + 3 * r} discipline points: ${y} yellow card${y === 1 ? '' : 's'} × 1 + ${r} red card${r === 1 ? '' : 's'} × 3`);
+  assert.equal(t.chips.goals, `Worth ${Math.round(30 * meta.chipScale.goals.perUnit)} chips in this matchday's goals round: 30 × ${meta.chipScale.goals.perUnit} chips each`);
+  assert.deepEqual(Object.keys(t.chips), ['goals'], 'only the active category explains its chips');
+  assert.match(t.rating, /^Overall \d+ out of 99: how this season ranks among every forward since 1992/);
+  assert.match(t.rating, /not worth chips/);
+  assert.equal(t.pos, 'Forward');
+  assert.equal(t.ability, undefined, 'only keepers have an ability');
+  assert.equal(t.edition, undefined, 'a plain sticker has no edition');
+
+  // one of something, and none of it
+  const one = cards.find((c) => c.goals === 1), none = cards.find((c) => c.goals === 0 && c.pos === 'FWD');
+  assert.match(cardTips(one).rows.goals, /^1 goal in /);
+  assert.match(cardTips(none).rows.goals, /^No goals in /);
+
+  // the 42-game seasons say so; the others do not
+  assert.match(cardTips(get('Teddy Sheringham', '1992-93', 'TOT')).rows.goals, /\(a 42-game season, scaled to 38\)$/);
+  assert.doesNotMatch(cardTips(henry).rows.goals, /42-game/);
+
+  // keepers explain Safe Hands, by tier
+  const gk = (min, max) => cards.find((c) => c.pos === 'GK' && c.games >= min && c.games <= max);
+  assert.match(cardTips(gk(30, 38)).ability, /\+3 mult .*first choice: 30\+ games/);
+  assert.match(cardTips(gk(15, 29)).ability, /\+2 mult .*rotation: 15 to 29 games/);
+  assert.match(cardTips(gk(0, 14)).ability, /\+1 mult .*backup: under 15 games/);
+  assert.equal(cardTips(gk(30, 38)).pos.startsWith('Goalkeeper'), true);
+
+  // an edition explains itself
+  assert.match(cardTips({ ...henry, edition: 'gold' }).edition, /^GOLD: ×1\.5 mult every time this sticker scores\.$/);
+  assert.match(cardTips({ ...henry, edition: 'shiny' }).edition, /^SHINY: \+40 chips/);
+});
+
+test('no tooltip on any card ever says undefined or NaN, in any category', async () => {
+  const { cardTips } = await import('../src/ui/tips.js');
+  for (const c of cards) {
+    for (const category of CATEGORY_KEYS) {
+      const t = cardTips(c, { category, scale: meta.chipScale });
+      const text = [t.band, t.rating, t.pos, t.name, ...Object.values(t.rows), ...Object.values(t.chips), t.ability ?? '', t.edition ?? ''].join(' | ');
+      assert.ok(!/undefined|NaN|null/.test(text), `${c.id} ${category}: ${text}`);
+      assert.ok(Object.values(t.rows).every((r) => r.length > 8), c.id);
+    }
+  }
 });

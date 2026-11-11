@@ -1,4 +1,5 @@
-// Club colours for the card faces: primary, secondary. Colours only, no crests or logos.
+// Club identity for the card faces: kit colours (primary, secondary), a name, and a badge pattern.
+// No real crests or logos: the badges are generated (see badge.js).
 export const CLUB_COLOURS = {
   ARS: ['#EF0107', '#FFFFFF'], AVL: ['#670E36', '#95BFE5'], BHA: ['#0057B8', '#FFFFFF'], BOU: ['#DA291C', '#111111'],
   BRE: ['#E30613', '#FFFFFF'], BUR: ['#6C1D45', '#99D6EA'], CAR: ['#0070B5', '#D01217'], CHE: ['#034694', '#FFFFFF'],
@@ -22,3 +23,23 @@ export function inkOn(hex) {
   const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? '#14181c' : '#ffffff';
 }
+
+// Short names for the top band of a card.
+export const CLUB_LABELS = {
+  ARS: 'Arsenal', AVL: 'Aston Villa', BAR: 'Barnsley', BHA: 'Brighton', BIR: 'Birmingham', BLA: 'Blackburn', BLP: 'Blackpool',
+  BOL: 'Bolton', BOU: 'Bournemouth', BRA: 'Bradford City', BRE: 'Brentford', BUR: 'Burnley', CAR: 'Cardiff', CHA: 'Charlton',
+  CHE: 'Chelsea', COV: 'Coventry', CRY: 'Crystal Palace', DER: 'Derby', EVE: 'Everton', FUL: 'Fulham', HUD: 'Huddersfield',
+  HUL: 'Hull', IPS: 'Ipswich', LEE: 'Leeds', LEI: 'Leicester', LIV: 'Liverpool', LUT: 'Luton', MCI: 'Man City', MID: 'Middlesbrough',
+  MUN: 'Man Utd', NEW: 'Newcastle', NFO: "Nott'm Forest", NOR: 'Norwich', OLD: 'Oldham', POR: 'Portsmouth', QPR: 'QPR', REA: 'Reading',
+  SHU: 'Sheffield Utd', SHW: 'Sheffield Wed', SOU: 'Southampton', STK: 'Stoke', SUN: 'Sunderland', SWA: 'Swansea', SWI: 'Swindon',
+  TOT: 'Spurs', WAT: 'Watford', WBA: 'West Brom', WHU: 'West Ham', WIG: 'Wigan', WIM: 'Wimbledon', WOL: 'Wolves',
+};
+
+// How a badge is patterned, loosely following each club's kit. Anything not listed is a plain shield.
+//   stripes: vertical bands · hoops: horizontal bands · halves: left/right · sash: a diagonal band
+export const CLUB_PATTERNS = {
+  BHA: 'stripes', BLA: 'halves', BOU: 'stripes', BRA: 'halves', BRE: 'stripes', CRY: 'stripes', HUD: 'stripes', HUL: 'stripes',
+  MID: 'sash', NEW: 'stripes', QPR: 'hoops', REA: 'hoops', SHU: 'stripes', SHW: 'stripes', SOU: 'stripes', STK: 'stripes',
+  SUN: 'stripes', WBA: 'stripes', WIG: 'halves',
+};
+export const PATTERNS = ['solid', 'stripes', 'hoops', 'halves', 'sash'];
