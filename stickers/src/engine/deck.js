@@ -1,88 +1,102 @@
-// Where cards come from: the pool (every player-season), the starter squad, and
+// Where cards come from: the pool (every player with 20+ Premier League appearances), the starter squad, and
 // Panini-style packs.
-import { POSITIONS, teamKey } from './cards.js';
+import { POSITIONS, TIER_BANDS, EDITION_ORDER } from './cards.js';
 
 // json: the parsed cards.json
 export function makePool(json) {
   const cards = json.cards;
-  const byTeam = new Map();
-  for (const c of cards) {
-    const k = teamKey(c);
-    if (!byTeam.has(k)) byTeam.set(k, []);
-    byTeam.get(k).push(c);
-  }
   const byId = new Map(cards.map((c) => [c.id, c]));
-  return { cards, byId, scale: json.meta.chipScale, seasons: json.meta.seasons, clubs: json.meta.clubs, byTeam };
+  const byStint = new Map();   // 'CHE|2004-05' -> the cards who were at that club that season
+  for (const c of cards) for (const s of c.stints) { if (!byStint.has(s)) byStint.set(s, []); byStint.get(s).push(c); }
+  return { cards, byId, byStint, scale: json.meta.chipScale, seasons: json.meta.seasons, clubs: json.meta.clubs, meta: json.meta };
 }
 
 let uidCounter = 0;
-// A card in a deck: same data, plus a unique id (you can own two copies) and an edition.
+// A card in a deck: the card, plus a unique id for this copy and an edition. There is only one of each player in a
+// squad, but a copy can be a foil.
 export const instance = (card, edition = 'base') => ({ ...card, uid: `u${++uidCounter}`, edition });
 
-// The starter squad: `clubs` clubs x `seasons` consecutive seasons each, so every
-// "rank" is a team-season and every "suit" is a club. `positions` is the whole
-// squad's position budget (real squads are mostly outfield: goalkeepers are rare,
-// which is what keeps Spine from being the answer to everything). Cards are mid-table
-// (rating 25-80), the most-played first, dealt round-robin across the team-seasons.
-export const STARTER_SHAPE = { clubs: 3, seasons: 3, positions: { GK: 2, DEF: 8, MID: 8, FWD: 6 } };
-// Starter cards are mid-table (rating 25-80). Every card has the same three stats whatever its era, so any
-// era can supply a starter squad.
-const MIDTABLE = (c) => c.rating >= 25 && c.rating <= 80;
+// ---- editions and duplicates ------------------------------------------------------------------------------------------
+// You can only own one of each player. If a pack deals you a player you already have, keeping him UPGRADES your copy: one
+// edition above the better of the two (base -> shiny -> holo -> gold), and gold stays gold.
+export const nextEdition = (ed) => EDITION_ORDER[Math.min(EDITION_ORDER.indexOf(ed) + 1, EDITION_ORDER.length - 1)];
+export const upgradedEdition = (owned, pulled) => nextEdition(EDITION_ORDER[Math.max(EDITION_ORDER.indexOf(owned), EDITION_ORDER.indexOf(pulled))]);
+
+// ---- the starter squad -----------------------------------------------------------------------------------------------------
+// `clubs` clubs (the sim: six, so that the big team-mate hands have to be built, not dealt), and for each a window of `seasons` consecutive seasons: the squad is the players who were at that club
+// then, so they really were team-mates. `positions` is the whole squad's position budget (real squads are mostly outfield:
+// goalkeepers are rare, which is what keeps Spine from being the answer to everything). Players are mid-table (an overall
+// of 12 to 54: bronze and silver), the most-appearances first, dealt round-robin across the clubs.
+export const STARTER_SHAPE = { clubs: 6, seasons: 2, positions: { GK: 2, DEF: 8, MID: 8, FWD: 6 } };
+const MIDTABLE = (c) => c.rating >= 12 && c.rating <= 54;
 
 export function starterDeck(pool, rng, shape = STARTER_SHAPE) {
   const { clubs: nClubs, seasons: nSeasons, positions } = { ...STARTER_SHAPE, ...shape };
-  const teamsNeeded = nClubs * nSeasons;
-  // every team-season must cover its guaranteed share of each position; the remainder is dealt on
-  const share = Object.fromEntries(POSITIONS.map((p) => [p, Math.floor(positions[p] / teamsNeeded)]));
-  const enough = (group) => POSITIONS.every((p) => group.filter((c) => c.pos === p && MIDTABLE(c)).length >= Math.max(1, share[p]));
+  const share = Object.fromEntries(POSITIONS.map((p) => [p, Math.floor(positions[p] / nClubs)]));
 
-  // clubs that have `nSeasons` consecutive seasons where a mid-table squad can be found
+  // the mid-table players who were at `club` at any point in a window of seasons
+  const squadOf = (club, window) => {
+    const seen = new Map();
+    for (const season of window) for (const c of pool.byStint.get(`${club}|${season}`) ?? []) if (MIDTABLE(c)) seen.set(c.id, c);
+    return [...seen.values()];
+  };
+  const enough = (group) => POSITIONS.every((p) => group.filter((c) => c.pos === p).length >= Math.max(1, share[p]));
+
   const options = new Map();
   for (const club of Object.keys(pool.clubs)) {
-    const runs = [];
+    const windows = [];
     for (let i = 0; i + nSeasons <= pool.seasons.length; i++) {
       const window = pool.seasons.slice(i, i + nSeasons);
       const y0 = Number.parseInt(window[0], 10);
-      if (!window.every((x, k) => Number.parseInt(x, 10) === y0 + k)) continue; // a gap in the data is not a run of seasons
-      const groups = window.map((season) => pool.byTeam.get(`${club}|${season}`));
-      if (groups.every((g) => g && enough(g))) runs.push(window);
+      if (!window.every((x, k) => Number.parseInt(x, 10) === y0 + k)) continue;
+      if (enough(squadOf(club, window))) windows.push(window);
     }
-    if (runs.length) options.set(club, runs);
+    if (windows.length) options.set(club, windows);
   }
   const chosen = rng.shuffle([...options.keys()]).slice(0, nClubs);
   if (chosen.length < nClubs) throw new Error('not enough clubs for a starter squad');
-  const teams = chosen.flatMap((club) => rng.pick(options.get(club)).map((season) => pool.byTeam.get(`${club}|${season}`)));
+  const groups = chosen.map((club) => squadOf(club, rng.pick(options.get(club))));
 
   const deck = [];
+  const used = new Set();
   POSITIONS.forEach((pos, pi) => {
-    const queues = teams.map((g) => g.filter((c) => c.pos === pos && MIDTABLE(c)).sort((a, b) => b.games - a.games));
+    const queues = groups.map((g) => g.filter((c) => c.pos === pos).sort((a, b) => b.games - a.games || a.id.localeCompare(b.id)));
     for (let n = 0; n < positions[pos]; n++) {
-      // round-robin, skipping any team-season that has run out of that position
-      const q = Array.from({ length: teams.length }, (_, k) => queues[(n + pi + k) % teams.length]).find((x) => x.length);
-      if (!q) throw new Error(`starter squad ran out of ${pos}s`);
-      deck.push(instance(q.shift()));
+      // round-robin, skipping any club that has run out of that position, and anyone already picked for another club
+      let card = null;
+      for (let k = 0; k < groups.length && !card; k++) {
+        const q = queues[(n + pi + k) % groups.length];
+        while (q.length && used.has(q[0].id)) q.shift();
+        if (q.length) card = q.shift();
+      }
+      if (!card) throw new Error(`starter squad ran out of ${pos}s`);
+      used.add(card.id);
+      deck.push(instance(card));
     }
   });
   return deck;
 }
 
-// Pack odds. Rarity is the card's rating band; edition is rolled separately.
-export const TIERS = [
-  { id: 'common',   min: 1,  max: 59, weight: 60 },
-  { id: 'uncommon', min: 60, max: 84, weight: 28 },
-  { id: 'rare',     min: 85, max: 96, weight: 10 },
-  { id: 'legend',   min: 97, max: 99, weight: 2 },
-];
+// ---- packs -------------------------------------------------------------------------------------------------------------------
+// Rarity is the card's tier, from its overall; the edition (foil) is rolled separately. Most stickers are bronze.
+export const PACK_WEIGHTS = { bronze: 68, silver: 25, gold: 6, icon: 1 };
+export const TIERS = TIER_BANDS.map((t) => ({ ...t, weight: PACK_WEIGHTS[t.id] }));
 export const EDITION_ODDS = [['base', 86], ['shiny', 8], ['holo', 4], ['gold', 2]];
 
-// filter: optional predicate on a card. A club pack only draws from clubs you own, a squad pack only from team-seasons
-// you own; rarity odds apply within whatever the pool leaves.
+// filter: optional predicate on a card. A club pack only deals players who played for a club in your squad; a squad pack
+// only players who were team-mates of someone in your squad. Rarity odds apply within whatever the pool leaves. Five
+// DIFFERENT players: no two stickers in a pack are the same person.
 export function openPack(pool, rng, size = 5, { filter } = {}) {
   const cards = filter ? pool.cards.filter(filter) : pool.cards;
-  if (!cards.length) throw new Error('no cards match this pack');
+  if (cards.length < size) throw new Error('not enough players match this pack');
   const tiers = TIERS.map((t) => ({ ...t, cards: cards.filter((c) => c.rating >= t.min && c.rating <= t.max) })).filter((t) => t.cards.length);
-  return Array.from({ length: size }, () => {
+  const out = [], taken = new Set();
+  while (out.length < size) {
     const tier = rng.weighted(tiers.map((t) => [t, t.weight]));
-    return instance(rng.pick(tier.cards), rng.weighted(EDITION_ODDS));
-  });
+    const card = rng.pick(tier.cards);
+    if (taken.has(card.id)) continue;
+    taken.add(card.id);
+    out.push(instance(card, rng.weighted(EDITION_ODDS)));
+  }
+  return out;
 }

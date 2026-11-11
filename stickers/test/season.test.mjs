@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import { loadPool } from './helpers.mjs';
 import {
   ECONOMY, newSeason, useVar, kickOff, finishMatchday, nextMatchday, rerollShop, rerollCost, buy, takePack, sellManager,
-  sellValue, releaseCard, priceOf, trainingPrice, serialize, restore,
+  sellValue, releaseCard, priceOf, trainingPrice, serialize, restore, ownedCopy,
 } from '../src/engine/season.js';
 import { playHand, SEASON_LENGTH, VAR_PER_SEASON, fixtureTarget } from '../src/engine/round.js';
-import { CATEGORY_KEYS, teamKey } from '../src/engine/cards.js';
+import { CATEGORY_KEYS } from '../src/engine/cards.js';
 import { JOKERS } from '../src/engine/jokers.js';
 
 const pool = loadPool();
@@ -167,21 +167,48 @@ test('training levels a hand up, and each level costs more than the last', () =>
   assert.equal(trainingPrice(run, t.hand), ECONOMY.trainingBase + 3 * ECONOMY.trainingStep);
 });
 
-test('a pack has five stickers; you keep one; club and squad packs only draw from what you own', () => {
+test('a pack has five different players; you keep one; club and squad packs only draw from what you own', () => {
   for (const type of ['standard', 'club', 'squad']) {
     const run = toShop(fresh(`pack-${type}`), 100);
     run.shop.offers[0] = { slot: 'p0', kind: 'pack', type, price: ECONOMY.pack[type], bought: false };
     buy(run, 'p0');
     assert.equal(run.pack.cards.length, 5, type);
-    const clubs = new Set(run.deck.map((c) => c.club)), teams = new Set(run.deck.map(teamKey));
-    if (type === 'club') assert.ok(run.pack.cards.every((c) => clubs.has(c.club)), 'every sticker is from a club you own');
-    if (type === 'squad') assert.ok(run.pack.cards.every((c) => teams.has(teamKey(c))), 'every sticker is from a team-season you own');
+    assert.equal(new Set(run.pack.cards.map((c) => c.id)).size, 5, 'five different players');
+    const clubs = new Set(run.deck.flatMap((c) => c.clubs.map(([k]) => k))), stints = new Set(run.deck.flatMap((c) => c.stints));
+    if (type === 'club') assert.ok(run.pack.cards.every((c) => c.clubs.some(([k]) => clubs.has(k))), 'every player has played for a club in your squad');
+    if (type === 'squad') assert.ok(run.pack.cards.every((c) => c.stints.some((s) => stints.has(s))), 'every player was a team-mate of someone you own');
     const keep = run.pack.cards.slice(0, ECONOMY.pick).map((c) => c.uid);
     const before = run.deck.length;
-    takePack(run, keep);
-    assert.equal(run.deck.length, before + 1);
+    const [got] = takePack(run, keep);
+    assert.equal(run.deck.length, before + (got.upgraded ? 0 : 1));
     assert.equal(run.pack, null);
   }
+});
+
+test('a new signing joins the squad; a player you already own is not a second copy, he upgrades yours', () => {
+  const run = toShop(fresh('dupes'), 100);
+  const mine = run.deck[0];
+  assert.equal(mine.edition, 'base');
+  run.pack = { type: 'standard', cards: [{ ...mine, uid: 'dupe1', edition: 'base' }, { ...run.pool.cards.find((c) => !run.deck.some((d) => d.id === c.id)), uid: 'new1', edition: 'base' }] };
+  const before = run.deck.length;
+  const [r] = takePack(run, ['dupe1']);
+  assert.equal(run.deck.length, before, 'no second copy');
+  assert.equal(r.upgraded, 'shiny');
+  assert.equal(mine.edition, 'shiny', 'your copy went up one edition');
+  assert.equal(ownedCopy(run, mine), mine);
+  // and again: a shiny duplicate of a shiny goes to holo
+  run.pack = { type: 'standard', cards: [{ ...mine, uid: 'dupe2', edition: 'shiny' }] };
+  assert.equal(takePack(run, ['dupe2'])[0].upgraded, 'holo');
+  run.pack = { type: 'standard', cards: [{ ...mine, uid: 'dupe3', edition: 'base' }] };
+  assert.equal(takePack(run, ['dupe3'])[0].upgraded, 'gold');
+  run.pack = { type: 'standard', cards: [{ ...mine, uid: 'dupe4', edition: 'base' }] };
+  assert.equal(takePack(run, ['dupe4'])[0].upgraded, 'gold', 'gold stays gold');
+  // a signing is not an upgrade
+  const fresh1 = run.pool.cards.find((c) => !run.deck.some((d) => d.id === c.id));
+  run.pack = { type: 'standard', cards: [{ ...fresh1, uid: 'new2', edition: 'base' }] };
+  const [s] = takePack(run, ['new2']);
+  assert.equal(s.upgraded, null);
+  assert.equal(run.deck.length, before + 1);
 });
 
 test('pack rules: keep one, only from the pack, and nothing else until it is open', () => {
@@ -298,7 +325,7 @@ test('training offers the hand you play most, plus a different one', () => {
   const round = kickOff(run);
   round.target = 1;
   const mates = [0, 1].map((i) => round.hand[i]);
-  mates[1].club = mates[0].club; mates[1].season = mates[0].season; // force a pair of team-mates
+  mates[1].stints = [...mates[0].stints]; // force a pair of team-mates
   playHand(round, [0, 1]);
   finishMatchday(run);
   assert.equal(run.played.oneTwo, 1);

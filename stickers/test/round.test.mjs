@@ -96,7 +96,7 @@ test('matchdays outside 1-38 are an error, and the curve can be retuned', () => 
 test('playing a hand passes the cards still in hand, so a held keeper adds Safe Hands', () => {
   // an 8-card deck is dealt whole: seven outfielders and one keeper
   const outfield = Array.from({ length: 7 }, (_, i) => mk({ pos: 'MID', club: `C${i}`, goals: 4 }));
-  const keeper = mk({ pos: 'GK', club: 'WBA', games: 33, name: 'Foster' });
+  const keeper = mk({ pos: 'GK', club: 'WBA', games: 300, name: 'Foster' });
   const s = startRound(run([...outfield, keeper]), { target: 1e9, category: 'goals', rng: makeRng(1) });
   const gkIdx = s.hand.findIndex((c) => c.pos === 'GK');
   const midIdx = s.hand.findIndex((c) => c.pos === 'MID');

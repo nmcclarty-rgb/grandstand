@@ -20,7 +20,7 @@ import { makePool, STARTER_SHAPE } from '../src/engine/deck.js';
 import { playHand, discard, fixtureTarget, SEASON_LENGTH, TARGET_START, TARGET_END, VAR_PER_SEASON } from '../src/engine/round.js';
 import { newSeason, useVar, kickOff, finishMatchday, nextMatchday, buy, takePack, priceOf, releaseCard, ECONOMY } from '../src/engine/season.js';
 import { bestPlay as advisorBestPlay } from '../src/engine/advisor.js';
-import { CATEGORY_KEYS, cardChips, teamKey } from '../src/engine/cards.js';
+import { CATEGORY_KEYS, cardChips } from '../src/engine/cards.js';
 
 const arg = (name, dflt) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -64,7 +64,9 @@ const deckStrength = (run, cat) => run.deck.map((c) => cardChips(c, cat, pool.sc
 // The shopping bot: managers first (they multiply everything), then training for the hand it plays most, then the best
 // pack it can afford, keeping the two stickers that fit its squad. It never rerolls and never sells.
 function shop(run, played) {
-  const want = (c, teams, clubs) => c.rating + (teams.has(teamKey(c)) ? 60 : 0) + (clubs.has(c.club) ? 30 : 0);
+  // a sticker fits if he was a team-mate of someone in the squad (shares a club-season), or played for one of its clubs;
+  // one you already own is worth a foil upgrade, not a second copy
+  const want = (c, stints, clubs, ids) => c.rating + (c.stints.some((x) => stints.has(x)) ? 60 : 0) + (c.clubs.some(([k]) => clubs.has(k)) ? 30 : 0) + (ids.has(c.id) ? 15 : 0);
   const fav = Object.entries(played).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([h]) => h);
   for (let guard = 0; guard < 20; guard++) {
     const open = run.shop.offers.filter((o) => !o.bought && priceOf(run, o) <= run.money);
@@ -75,18 +77,18 @@ function shop(run, played) {
     if (!pick) return;
     buy(run, pick.slot);
     if (run.pack) {
-      const teams = new Set(run.deck.map(teamKey)), clubs = new Set(run.deck.map((c) => c.club));
-      const best = [...run.pack.cards].sort((a, b) => want(b, teams, clubs) - want(a, teams, clubs)).slice(0, ECONOMY.pick);
+      const stints = new Set(run.deck.flatMap((c) => c.stints)), clubs = new Set(run.deck.flatMap((c) => c.clubs.map(([k]) => k))), ids = new Set(run.deck.map((c) => c.id));
+      const best = [...run.pack.cards].sort((a, b) => want(b, stints, clubs, ids) - want(a, stints, clubs, ids)).slice(0, ECONOMY.pick);
       takePack(run, best.map((c) => c.uid));
     }
   }
   // thin the squad: release the stickers that fit it least, keeping two keepers (they are worth holding)
   if (RELEASE) {
-    const teams = new Set(), clubs = new Set();
     const count = (m, k) => m.set(k, (m.get(k) ?? 0) + 1);
     const tc = new Map(), cc = new Map();
-    for (const c of run.deck) { count(tc, teamKey(c)); count(cc, c.club); }
-    const keep = (c) => c.rating + 25 * (tc.get(teamKey(c)) - 1) + 10 * (cc.get(c.club) - 1);
+    for (const c of run.deck) { for (const x of c.stints) count(tc, x); count(cc, c.club); }
+    const mates = (c) => c.stints.reduce((n, x) => n + tc.get(x) - 1, 0);
+    const keep = (c) => c.rating + 3 * mates(c) + 10 * (cc.get(c.club) - 1);
     const out = [...run.deck].filter((c) => c.pos !== 'GK').sort((a, b) => keep(a) - keep(b));
     for (const c of out) {
       if (run.deck.length <= Math.max(ECONOMY.minDeck, RELEASE) || run.money < ECONOMY.releaseCost + 4) break;
@@ -97,7 +99,7 @@ function shop(run, played) {
 
 function playRun(botName, shops, seed) {
   const rng = makeRng(`${seed}:bot`);
-  const run = newSeason(pool, seed, { targets: TARGETS });
+  const run = newSeason(pool, seed, { targets: TARGETS, shape: SHAPE });
   const results = [];
   results.varUsed = 0;
   const played = {};

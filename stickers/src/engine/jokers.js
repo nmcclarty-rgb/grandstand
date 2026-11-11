@@ -43,18 +43,18 @@ const list = [
   },
   {
     id: 'oneClubMan', name: 'One-Club Man', cost: 6,
-    blurb: '2+ scoring cards, all one club: ×1.5 mult',
-    onHand: (j) => (j.scoring.length >= 2 && new Set(j.scoring.map((c) => c.club)).size === 1 ? { xmult: 1.5 } : undefined),
+    blurb: 'each scoring one-club man (8+ seasons, one club): +6 mult',
+    onCard: (c) => (c.clubs.length === 1 && c.stints.length >= 8 ? { mult: 6 } : undefined),
   },
   {
     id: 'goldenBoot', name: 'Golden Boot', cost: 5,
-    blurb: 'each scoring card: +1 mult per 5 goals it scored',
-    onCard: (c) => (c.goals >= 5 ? { mult: Math.floor(c.goals / 5) } : undefined),
+    blurb: 'each scoring card with a Goals rating of 60+: +4 mult',
+    onCard: (c) => (c.rate.goals >= 60 ? { mult: 4 } : undefined),
   },
   {
     id: 'playmaker', name: 'Playmaker', cost: 5,
-    blurb: 'each scoring card: +1 mult per 4 assists it made',
-    onCard: (c) => (c.assists >= 4 ? { mult: Math.floor(c.assists / 4) } : undefined),
+    blurb: 'each scoring card with an Assists rating of 60+: +4 mult',
+    onCard: (c) => (c.rate.assists >= 60 ? { mult: 4 } : undefined),
   },
   {
     id: 'addedTime', name: 'Added Time', cost: 6,
@@ -63,8 +63,8 @@ const list = [
   },
   {
     id: 'vintage', name: 'Vintage Stickers', cost: 4,
-    blurb: 'each scoring card from the 1990s: +20 chips',
-    onCard: (c) => (c.season < '2000-01' ? { chips: 20 } : undefined),
+    blurb: 'each scoring card who debuted in the 1990s: +20 chips',
+    onCard: (c) => (c.first < '2000-01' ? { chips: 20 } : undefined),
   },
   {
     id: 'superSub', name: 'Super Sub', cost: 4,

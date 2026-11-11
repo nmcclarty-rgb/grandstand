@@ -1,32 +1,27 @@
-// Turn the FBref season exports in data/fbref/ into one card per player-season:
+// Turn the FBref season exports in data/fbref/ into one CARD PER PLAYER, his whole Premier League career:
 //   stickers/src/data/cards.json
 //
 //   node tools/build-cards.mjs
 //
-// A card is a *player in a season* (Panini album style: "Salah, Liverpool 2017/18"), not a player.
-// Same player, different season = different card with the same `pid`, so the engine can recognise a
-// player across his whole career.
+// "Only one Frank Lampard." A card is a player, with his career totals since 1992/93 (every row of every export, cameos
+// included, nothing scaled), the clubs and club-seasons he played in, and a 1-99 RATING for each stat so a legend and a
+// journeyman can sit in the same hand. The real totals stay on the card; the ratings are what score.
 //
-// ONE SOURCE. Every season, 1992/93 to 2025/26, comes from FBref's Standard Stats table, so an assist
-// means the same thing in every season, a mid-season mover is handled the same way in every season, and a
-// player has the same id throughout. (An earlier build used the Fantasy Premier League archive for
-// 2016/17 onward; the two sources disagreed on assists for ~30% of players, so it was dropped.)
+// ONE SOURCE: FBref's Standard Stats table, so a stat means the same thing in every season and a player has one id
+// (name + birth year) for his whole career.
 //
-// RULE: a card carries only stats that exist for EVERY season: goals, assists, games (minutes / 90),
-// yellow cards, red cards. The four categories are goals, assists, games and Discipline (yellows + 3 x reds).
+// POOL: players with at least MIN_APPS Premier League appearances.
 //
-// 38 GAMES. 1992/93 to 1994/95 were 42-game seasons (22 clubs). Their counting stats are scaled by 38/42
-// so every season is a 38-game season, the same length as a run.
+// RULE: only stats that exist for every season: appearances, goals, assists, yellow cards, red cards.
 import { writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadFbrefSeasons, fbrefNumbers } from './fbref.mjs';
 import { CLUB_NAMES, FBREF_CLUBS } from './clubs.mjs';
-import { CATEGORY_KEYS, statOf } from '../src/engine/cards.js';
+import { CATEGORY_KEYS, DISCIPLINE_POINTS, RATING_TO_CHIPS, RATING_EXPONENT, ratingFor, overallOf } from '../src/engine/cards.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const MIN_MINUTES = 270; // three full games: below that a "season" is a cameo, not a sticker
-const SEASON_GAMES = 38;
+export const MIN_APPS = 20;
 
 const FBREF_POS = { GK: 'GK', DF: 'DEF', MF: 'MID', FW: 'FWD' };
 const PARTICLES = new Set(['van', 'von', 'de', 'der', 'den', 'di', 'da', 'dos', 'du', 'le', 'la', 'el', 'al', 'ten', 'ter',
@@ -57,98 +52,83 @@ const fbref = await loadFbrefSeasons(join(ROOT, 'data', 'fbref'));
 const seasons = [...fbref.keys()].sort();
 if (!seasons.length) throw new Error('no FBref exports in data/fbref/');
 
-const cards = [];
+// ---- 1. every row of every season, summed per player ---------------------------------------------------------------
+const players = new Map();
 const unknownClubs = new Set();
-const scaled = [];
-let missingBirthYear = 0;
-
 for (const season of seasons) {
-  const rows = fbref.get(season);
-  const clubOf = (row) => {
+  for (const row of fbref.get(season)) {
     const club = FBREF_CLUBS[row.team.toLowerCase()];
     if (!club) throw new Error(`${season}: unknown club '${row.team}' (${row.player}); add it to tools/clubs.mjs`);
     if (!CLUB_NAMES[club]) unknownClubs.add(club);
-    return club;
-  };
-  const clubs = new Set(rows.map(clubOf));
-  const gamesPerTeam = 2 * (clubs.size - 1); // 22 clubs -> 42, 20 clubs -> 38
-  const factor = SEASON_GAMES / gamesPerTeam;
-  if (factor !== 1) scaled.push(season);
-  const sc = (x) => Math.round(x * factor);
-
-  let kept = 0;
-  for (const row of rows) {
     const n = fbrefNumbers(row);
-    if (n.minutes < MIN_MINUTES) continue; // cameos first: FBref leaves some of their positions blank
+    const pid = `${slug(row.player)}:${row.birth_year}`;
+    let p = players.get(pid);
+    if (!p) {
+      p = { id: pid, full: row.player, apps: 0, goals: 0, assists: 0, yellow: 0, red: 0, clubApps: new Map(), stints: new Set(), posApps: new Map(), first: season, last: season, latest: season };
+      players.set(pid, p);
+    }
+    p.apps += n.games; p.goals += n.goals; p.assists += n.assists; p.yellow += n.yellow; p.red += n.red;
+    p.clubApps.set(club, (p.clubApps.get(club) ?? 0) + n.games);
+    p.stints.add(`${club}|${season}`);
     const pos = FBREF_POS[row.position.split(',')[0]];
-    if (!pos) throw new Error(`${season}: unknown position '${row.position}' for ${row.player} (${n.minutes} min)`);
-    if (!row.birth_year) missingBirthYear++;
-    const club = clubOf(row);
-    // one card per player per club per season: a mid-season mover has two
-    const pid = `fb:${slug(row.player)}:${row.birth_year}`;
-    cards.push({
-      id: `${pid}-${season}-${club}`, pid,
-      name: displayName(row.player), full: row.player, pos, club, season,
-      goals: sc(n.goals), assists: sc(n.assists), games: sc(n.minutes / 90),
-      yellow: sc(n.yellow), red: sc(n.red),
-    });
-    kept++;
+    if (pos) p.posApps.set(pos, (p.posApps.get(pos) ?? 0) + Math.max(n.games, 0.01));
+    if (season < p.first) p.first = season;
+    if (season >= p.last) { p.last = season; p.full = row.player; } // the most recent spelling
   }
-  console.log(`${season}: ${rows.length} rows, ${kept} cards, ${clubs.size} clubs${factor !== 1 ? `, scaled ${gamesPerTeam}->${SEASON_GAMES} games` : ''}`);
 }
 if (unknownClubs.size) throw new Error(`club names missing for: ${[...unknownClubs].join(', ')}`);
-if (missingBirthYear) console.warn(`warning: ${missingBirthYear} cards have no birth year in the export, so their pid is less reliable`);
 
-// A surname shared by several players ("Smith", "Johnson") gets the first initial, so two cards in one
-// hand are not both just "SMITH". COMMON is how many different players must share a name before it does.
+// ---- 2. the pool ---------------------------------------------------------------------------------------------------
+const pool = [...players.values()].filter((p) => p.apps >= MIN_APPS);
+for (const p of pool) {
+  if (!p.posApps.size) throw new Error(`${p.full}: no position in any row (${p.apps} apps)`);
+  p.pos = [...p.posApps].sort((a, b) => b[1] - a[1])[0][0];                       // where he played most
+  p.clubs = [...p.clubApps].sort((a, b) => b[1] - a[1] || b[0].localeCompare(a[0]));
+  p.club = p.clubs[0][0];                                                          // his club: most appearances
+  p.discipline = p.yellow * DISCIPLINE_POINTS.yellow + p.red * DISCIPLINE_POINTS.red;
+}
+
+// ---- 3. ratings: each stat against the record, 1-99 -----------------------------------------------------------------
+const STAT = { goals: (p) => p.goals, assists: (p) => p.assists, games: (p) => p.apps, discipline: (p) => p.discipline };
+const record = Object.fromEntries(CATEGORY_KEYS.map((k) => [k, Math.max(...pool.map(STAT[k]))]));
+for (const p of pool) p.rate = Object.fromEntries(CATEGORY_KEYS.map((k) => [k, ratingFor(STAT[k](p), record[k])]));
+
+// ---- 4. OVR: his ratings weighted for his position -------------------------------------------------------------------
+for (const p of pool) p.rating = Math.round(overallOf(p.pos, p.rate));
+
+// ---- 5. display names: a first initial for a surname shared by four or more players ---------------------------------
 const COMMON = 4;
-const players = {};
-for (const c of cards) (players[c.name] ??= new Set()).add(c.pid);
-for (const c of cards) {
-  if (players[c.name].size >= COMMON && c.full.includes(' ')) {
-    c.name = `${c.full.normalize('NFD').replace(/[\u0300-\u036f]/g, '')[0].toUpperCase()}.${c.name}`;
-  }
+const byName = {};
+for (const p of pool) { p.name = displayName(p.full); (byName[p.name] ??= new Set()).add(p.id); }
+for (const p of pool) {
+  if (byName[p.name].size >= COMMON && p.full.includes(' ')) p.name = `${p.full.normalize('NFD').replace(/[̀-ͯ]/g, '')[0].toUpperCase()}.${p.name}`;
 }
 
-// Overall rating: percentile within position across the whole data set (1-99). It is the Top Trumps
-// headline number and decides pack rarity. One formula for every card: goal involvement plus availability;
-// a keeper has neither, so goalkeepers rank on games. Discipline does not count.
-const POSITIONS = ['GK', 'DEF', 'MID', 'FWD'];
-const score = (c) => (c.pos === 'GK' ? c.games : c.goals * 2 + c.assists + c.games * 0.15);
-for (const pos of POSITIONS) {
-  const group = cards.filter((c) => c.pos === pos).sort((a, b) => score(a) - score(b));
-  let i = 0;
-  while (i < group.length) {
-    let j = i;
-    while (j + 1 < group.length && score(group[j + 1]) === score(group[i])) j++;
-    const pct = ((i + j) / 2) / (group.length - 1);
-    for (let k = i; k <= j; k++) group[k].rating = Math.max(1, Math.min(99, Math.round(pct * 98) + 1));
-    i = j + 1;
-  }
-}
+// ---- 6. out --------------------------------------------------------------------------------------------------------
+const cards = pool.map((p) => ({
+  id: p.id, name: p.name, full: p.full, pos: p.pos, club: p.club,
+  clubs: p.clubs.map(([c, a]) => [c, a]),
+  stints: [...p.stints].sort((a, b) => a.split('|')[1].localeCompare(b.split('|')[1]) || a.localeCompare(b)),
+  first: p.first, last: p.last,
+  games: p.apps, goals: p.goals, assists: p.assists, yellow: p.yellow, red: p.red,
+  rate: p.rate, rating: p.rating,
+})).sort((a, b) => b.rating - a.rating || b.games - a.games || a.id.localeCompare(b.id));
 
-// Chip scale per category: the 99th percentile of non-zero values is worth 60 chips, so no category is
-// inherently stronger than another. Categories and the derived Discipline score come from the engine.
-const chipScale = {};
-for (const key of CATEGORY_KEYS) {
-  const vals = cards.map((c) => statOf(c, key)).filter((v) => v > 0).sort((a, b) => a - b);
-  const p99 = vals[Math.floor(vals.length * 0.99)];
-  chipScale[key] = { p99, perUnit: Math.round((60 / p99) * 1000) / 1000 };
-}
-
-cards.sort((a, b) => a.season.localeCompare(b.season) || a.club.localeCompare(b.club) || b.rating - a.rating || a.id.localeCompare(b.id));
 const out = {
   meta: {
     source: 'FBref Standard Stats exports, one per season, 1992-93 to 2025-26',
     seasons,
-    scaled: { seasons: scaled, to: SEASON_GAMES },
-    minMinutes: MIN_MINUTES,
-    chipScale,
-    clubs: Object.fromEntries([...new Set(cards.map((c) => c.club))].sort().map((k) => [k, CLUB_NAMES[k]])),
+    minApps: MIN_APPS,
+    players: players.size,           // everyone in the exports; the pool is the cards
+    // chips = rating x this, so a rating of 99 is worth 60 chips
+    ratingExponent: RATING_EXPONENT,
+    records: Object.fromEntries(CATEGORY_KEYS.map((k) => [k, { total: record[k], holder: pool.find((p) => STAT[k](p) === record[k]).full }])),
+    chipScale: Object.fromEntries(CATEGORY_KEYS.map((k) => [k, { perUnit: RATING_TO_CHIPS }])),
+    clubs: Object.fromEntries([...new Set(cards.flatMap((c) => c.clubs.map(([k]) => k)))].sort().map((k) => [k, CLUB_NAMES[k]])),
     count: cards.length,
   },
   cards,
 };
 await writeFile(join(ROOT, 'src', 'data', 'cards.json'), JSON.stringify(out));
-console.log(`${cards.length} cards, ${new Set(cards.map((c) => c.pid)).size} players, ${Object.keys(out.meta.clubs).length} clubs`);
-console.log('chip scale (p99 -> 60 chips):', JSON.stringify(chipScale));
+console.log(`${seasons.length} seasons, ${players.size} players in the exports, ${cards.length} with ${MIN_APPS}+ appearances (the pool)`);
+console.log('records:', Object.entries(out.meta.records).map(([k, r]) => `${k} ${r.total} (${r.holder})`).join(', '));

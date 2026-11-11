@@ -8,11 +8,10 @@
 // Every random thing (spins, deals, shop stock, pack contents) comes from a labelled seed stream, so a seed always
 // gives the same season and a saved game resumes exactly.
 import { makeRng } from './rng.js';
-import { starterDeck, openPack, instance } from './deck.js';
+import { starterDeck, openPack, instance, upgradedEdition } from './deck.js';
 import { startRound, fixtureTarget, SEASON_LENGTH, spinWheel, WHEEL, VAR_PER_SEASON } from './round.js';
 import { JOKERS, JOKER_IDS } from './jokers.js';
 import { HAND_ORDER } from './hands.js';
-import { teamKey } from './cards.js';
 
 export const ECONOMY = {
   startMoney: 4,
@@ -28,14 +27,14 @@ export const ECONOMY = {
 };
 
 export const PACKS = {
-  standard: { name: 'Sticker Pack', blurb: '5 stickers from anywhere' },
-  club:     { name: 'Club Pack',    blurb: '5 stickers from clubs already in your squad' },
-  squad:    { name: 'Squad Pack',   blurb: '5 stickers from team-seasons already in your squad' },
+  standard: { name: 'Sticker Pack', blurb: '5 players from anywhere' },
+  club:     { name: 'Club Pack',    blurb: '5 players who played for a club in your squad' },
+  squad:    { name: 'Squad Pack',   blurb: '5 players who were team-mates of someone in your squad' },
 };
 
 const stream = (run, label) => makeRng(`${run.seed}|${label}`);
 
-// opts.targets: { start, end } overrides the target curve (the sim uses it for tuning; it is not saved)
+// opts.targets: { start, end } overrides the target curve, opts.shape the starter squad's shape (the sim uses them for tuning; neither is saved)
 export function newSeason(pool, seed = Date.now(), opts = {}) {
   const run = {
     seed: String(seed), matchday: 1, money: ECONOMY.startMoney, jokers: [], handLevels: {}, varLeft: VAR_PER_SEASON,
@@ -43,7 +42,7 @@ export function newSeason(pool, seed = Date.now(), opts = {}) {
   };
   Object.defineProperty(run, 'pool', { value: pool, enumerable: false });
   Object.defineProperty(run, 'targets', { value: opts.targets, enumerable: false, writable: true });
-  run.deck = starterDeck(pool, stream(run, 'start'));
+  run.deck = starterDeck(pool, stream(run, 'start'), opts.shape);
   beginMatchday(run);
   return run;
 }
@@ -149,6 +148,23 @@ export function rerollShop(run) {
   run.shop.paid = true;
 }
 
+// Who a pack of this type can deal. Club pack: players who played for a club in your squad. Squad pack: players who were
+// team-mates of someone in your squad (they share a club-season with one of your players). Standard: anyone.
+function packFilter(run, type) {
+  if (type === 'club') {
+    const clubs = new Set(run.deck.map((c) => c.club));
+    return (c) => c.clubs.some(([k]) => clubs.has(k));
+  }
+  if (type === 'squad') {
+    const stints = new Set(run.deck.flatMap((c) => c.stints));
+    return (c) => c.stints.some((s) => stints.has(s));
+  }
+  return undefined;
+}
+
+// The copy of this player you already own, if any (there is only ever one).
+export const ownedCopy = (run, card) => run.deck.find((c) => c.id === card.id) ?? null;
+
 export function buy(run, slot) {
   need(run.phase === 'shop', 'not in the shop');
   need(!run.pack, 'open your pack first');
@@ -164,9 +180,7 @@ export function buy(run, slot) {
     run.handLevels[offer.hand] = (run.handLevels[offer.hand] ?? 1) + 1;
   } else {
     const rng = stream(run, `pack|${run.matchday}|${run.shop.rerolls}|${slot}`);
-    const filter = offer.type === 'club' ? ((clubs) => (c) => clubs.has(c.club))(new Set(run.deck.map((c) => c.club)))
-      : offer.type === 'squad' ? ((teams) => (c) => teams.has(teamKey(c)))(new Set(run.deck.map(teamKey))) : undefined;
-    run.pack = { type: offer.type, cards: openPack(run.pool, rng, 5, { filter }) };
+    run.pack = { type: offer.type, cards: openPack(run.pool, rng, 5, { filter: packFilter(run, offer.type) }) };
   }
   run.money -= price;
   offer.bought = true;
@@ -174,15 +188,22 @@ export function buy(run, slot) {
 }
 
 // Keep up to ECONOMY.pick stickers from the open pack; the rest are swapped away. uids: [] takes none.
+// A player you already own is not a second copy: keeping him UPGRADES yours (see upgradedEdition). Returns, for each
+// sticker kept, { card, upgraded } (upgraded is the new edition, or null for a new signing).
 export function takePack(run, uids) {
   need(run.pack, 'no pack open');
   need(uids.length <= ECONOMY.pick, `keep at most ${ECONOMY.pick}`);
   need(new Set(uids).size === uids.length, 'pick each sticker once');
   const picked = uids.map((u) => run.pack.cards.find((c) => c.uid === u));
   need(picked.every(Boolean), 'that sticker is not in the pack');
-  run.deck.push(...picked);
+  const result = picked.map((card) => {
+    const owned = ownedCopy(run, card);
+    if (!owned) { run.deck.push(card); return { card, upgraded: null }; }
+    owned.edition = upgradedEdition(owned.edition, card.edition);
+    return { card: owned, upgraded: owned.edition };
+  });
   run.pack = null;
-  return picked;
+  return result;
 }
 
 export const sellValue = (id) => Math.floor(JOKERS[id].cost * ECONOMY.sellRatio);
