@@ -9,6 +9,11 @@ export const CLUB_COLOURS = {
   SHU: ['#EE2737', '#111111'], SOU: ['#D71920', '#FFFFFF'], STK: ['#E03A3E', '#FFFFFF'], SUN: ['#EB172B', '#FFFFFF'],
   SWA: ['#333333', '#FFFFFF'], TOT: ['#132257', '#FFFFFF'], WAT: ['#FBEE23', '#ED2127'], WBA: ['#122F67', '#FFFFFF'],
   WHU: ['#7A263A', '#1BB1E7'], WOL: ['#FDB913', '#231F20'],
+  BAR: ['#D81920', '#FFFFFF'], BIR: ['#1D3DBF', '#FFFFFF'], BLA: ['#0069B4', '#FFFFFF'], BLP: ['#F68712', '#FFFFFF'],
+  BOL: ['#263C7E', '#FFFFFF'], BRA: ['#7A1F2B', '#F2B705'], CHA: ['#D4021D', '#FFFFFF'], COV: ['#59CBE8', '#FFFFFF'],
+  DER: ['#E8E8E8', '#111111'], OLD: ['#0033A0', '#FFFFFF'], POR: ['#001489', '#FFFFFF'], QPR: ['#1D5BA4', '#FFFFFF'],
+  REA: ['#004494', '#FFFFFF'], SHW: ['#0E4C92', '#FFFFFF'], SWI: ['#E4002B', '#FFFFFF'], WIG: ['#1D59AF', '#FFFFFF'],
+  WIM: ['#0A2A6B', '#F2D200'],
 };
 
 // black or white, whichever reads on this background

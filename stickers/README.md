@@ -11,9 +11,9 @@ simulator found.
 
 ```bash
 cd stickers
-npm run fetch        # download the season files (raw, git-ignored)
-npm run build:data   # -> src/data/cards.json (committed, so you can skip the two above)
-npm test             # 53 tests: hand rules, exact scoring arithmetic, managers, rounds, data anchors
+npm run fetch        # download the FPL season files (raw, git-ignored)
+npm run build:data   # FPL + data/fbref/*.xls -> src/data/cards.json (committed, so you can skip the two above)
+npm test             # 55 tests: hand rules, exact scoring arithmetic, managers, rounds, data anchors
 npm run simulate     # bots play whole runs; prints where the target curve breaks
 npm start            # http://localhost:8778 : the tabletop
 ```
@@ -23,8 +23,9 @@ Plain ES modules, no build step, no dependencies (Node 22+ for the tests and too
 ```
 src/engine/   rng · cards (categories, editions) · hands · jokers (managers) · scoring · round · deck
 src/ui/       card renderer, club colours, tabletop
-src/data/     cards.json: one card per player-season, 2016/17-2025/26
-tools/        fetch-data · build-cards · simulate
+src/data/     cards.json: one card per player-season: 1992/93, 1993/94, 2016/17-2025/26
+data/fbref/   hand-exported FBref tables (git-ignored); see DESIGN.md §6 for how to add a season
+tools/        fetch-data · fbref (export reader) · build-cards · simulate
 test/         node:test suites
 ```
 

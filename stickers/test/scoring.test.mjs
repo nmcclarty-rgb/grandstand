@@ -114,11 +114,16 @@ test('Added Time: x2 on the last hand only', () => {
   assert.equal(total(pair(), ['addedTime'], { state: { handsLeft: 2, discardsLeft: 0 } }), 80);
 });
 
-test('Vintage Stickers: +20 chips per scoring card from 16/17 or 17/18', () => {
-  const cards = [mk({ season: '2016-17', club: 'ARS', goals: 10 }), mk({ season: '2016-17', club: 'ARS', goals: 5 })];
-  assert.equal(total(cards, ['vintage']), (40 + 40) * 2);
+test('Vintage Stickers: +20 chips per scoring card from the 1990s', () => {
+  const nineties = [mk({ season: '1993-94', club: 'NEW', goals: 10 }), mk({ season: '1993-94', club: 'NEW', goals: 5 })];
+  assert.equal(total(nineties, ['vintage']), (40 + 40) * 2);
   const modern = [mk({ season: '2018-19', goals: 10 }), mk({ season: '2018-19', goals: 5 })];
   assert.equal(total(modern, ['vintage']), 80);
+  // the cut-off is 2000/01: only the best card scores in a Kickabout, so swap which one that is
+  const late = [mk({ season: '1999-00', club: 'ARS', goals: 5 }), mk({ season: '2000-01', club: 'CHE', goals: 10 })];
+  assert.equal(scoreHand(late, ctx({ jokers: ['vintage'] })).chips, 5 + 20);
+  const early = [mk({ season: '1999-00', club: 'ARS', goals: 10 }), mk({ season: '2000-01', club: 'CHE', goals: 5 })];
+  assert.equal(scoreHand(early, ctx({ jokers: ['vintage'] })).chips, 5 + 20 + 20);
 });
 
 test('Super Sub: +15 chips per discard left', () => {

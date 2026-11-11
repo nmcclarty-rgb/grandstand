@@ -63,8 +63,8 @@ const list = [
   },
   {
     id: 'vintage', name: 'Vintage Stickers', cost: 4,
-    blurb: 'each scoring card from 2016/17 or 2017/18: +20 chips',
-    onCard: (c) => (c.season <= '2017-18' ? { chips: 20 } : undefined),
+    blurb: 'each scoring card from the 1990s: +20 chips',
+    onCard: (c) => (c.season < '2000-01' ? { chips: 20 } : undefined),
   },
   {
     id: 'superSub', name: 'Super Sub', cost: 4,

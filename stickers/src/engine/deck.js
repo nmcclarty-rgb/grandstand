@@ -39,6 +39,8 @@ export function starterDeck(pool, rng, shape = STARTER_SHAPE) {
     const runs = [];
     for (let i = 0; i + nSeasons <= pool.seasons.length; i++) {
       const window = pool.seasons.slice(i, i + nSeasons);
+      const y0 = Number.parseInt(window[0], 10);
+      if (!window.every((x, k) => Number.parseInt(x, 10) === y0 + k)) continue; // a gap in the data is not a run of seasons
       const groups = window.map((season) => pool.byTeam.get(`${club}|${season}`));
       if (groups.every((g) => g && enough(g))) runs.push(window);
     }

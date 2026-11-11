@@ -60,7 +60,7 @@ returns a `trace` of every step so the UI can show the working.
 
 **Editions** (rolled when a pack is opened): shiny +40 chips, holo +6 mult, gold ×1.5 mult.
 **Managers** (16): Park the Bus, Route One, Sweeper Keeper, Total Football, One-Club Man,
-Golden Boot, Playmaker, Added Time, Vintage Stickers, Super Sub, Captain's Armband and
+Golden Boot, Playmaker, Added Time, Vintage Stickers (1990s cards), Super Sub, Captain's Armband and
 five category specialists. Each is a small function in `jokers.js`.
 
 ## 5. A fixture
@@ -70,33 +70,52 @@ currently Balatro's ante curve ×1 / ×1.5 / ×2 for League / Cup tie / Derby. T
 says that curve is a reasonable start for this scoring scale (§7); it has not been
 tuned further.
 
-**Starter squad**: 24 mid-table cards (rating 25-80): 3 clubs × 3 consecutive seasons,
-2 GK / 8 DEF / 8 MID / 6 FWD. See §7 for why that shape.
+**Starter squad**: 24 mid-table cards (rating 25-80): 3 clubs × 3 consecutive calendar seasons,
+2 GK / 8 DEF / 8 MID / 6 FWD. See §7 for why that shape. Only 2016/17 onward has three seasons in a row, so
+the 1990s cards reach you through packs for now.
 
 ## 6. Data
 
-Source: the **Fantasy Premier League season archive**
-([vaastav/Fantasy-Premier-League](https://github.com/vaastav/Fantasy-Premier-League)),
-which republishes the official FPL API's end-of-season player totals.
+Two sources, joined at the cards:
 
-- **Coverage is 2016/17 to 2025/26.** Not 1992. A quick probe from the build environment
-  found no open player-level source reaching further back: Wikipedia's API returned 429 and
-  Kaggle needs a login. FBref and Transfermarkt were not tried (their terms restrict
-  scraping), so a 1992-2016 layer is still an open question. 2026/27 is excluded as incomplete.
-- 4,296 cards, 1,476 players, 34 clubs. A "season" needs ≥ 270 minutes (three full games).
-- FPL assigns one club per player per season (their club at the end of it), so a mid-season
-  transfer shows as one card.
-- 2016/17-2018/19 ship no `teams.csv`; clubs are mapped from FPL's alphabetical team ids.
-  `test/data.test.mjs` checks the mapping against known player-club pairs.
-- `rating` is the season-points percentile within the position (1-99), and decides pack rarity.
-  It is a fantasy-points measure, so it flatters attackers and clean-sheet defenders.
-- The stats are the FPL ones: *bonus points* and *value (£m)* are fantasy concepts, not
-  football ones, and are used because they are in the data.
+| Seasons | Source | Stats available |
+|---|---|---|
+| 2016/17 to 2025/26 | the **Fantasy Premier League season archive** ([vaastav/Fantasy-Premier-League](https://github.com/vaastav/Fantasy-Premier-League)), fetched by `tools/fetch-data.mjs` | all seven categories, plus fantasy points |
+| 1992/93 and 1993/94 | **FBref** "Standard Stats" tables, exported by hand (Share & Export, Excel) into `data/fbref/` | games, goals, assists (plus cards, not used yet) |
 
-**Before this goes public:** the archive has no licence file, the figures originate from the
-Premier League's FPL service, and the cards use real player names. Fine for a private
-prototype; a public release needs a licensing decision. Club colours are used, but no crests,
-logos or photos: the art is a generic silhouette.
+Everything from 1994/95 to 2015/16 is still missing: 22 seasons. Each extra FBref season is one
+more export (two files, see below) and no code change unless it names a club the importer doesn't
+know yet; an unknown club stops the build rather than guessing.
+
+- **FBref was not scrapeable.** It sits behind a Cloudflare challenge, which I did not try to defeat.
+  The exports are saved by a person in a browser and dropped in `data/fbref/<season>.xls`.
+  FBref truncates an export at 499 rows (a season has ~560 players), so each season needs two files:
+  `1992-93.xls` (table as it comes) and `1992-93-z-a.xls` (click the Player header to reverse the sort,
+  export again). `tools/fbref.mjs` merges them and refuses to continue if an overlapping row disagrees.
+  The `.xls` is really an HTML table.
+- **1990s cards only have three stats.** Clean sheets, saves, bonus points and value are zero, shown as a
+  dash on the card. So a 1990s goalkeeper is worth chips only in Games rounds, and everyone is worth
+  nothing in Saves rounds. This is deliberate: invented numbers would look like data.
+- **Mid-season movers get one card per club** in the FBref seasons (Sheringham: 1 goal at Forest, 21 at Spurs).
+  FPL assigns a player to the club they finished the season with, so there it is one card.
+- A "season" needs 270 minutes in either source (three full games). 2026/27 is excluded as incomplete.
+- Counts: 5,219 cards, 2,050 players, 41 clubs. Sanity checks in `test/data.test.mjs`: known season totals
+  for both sources, and the goals on the cards add up to within 10% of the real league total
+  (the shortfall is own goals, which FBref does not credit to a player).
+- 2016/17 to 2018/19 ship no `teams.csv`; clubs are mapped from FPL's alphabetical team ids, checked in the tests.
+- **`rating`** (1-99) is a percentile within position and within source, so a 1990s striker is ranked against
+  1990s strikers. FPL cards rank on fantasy points. FBref cards have none, so they rank on
+  `2 x goals + assists + 0.15 x games`, and goalkeepers on games played. That makes ratings a rough guide
+  and not comparable across eras. It decides pack rarity.
+- Players are not yet linked across the two sources, so a Hat-trick can only be built within one source.
+  (FBref ids are `fb:<name>:<birth year>`; FPL ids are numbers.)
+- The stats are FPL's for 2016+: *bonus points* and *value (£m)* are fantasy concepts used because they are there.
+
+**Before this goes public:** the FPL archive has no licence file and its figures originate from the
+Premier League's FPL service; the FBref tables are Sports Reference's and their terms apply to
+republishing them (the raw exports are git-ignored; `cards.json` is the derived product). The cards use real
+player names. Fine for a private prototype; a public release needs a licensing decision. Club colours are
+used, but no crests, logos or photos: the art is a generic silhouette.
 
 ## 7. What the simulator found
 
@@ -109,11 +128,11 @@ deck), a random manager per stage, and a training level for its favourite hand.
 |---|---|---|
 | random | 1 | 0 / 500 |
 | greedy, starter squad only | 7 | 0 / 500 |
-| greedy+ | 13 | 2 / 500 |
+| greedy+ | 12 | 0 / 500 |
 
 1. **The curve works as a starting point.** Random play is dead by fixture 2, a competent
    player on the bare starter squad runs out of steam around stage 3, and building a deck
-   roughly doubles that. Almost nobody finishes, which suits a roguelike.
+   gets about 1.7x that. Almost nobody finishes, which suits a roguelike.
 2. **Starter squad shape drives the hand mix.** With 4 team-seasons of 6 cards (the first
    attempt), Back Four and Full Strength were 73% of all plays, i.e. the aspirational hands
    were routine. 3 clubs × 3 seasons is the only shape tried that spreads plays across
@@ -132,4 +151,4 @@ deck), a random manager per stage, and a training level for its favourite hand.
 
 Run loop and shop · the sticker album (persistence, page completion, perks) · swaps · more
 than one card of the same player as a deliberate mechanic · boss-fixture rules ·
-sound · saving · anything before 2016/17.
+sound · saving · 1994/95 to 2015/16 · linking a player across the two sources.

@@ -15,8 +15,8 @@ test('every card is well-formed and unique', () => {
   for (const c of cards) {
     assert.ok(!ids.has(c.id), `duplicate id ${c.id}`);
     ids.add(c.id);
-    const ps = `${c.pid}|${c.season}`;
-    assert.ok(!playerSeason.has(ps), `${c.name} appears twice in ${c.season}`);
+    const ps = `${c.pid}|${c.season}|${c.club}`; // a mid-season mover has one card per club
+    assert.ok(!playerSeason.has(ps), `${c.name} appears twice for ${c.club} in ${c.season}`);
     playerSeason.add(ps);
     assert.ok(POSITIONS.includes(c.pos), `${c.id}: position ${c.pos}`);
     assert.ok(meta.seasons.includes(c.season), `${c.id}: season ${c.season}`);
@@ -48,15 +48,47 @@ test('legacy seasons without teams.csv map clubs correctly (alphabetical id fall
   for (const [name, season, club] of expect) assert.equal(find(name, season)?.club, club, `${name} ${season}`);
 });
 
-test('every season has all four positions at every club', () => {
+test('every team-season has all four positions; 22 clubs until 1995, 20 after', () => {
   const groups = new Map();
   for (const c of cards) {
     const k = teamKey(c);
     if (!groups.has(k)) groups.set(k, new Set());
     groups.get(k).add(c.pos);
   }
-  assert.equal(groups.size, meta.seasons.length * 20, 'ten seasons x 20 clubs');
-  for (const [k, ps] of groups) assert.ok(POSITIONS.every((p) => ps.has(p)), `${k} is missing a position`);
+  for (const season of meta.seasons) {
+    const clubs = [...groups.keys()].filter((k) => k.endsWith(`|${season}`));
+    assert.equal(clubs.length, season <= '1994-95' ? 22 : 20, season);
+  }
+  // a club that only had a mid-season mover (e.g. Nottingham Forest 92/93 for one player) cannot be a squad
+  const thin = [...groups].filter(([k, ps]) => !POSITIONS.every((p) => ps.has(p)) && cards.filter((c) => teamKey(c) === k).length > 12);
+  assert.deepEqual(thin.map(([k]) => k), []);
+});
+
+test('FBref seasons (1992/93, 1993/94): anchors, merged exports, mid-season movers', () => {
+  const get = (name, season, club) => cards.find((c) => c.name === name && c.season === season && c.club === club);
+  assert.equal(get('Sheringham', '1992-93', 'TOT').goals, 21);
+  assert.equal(get('Ferdinand', '1992-93', 'QPR').goals, 20);
+  assert.equal(get('Shearer', '1992-93', 'BLA').goals, 16);
+  assert.equal(get('Wright', '1992-93', 'ARS').goals, 15);       // only in the Z-A export
+  assert.equal(get('Cole', '1993-94', 'NEW').goals, 34);
+  assert.equal(get('Shearer', '1993-94', 'BLA').goals, 31);
+  assert.equal(get('Le Tissier', '1993-94', 'SOU').goals, 25);
+  // Sheringham left Forest for Spurs mid-season: two cards, two clubs
+  assert.ok(cards.filter((c) => c.pid === get('Sheringham', '1992-93', 'TOT').pid && c.season === '1992-93').length >= 1);
+  assert.equal(get('Cantona', '1992-93', 'LEE').goals + get('Cantona', '1992-93', 'MUN').goals, 15);
+  // one source only has goals, assists and games
+  for (const c of cards.filter((x) => x.src === 'fbref')) {
+    assert.deepEqual([c.cleanSheets, c.saves, c.bonus, c.price, c.points], [0, 0, 0, 0, 0], c.id);
+    assert.ok(c.games > 0);
+  }
+  assert.deepEqual(meta.sources.fbref, ['1992-93', '1993-94']);
+});
+
+test('the season total is about right: the goals on the cards are within 10% of the league total', () => {
+  // 1992/93: 1,222 goals in 462 matches; 1993/94: 1,195. Own goals are not credited to a player.
+  const sum = (season) => cards.filter((c) => c.season === season).reduce((s, c) => s + c.goals, 0);
+  assert.ok(sum('1992-93') > 1222 * 0.9 && sum('1992-93') <= 1222, `1992-93: ${sum('1992-93')}`);
+  assert.ok(sum('1993-94') > 1195 * 0.9 && sum('1993-94') <= 1195, `1993-94: ${sum('1993-94')}`);
 });
 
 test('chip scale: the 99th percentile in each category is worth about 60 chips', () => {
@@ -81,7 +113,7 @@ test('starter deck: 24 mid-table cards, three clubs x three consecutive seasons,
     for (const [club, seasons] of clubs) {
       const years = [...seasons].map((x) => Number.parseInt(x, 10)).sort();
       assert.equal(years.length, 3, `${club} should span 3 seasons`);
-      assert.deepEqual(years, [years[0], years[0] + 1, years[0] + 2], `${club} seasons must be consecutive`);
+      assert.deepEqual(years, [years[0], years[0] + 1, years[0] + 2], `${club} seasons must be consecutive (no straddling the 1994-2016 gap)`);
     }
   }
 });
