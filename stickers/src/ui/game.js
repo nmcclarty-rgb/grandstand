@@ -463,7 +463,7 @@ function showOver() {
     ['Squad', `${run.deck.length} stickers`],
     ['Money left', money(run.money)],
     ['VAR left', `${run.varLeft} of ${VAR_PER_SEASON}`],
-    ['Seed', run.seed],
+    ['Season code', run.seed],
   ];
   $('o-summary').replaceChildren(...rows.flatMap(([k, v]) => [el('dt', { text: k }), el('dd', { text: v })]));
   $('o-form').replaceChildren(...Array.from({ length: SEASON_LENGTH }, (_, i) => {

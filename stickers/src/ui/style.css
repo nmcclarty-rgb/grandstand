@@ -223,3 +223,5 @@ dialog p, dialog li { font-size: 14px; line-height: 1.5; color: #d3e3d8; }
 .card [data-tip]:hover { filter: brightness(1.06); }
 .stats li[data-tip]:hover i { text-decoration: underline dotted; text-underline-offset: 3px; }
 .card [data-tip] { cursor: inherit; }
+
+.seedhelp { max-width: 56ch; margin: 6px 0 0; }
