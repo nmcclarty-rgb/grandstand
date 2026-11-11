@@ -45,8 +45,7 @@ tools/simulate.mjs    bots against bots
 | hard | 73 | 74 | 66 | 47 |
 
 A price carries real information (easy, which only reads prices, beats a random picker 62-38). Knowing the stats beats that
-(medium beats easy, hard beats medium two matches in three). The first pick is worth a little (hard against hard is 47%
-for the side that does not pick first in round 1 half the time).
+(medium beats easy, hard beats medium two matches in three). Hard against hard is 47%, so the seat is close to fair.
 Showdowns are close: about a quarter of matches are decided by under 10%. The hands that come up are mostly One-Two, Spine and
 Kickabout: **Triangle and above are rare** because five random players seldom share a club-season. That is the first thing to
 look at in a playtest: if team-mate hands should matter more, the board could offer players from the same eras or clubs.
