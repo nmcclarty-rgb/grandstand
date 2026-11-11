@@ -173,7 +173,7 @@ export const valueOf = (card, category) => statOf(card, category);
 // The roll, once the teams are picked: which attribute is counted.
 export function rollAttribute(state) {
   if (state.phase !== 'showdown' && state.phase !== 'over') throw new Error('the teams are not picked yet');
-  state.category ??= state.forcedCategory ?? stream(state, 'category').pick(CATEGORY_KEYS);
+  if (state.category == null) state.category = state.forcedCategory ?? stream(state, 'category').pick(CATEGORY_KEYS);
   return state.category;
 }
 
