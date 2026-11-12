@@ -140,31 +140,37 @@ function renderRoad(targetId) {
   $(targetId).replaceChildren(...stops);
 }
 
-const COLW = 150;
+const COLW = 90;
 function slotEl(x, side) {
   if (!x.known) return el('div', { class: 'bslot unknown' }, el('span', { class: 'bq', text: '?' }));
   return el('div', { class: `bslot ${x.you ? 'you' : ''} ${side ? (side.won ? 'won' : 'lost') : ''}`, title: `${x.name} (${x.tierName}, £${x.budget})` },
-    el('span', { class: 'bb', html: crest(x) }), el('span', { class: 'bn', text: x.name }), side ? el('span', { class: 'bs', text: n(side.score) }) : null);
+    el('span', { class: 'bb', style: `background:${x.colours[0]}` }), el('span', { class: 'bn', text: x.name }), side ? el('span', { class: 'bs', text: n(side.score) }) : null);
 }
+// The bracket like a World Cup poster: the top half of the draw down the left, the bottom half down the right, the rounds closing in towards the Final in the middle.
+// Round r has 64 >> r slots; the left half of it is the first half of them, and its tie i is made of slots 2i and 2i + 1.
 function renderBracket(targetId) {
   const t = tournament, v = bracketView(t), box = $(targetId);
-  const cols = v.rounds.map((slots, r) => {
-    const last = r === ROUNDS.length;
-    const body = el('div', { class: 'bcol' });
-    if (last) body.append(el('div', { class: 'bmatch', style: 'height:calc(var(--u) * 64)' }, slotEl(slots[0], null)));
-    else {
-      for (let m = 0; m < slots.length / 2; m++) {
-        const tie = v.ties[r][m];
-        const sides = tie ? [{ won: tie.winner === 'a', score: tie.a }, { won: tie.winner === 'b', score: tie.b }] : [null, null];
-        const label = tie ? ATTRIBUTE[tie.category].short : '';
-        body.append(el('div', { class: `bmatch${tie ? ' played' : ''}`, style: `height:calc(var(--u) * ${2 ** (r + 1)})`, title: label }, slotEl(slots[2 * m], sides[0]), slotEl(slots[2 * m + 1], sides[1])));
-      }
-    }
-    return el('div', { class: `bround${r === v.round && v.status === 'playing' ? ' current' : ''}` }, el('div', { class: 'bhead', text: last ? 'Champions' : ROUNDS[r] }), body);
-  });
-  box.replaceChildren(...cols);
+  const last = ROUNDS.length - 1;   // the Final is in the middle
+  const matchEl = (r, m) => {
+    const tie = v.ties[r][m];
+    const sides = tie ? [{ won: tie.winner === 'a', score: tie.a }, { won: tie.winner === 'b', score: tie.b }] : [null, null];
+    return el('div', { class: `bmatch${tie ? ' played' : ''}`, style: `height:calc(var(--u) * ${2 ** (r + 1)})`, title: tie ? ATTRIBUTE[tie.category].short : '' }, slotEl(v.rounds[r][2 * m], sides[0]), slotEl(v.rounds[r][2 * m + 1], sides[1]));
+  };
+  const column = (r, half) => {
+    const per = v.ties[r].length / 2;
+    const body = el('div', { class: 'bcol' }, Array.from({ length: per }, (_, i) => matchEl(r, half * per + i)));
+    return el('div', { class: `bround ${half ? 'right' : 'left'}${r === v.round && v.status === 'playing' ? ' current' : ''}` }, el('div', { class: 'bhead', text: ROUNDS[r] }), body);
+  };
+  const final = v.ties[last][0];
+  const fin = (i) => slotEl(v.rounds[last][i], final ? { won: final.winner === (i ? 'b' : 'a'), score: i ? final.b : final.a } : null);
+  const middle = el('div', { class: `bround middle${v.round === last && v.status === 'playing' ? ' current' : ''}` }, el('div', { class: 'bhead', text: 'Final' }),
+    el('div', { class: 'bcol mid', style: 'height:calc(var(--u) * 32)' }, fin(0), el('div', { class: 'cup', html: '🏆' }), slotEl(v.rounds[last + 1][0], null), fin(1)));
+  const left = Array.from({ length: last }, (_, r) => column(r, 0));
+  const right = Array.from({ length: last }, (_, r) => column(last - 1 - r, 1));
+  box.replaceChildren(...left, middle, ...right);
   box.scrollTop = 0;
-  box.scrollLeft = v.status === 'playing' ? Math.max(0, (v.round - 1) * COLW) : 0;
+  // keep the action in view: start at the left edge in the early rounds, and move inwards as the road does
+  box.scrollLeft = v.status === 'playing' ? Math.max(0, (v.round - 1) * COLW) : Math.max(0, (box.scrollWidth - box.clientWidth) / 2);
 }
 const drawCup = (road, bracket) => { renderRoad(road); renderBracket(bracket); };
 
@@ -177,23 +183,26 @@ async function cupIntro(my) {
   $('l-you-name').textContent = you.name;
   $('l-you-div').textContent = you.tierName;
   $('l-you').textContent = `£${state.money.you}`;
-  $('l-badge').innerHTML = '<span class="qmark">?</span>';
-  $('l-club').textContent = 'Drawing…';
-  $('l-div').textContent = ' ';
-  $('l-bot').textContent = '£?';
-  $('l-say').textContent = t.round === 0 ? 'You are a League Two club. The draw is made, and you do not know who you have.' : 'The draw is made, and you do not know who you have.';
   drawCup('l-path', 'l-bracket');
-  await holdFor(1500);
-  if (my !== token) return;
+  if (t.round > 0) {
+    // the draw showed you who it could be (the two clubs of the tie that feeds this round); who won is a secret until now
+    $('l-badge').innerHTML = '<span class="qmark">?</span>';
+    $('l-club').textContent = 'Who won?';
+    $('l-div').textContent = ' ';
+    $('l-bot').textContent = '£?';
+    $('l-say').textContent = 'The tie that feeds your match has been played. You find out who you have in a moment.';
+    await holdFor(1800);
+    if (my !== token) return;
+  }
   revealOpponent(t);
   $('l-badge').innerHTML = crest(opp);
   $('l-club').textContent = opp.name;
   $('l-div').textContent = opp.tierName;
   $('l-bot').textContent = `£${opp.budget}`;
   const pct = Math.round((opp.budget / state.money.you - 1) * 100);
-  $('l-say').textContent = pct === 0 ? 'The same money as you.' : pct < 0 ? `${-pct}% less money than you.` : `${pct}% more money than you: an upset if you win.`;
+  $('l-say').textContent = (t.round === 0 ? 'The draw is made. ' : '') + (pct === 0 ? 'The same money as you.' : pct < 0 ? `${-pct}% less money than you.` : `${pct}% more money than you: an upset if you win.`);
   drawCup('l-path', 'l-bracket');
-  await holdFor(4800);
+  await holdFor(t.round === 0 ? 7000 : 4800);
   if (my !== token) return;
   beginMatchPage(my);
 }
@@ -210,7 +219,7 @@ async function endRound(m, my) {
   drawCup('s-path', 's-bracket');
   if (tournament.status === 'playing') {
     $('s-hint').hidden = false;
-    await countdown(6, (left) => { $('s-say').textContent = `${line} Through to the ${ROUNDS[tournament.round]}. You will not know the opponent until it starts: ${left}…`; });
+    await countdown(6, (left) => { $('s-say').textContent = `${line} Through to the ${ROUNDS[tournament.round]}. Who you play is decided by a tie you cannot see yet: ${left}…`; });
     if (my !== token) return;
     state = tournament.tie;
     cupIntro(++token);
@@ -546,7 +555,7 @@ function buildManual() {
     <h2 id="m-h">How to play</h2>
     <h3>Two ways to play</h3>
     <ul>
-      <li><b>The Cup</b> (the main game): 64 clubs from the English pyramid, <b>16 each from the Premier League, the Championship and League One, and League Two (you are one of them)</b>. Six knockout rounds, each a single match. The opponent is always the same bot; what changes is its <b>money</b>, which follows the division: a League Two club has about what you have, a Premier League club up to 40% more. You do not know who you play until the round starts, and the bracket fills in behind you as you go. Win a round and you go through; <b>lose and you are out</b>. If a round is level on the count, more appearances goes through, then a coin. Name your club on the title screen.</li>
+      <li><b>The Cup</b> (the main game): 64 clubs from the English pyramid, <b>16 each from the Premier League, the Championship and League One, and League Two (you are one of them)</b>. The draw is made at the start and you can see all 64. Six knockout rounds, each a single match. The opponent is always the same bot; what changes is its <b>money</b>, which follows the division: a League Two club has about what you have or less, a Premier League club up to 30% more. The big clubs cannot reach you before about the quarter-final. After round one you know the two clubs your next opponent could be, but not which one won until the round starts. Win a round and you go through; <b>lose and you are out</b>. If a round is level on the count, more appearances goes through, then a coin. Name your club on the title screen.</li>
       <li><b>Quick series</b>: a best of three against a bot of the level you choose (easy, medium or hard).</li>
     </ul>
     <h3>A match</h3>

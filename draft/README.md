@@ -27,18 +27,20 @@ are out; win the Final and you are champions.** The opponent is always the same 
 
 | Division | Budget share, strongest to weakest club | 5-a-side |
 |---|---|---|
-| Premier League | 140% down to 115% | £14 to £12 |
-| Championship | 120% down to 105% | £12 to £11 |
-| League One | 110% down to 95% | £11 to £10 |
-| League Two | 100% down to 80% | £10 to £8 |
+| Premier League | 130% down to 112% | £13 to £11 |
+| Championship | 115% down to 105% | £12 to £11 |
+| League One | 108% down to 100% | £11 to £10 |
+| League Two | 95% down to 80% | £10 to £8 |
 
-So most of the pyramid is richer than you, which is why you are the underdog. **The draw** (seeded) puts the weakest clubs nearest your slot and the strongest in the far half of the bracket, with some noise (a big club can be
-drawn early), so the road gets harder as you go.
+You are on the base budget, so you are level with the best League Two clubs and short of everyone from League One up.
 
-**What you see.** You do not know who you play until the round starts, and you see nothing of the road ahead either. At the start the bracket shows only you. When a round starts, the club you are about to play is revealed
-(badge, division, money) together with the part of the bracket that produced it (the clubs it had to beat); the rest of the field stays a "?" until you reach it. A road of six stops with your crest moving along it, and the
-bracket filling in behind you, show you travelling through the tournament. When you are knocked out or win, the whole bracket is revealed. `bracketView(t)` is the only thing the page draws from, and the tests check that it
-carries nothing the player should not know yet.
+**The draw** (seeded) is made at the start and **you see all 64 clubs** in their places, in a bracket like a World Cup poster: the top half of the draw down the left, the bottom half down the right, the rounds closing in
+to the Final in the middle (you are top-left). It is random with one rule: slots 1 to 7 (your Round of 64 opponent and the clubs that could reach you in the Round of 32 and Round of 16) are League Two clubs, so **the big clubs
+cannot reach you before about the quarter-final**. Where they land among the other 56 slots is luck: you may meet one in the quarter-final, the semi-final, or the Final.
+
+**What you see after the draw** is results, not the draw. The ties of each round are played as you go and shown once played, **except the tie that feeds your next match**: you know the two clubs it could be, but not which one
+won until the round starts (the intro says "Who won?", then reveals your opponent and their money). A road of six stops with your crest moving along it shows you travelling through the tournament. When you are knocked out
+or win, the whole bracket is revealed. `bracketView(t)` is the only thing the page draws from, and the tests check that it carries nothing the player should not know yet.
 
 **The other ties** are played by the engine: the medium bot against the medium bot, each with its club's money, one draft each, so the bracket fills in with believable results (big clubs usually win). A round that is level on
 the count is decided by more appearances, then a coin (a knockout needs a winner). The draw and every tie are the same for a seed. Everything flows by itself (a tap or Space skips a wait); a run is saved as "best run" and
@@ -52,13 +54,13 @@ at most £5, so money above about £25 in 5-a-side and £55 in 11-a-side buys no
 
 | 5-a-side | R64 | R32 | R16 | QF | SF | Final |
 |---|---|---|---|---|---|---|
-| random picker | 30% | 6% | 2% | 1% | 0% | 0% |
-| price-only (easy) | 34% | 8% | 1% | 0% | 0% | 0% |
-| equal to the bot (medium) | 75% | 51% | 32% | 20% | 9% | 2% |
-| knows the stats exactly (hard) | 89% | 77% | 60% | 49% | 37% | 14% |
+| random picker | 24% | 5% | 1% | 0% | 0% | 0% |
+| price-only (easy) | 27% | 5% | 1% | 0% | 0% | 0% |
+| equal to the bot (medium) | 68% | 44% | 28% | 11% | 5% | 2% |
+| knows the stats exactly (hard) | 87% | 75% | 60% | 31% | 17% | 9% |
 
-(11-a-side: medium 72 / 48 / 32 / 18 / 10 / 4%, hard 90 / 82 / 72 / 59 / 47 / 34%.) A player as good as the bot is an underdog from the start: about a one in three chance of the last 16, one in ten of the final. A player who knows
-football better than the bot's fog should go further. Nobody has played it yet: the strengths (`TIERS` in `pyramid.js`) and the draw noise (`DRAW_NOISE`) are the first things to tune from real runs. The divisions are as they
+(11-a-side: medium 62 / 35 / 21 / 10 / 6 / 1%, hard 89 / 82 / 72 / 47 / 33 / 25%.) A player as good as the bot is an underdog from the start: about a one in four chance of the last 16, one in ten of the semi-final. A player who knows
+football better than the bot's fog should go further. Nobody has played it yet: the strengths (`TIERS` in `pyramid.js`) and `SAFE_SLOTS` (how many early slots are League Two only) are the first things to tune from real runs. The divisions are as they
 were at about the time of writing (the pool of clubs is not kept up to date), and the badges are generated, not real crests.
 
 ## The quick series

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { pool } from './helpers.mjs';
-import { ROUNDS, SIZE, BOT_LEVEL, budgetFor, drawFor, youTeam, newTournament, opponent, me, finishRound, playRound, roundsWon, revealOpponent, bracketView, champion } from '../src/engine/tournament.js';
+import { ROUNDS, SIZE, SAFE_SLOTS, BOT_LEVEL, budgetFor, drawFor, youTeam, newTournament, opponent, me, finishRound, playRound, roundsWon, revealOpponent, bracketView, champion } from '../src/engine/tournament.js';
 import { opponents, FIELD, TIERS, YOUR_TIER, kitFor, codeFor } from '../src/engine/pyramid.js';
 import { newMatch, nextMatch, pick, showdown, seriesOf, canAfford, MODES } from '../src/engine/draft.js';
 import { choose } from '../src/engine/bot.js';
@@ -40,7 +40,7 @@ test('the pyramid: 63 clubs, 16 from each of the top three divisions and 15 from
   assert.equal(codeFor('Grandstand Town'), 'GRA'); assert.equal(codeFor('  '), 'YOU');
 });
 
-test('the draw: you in slot 0, 63 different clubs, the same for a seed, harder clubs further from you', () => {
+test('the draw: you in slot 0, 63 different clubs, the same for a seed, small clubs on your early road, big clubs anywhere from the quarter-final', () => {
   const d = drawFor('seed1', 'five', 'Sunday Rovers');
   assert.equal(d.length, 64);
   assert.equal(d[0].name, 'Sunday Rovers'); assert.equal(d[0].you, true); assert.equal(d[0].tierName, 'League Two');
@@ -48,10 +48,16 @@ test('the draw: you in slot 0, 63 different clubs, the same for a seed, harder c
   assert.equal(new Set(d.slice(1).map((x) => x.code)).size, 63, 'the opponents have a code each (yours is only the letters on your badge)');
   assert.deepEqual(drawFor('seed1', 'five', 'Sunday Rovers').map((x) => x.code), d.map((x) => x.code));
   assert.notDeepEqual(drawFor('seed2', 'five', 'Sunday Rovers').map((x) => x.code), d.map((x) => x.code));
-  // on average, the clubs in each group of slots (the pool for each round's opponent) get richer
-  const avg = (seedN, a, b) => { let sum = 0, n = 0; for (let i = 0; i < seedN; i++) { const x = drawFor(`g${i}`, 'five').slice(a, b); sum += x.reduce((s, c) => s + c.mult, 0) / x.length; n++; } return sum / n; };
-  const groups = [[1, 2], [2, 4], [4, 8], [8, 16], [16, 32], [32, 64]].map(([a, b]) => avg(40, a, b));
-  for (let i = 1; i < groups.length; i++) assert.ok(groups[i] > groups[i - 1], `group ${i} is richer than group ${i - 1}: ${groups.map((g) => g.toFixed(2))}`);
+  assert.equal(SAFE_SLOTS, 7);
+  // across many draws: your first three opponents' pools (slots 1 to 7) are League Two clubs only; later slots are a real shuffle where any club, big ones included, can be
+  const seenAt = Array.from({ length: 64 }, () => new Set());
+  for (let i = 0; i < 300; i++) {
+    const x = drawFor(`g${i}`, 'five');
+    x.slice(1, 1 + SAFE_SLOTS).forEach((c) => assert.equal(c.tier, 3, `${c.name} is League Two`));
+    x.forEach((c, k) => seenAt[k].add(c.tier));
+  }
+  for (let k = 8; k < 64; k++) assert.ok(seenAt[k].has(0), `a Premier League club can be drawn in slot ${k}`);
+  for (let k = 8; k < 16; k++) assert.ok(seenAt[k].has(0) && seenAt[k].has(3), `the quarter-final pool (slot ${k}) is open to big and small clubs`);
   // budgets are each side's share of the mode's budget
   for (const mode of ['five', 'eleven']) for (const c of drawFor('b', mode)) assert.equal(c.budget, budgetFor(mode, c.mult));
   assert.equal(youTeam('five', 'x').budget, 10); assert.equal(youTeam('eleven', 'x').budget, 30);
@@ -130,48 +136,40 @@ test('a drawn round is decided: more appearances goes through, then a coin', () 
   assert.throws(() => finishRound(newTournament(pool, 'early')), /not finished/);
 });
 
-test('you do not see who you play next, or anything on the road ahead, until the round starts', () => {
+test('you see the whole draw at the start, but not who you play after round one, until the round starts', () => {
   const t = newTournament(pool, 'veil', { name: 'Sunday Rovers' });
-  const known = (v) => v.rounds.flatMap((r, k) => r.map((x, i) => (x.known ? `${k}:${i}` : null)).filter(Boolean));
+  const known = (v, r) => v.rounds[r].filter((x) => x.known).length;
   const shown = (v) => v.ties.flatMap((r, k) => r.map((x, i) => (x ? `${k}:${i}` : null)).filter(Boolean));
-  // before round 1 starts: yourself and nothing else, in the view and in what the view carries (no club names but yours)
+  // the draw: all 64 clubs are in the view, and no result
   let v = bracketView(t);
-  assert.deepEqual(known(v), ['0:0']); assert.deepEqual(shown(v), []);
+  assert.equal(known(v, 0), 64); assert.deepEqual(shown(v), []);
+  assert.deepEqual(v.rounds[0].map((x) => x.name), t.teams.map((x) => x.name), 'every club in its place');
   assert.equal(v.rounds[0][0].you, true);
-  assert.equal(v.rounds[0][1].known, false); assert.equal(v.rounds[0][1].name, undefined, 'an unknown slot carries no club');
-  const secret = JSON.stringify(t.teams.slice(1).map((x) => x.name));
-  const others = t.teams.slice(1).map((x) => x.name);
-  for (const name of others) assert.ok(!JSON.stringify(v).includes(name), `${name} is not in the view`);
-  void secret;
-  // the round starts: the opponent is revealed
-  revealOpponent(t);
-  v = bracketView(t);
-  assert.deepEqual(known(v), ['0:0', '0:1']);
-  assert.equal(v.rounds[0][1].name, opponent(t).name);
-  const second = t.teams[t.bracket[0][2]].name;
-  assert.ok(!JSON.stringify(v).includes(second), 'nobody else is in the view');
-  // play on: after each round, round r+1 slot 0 is you; the next opponent is still hidden; the block that produced him appears at the next round start
-  const winnersOnly = (cb) => { while (t.status === 'playing') { play(t, 'hard'); if (t.status !== 'playing') break; cb(); } };
-  winnersOnly(() => {
-    const w = bracketView(t), R = t.round;
+  assert.equal(known(v, 1), 0, 'nobody has reached round two yet');
+  // play on: after each round the winners of the other ties are shown, but not the tie that decides your next opponent, and not who he is
+  let rounds = 0;
+  while (t.status === 'playing') {
+    play(t, 'hard');
+    if (t.status !== 'playing') break;
+    const R = t.round;
+    const w = bracketView(t);
     assert.equal(w.rounds[R][0].you, true, 'you are in the next round');
     assert.equal(w.rounds[R][1].known, false, 'the next opponent is hidden');
-    for (const k of Object.keys(w.rounds)) void k;
-    const nextClub = t.teams[t.bracket[R][1]].name;
-    assert.ok(!JSON.stringify(w).includes(nextClub), 'his name is nowhere in the view');
-    // and neither are the clubs he had to beat to get there
-    const pool0 = t.bracket[0].slice(2 ** R, 2 ** (R + 1)).map((i) => t.teams[i].name);
-    for (const name of pool0) assert.ok(!JSON.stringify(w).includes(name), `${name} is not shown yet`);
+    assert.equal(w.rounds[R][1].name, undefined, 'an unknown slot carries no club');
+    assert.equal(w.ties[R - 1][1], null, 'the tie that decided him is not shown');
+    assert.ok(w.ties[R - 1][0], 'your own result is');
+    for (let i = 0; i < w.ties[R - 1].length; i++) if (i !== 1) assert.ok(w.ties[R - 1][i], `tie ${i} of the last round is shown`);
+    for (let i = 2; i < w.rounds[R].length; i++) assert.ok(w.rounds[R][i].known, 'the other winners are shown');
+    // the round starts: he is revealed with the result that put him there
     revealOpponent(t);
     const x = bracketView(t);
-    assert.equal(x.rounds[R][1].name, t.teams[t.bracket[R][1]].name);
-    for (const name of pool0) assert.ok(JSON.stringify(x).includes(name), `${name} is shown now`);
-    const tiePrev = x.ties[R - 1][1];
-    assert.ok(tiePrev && (tiePrev.winner === 'a' || tiePrev.winner === 'b'), 'the tie that produced him is shown');
-  });
-  // the end of the cup shows everything
+    assert.equal(x.rounds[R][1].name, opponent(t).name);
+    assert.ok(x.ties[R - 1][1]);
+    rounds++;
+  }
+  assert.ok(rounds > 0);
   const e = bracketView(t);
-  assert.ok(known(e).length === 127 && shown(e).length === 63, `${known(e).length} slots, ${shown(e).length} results`);
+  assert.ok(e.rounds.every((r) => r.every((x) => x.known)) && shown(e).length === 63, 'the end of the cup shows everything');
 });
 
 test('the cup is a real climb: a medium-skill player is an underdog, and winning it is rare', () => {

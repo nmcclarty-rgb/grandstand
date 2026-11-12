@@ -5,11 +5,13 @@
 // spend than a League Two one (pyramid.js). Every tie is one fresh draft for one attribute (draft.js). YOUR ties are played by you. Every OTHER tie is played by
 // the engine, medium bot against medium bot with each club's money, so the bracket fills in with believable results.
 //
-// WHAT YOU SEE: you do not know who you play until the round starts, and you do not see anything about the clubs on the road ahead either. The bracket fills in
-// behind you: when a round starts, the club you are about to play is revealed together with everything that led to it (the clubs it had to get past); the rest of
-// the field stays hidden until you reach it. `bracketView(t)` is the only thing the page should draw from: it holds nothing about a slot or a result the player is
-// not meant to know yet (the tests check that). The draw is seeded so that the weakest clubs are drawn near you and the strongest in the far half, so the road gets
-// harder (with some noise: a big club can be drawn early).
+// THE DRAW is made at the start and you see all 64 clubs in their places. It is random, with one rule: the first seven slots on your road (your Round of 64
+// opponent and everyone who could reach you in the Round of 32 and the Round of 16) are drawn from League One and League Two, so the big clubs can only reach you
+// from about the quarter-final. Where they land among the other 56 slots is luck: you may meet one in the quarter-final, or in the semi-final, or not until the Final.
+//
+// WHAT YOU SEE AFTER THAT: results, not the draw. You do not know who you play next: the tie that feeds your next match is hidden until the round starts, so you
+// know the two clubs it could be but not which one won. Other ties are shown as they are played. `bracketView(t)` is the only thing the page should draw from: it
+// holds nothing about a result the player is not meant to know yet (the tests check that).
 //
 // A tie that is level on the attribute goes to the side whose team made more appearances, then to a coin: a knockout needs a winner.
 import { makeRng } from '../../../stickers/src/engine/rng.js';
@@ -20,8 +22,8 @@ import { opponents, YOUR_TIER, YOUR_MULT, TIERS, kitFor, codeFor } from './pyram
 export const ROUNDS = ['Round of 64', 'Round of 32', 'Round of 16', 'Quarter-final', 'Semi-final', 'Final'];
 export const BOT_LEVEL = 'medium';
 export const SIZE = 64;
-// how far the draw can wander from "strongest far away": a club's draw position is its strength rank plus up to this many places either way
-export const DRAW_NOISE = 14;
+// the slots on your road that only League One and League Two clubs can fill: your opponent in each of the first three rounds and the clubs that feed them (1 + 2 + 4)
+export const SAFE_SLOTS = 7;
 
 export const budgetFor = (mode, mult) => Math.round(MODES[mode].budget * mult);
 
@@ -31,16 +33,14 @@ export function youTeam(mode, name = 'Your Club') {
   return { code: codeFor(clean), name: clean, colours: kitFor(clean), pattern: 'solid', tier: YOUR_TIER, tierName: TIERS[YOUR_TIER].name, mult: YOUR_MULT, budget: budgetFor(mode, YOUR_MULT), you: true };
 }
 
-// the draw: 64 slots, slot 0 is you
+// the draw: 64 slots, slot 0 is you. Slots 1 to SAFE_SLOTS get League One / League Two clubs; the rest is a shuffle of everyone else.
 export function drawFor(seed, mode, name) {
   const rng = makeRng(`${seed}|draw`);
   const clubs = opponents().map((c) => ({ ...c, budget: budgetFor(mode, c.mult) }));
-  const ranked = clubs.map((c, i) => ({ c, key: i + 0 }));
-  // strength rank, weakest first (ties broken by the list order, which is strongest-first within a tier)
-  ranked.sort((x, y) => x.c.mult - y.c.mult || y.key - x.key);
-  const order = ranked.map((r, rank) => ({ c: r.c, at: rank + (rng.next() + rng.next() - 1) * DRAW_NOISE }));
-  order.sort((x, y) => x.at - y.at);
-  return [youTeam(mode, name), ...order.map((o) => o.c)];
+  const small = rng.shuffle(clubs.filter((c) => c.tier === 3));
+  const early = small.slice(0, SAFE_SLOTS);
+  const rest = rng.shuffle([...small.slice(SAFE_SLOTS), ...clubs.filter((c) => c.tier < 3)]);
+  return [youTeam(mode, name), ...early, ...rest];
 }
 
 // opts.mode 'five' | 'eleven'; opts.name your club's name; opts.level overrides the bot (tests); opts.teams overrides the draw (tests)
@@ -57,7 +57,7 @@ export function newTournament(pool, seed = Date.now(), opts = {}) {
     known: new Set(),                    // slots the player may see: 'round:slot'
     shown: new Set(),                    // tie results the player may see: 'round:tie'
   };
-  t.known.add('0:0');   // yourself: nothing else is known until the round starts
+  for (let i = 0; i < SIZE; i++) t.known.add(`0:${i}`);   // the draw: everyone, in their places
   Object.defineProperty(t, 'pool', { value: pool, enumerable: false });
   startRound(t);
   return t;
@@ -76,14 +76,10 @@ export function startRound(t) {
   return t.tie;
 }
 
-// The page calls this when a round starts: your opponent is no longer a secret, and neither is the part of the bracket that produced him. That part is the
-// block of round-0 slots [2^R, 2^(R+1)) and everything above it: in round k it is the slots [2^(R-k), 2^(R-k+1)) and the ties [2^(R-k-1), 2^(R-k)).
+// The page calls this when a round starts: your opponent, and the result that put him there, are no longer a secret.
 export function revealOpponent(t) {
-  const R = t.round;
-  for (let k = 0; k <= R; k++) {
-    for (let i = 2 ** (R - k); i < 2 ** (R - k + 1); i++) t.known.add(`${k}:${i}`);
-    if (k < R) for (let i = 2 ** (R - k - 1); i < 2 ** (R - k); i++) t.shown.add(`${k}:${i}`);
-  }
+  t.known.add(`${t.round}:1`);
+  if (t.round > 0) t.shown.add(`${t.round - 1}:1`);
 }
 
 // settle a tie between two teams played by the engine: the medium bot against itself, with each club's money
@@ -126,10 +122,11 @@ export function finishRound(t) {
   const club = t.teams[b];
   const winner = mine.winner === a ? 'you' : 'bot';
   t.history.push({ round: r, name: ROUNDS[r], club: club.code, clubName: club.name, tierName: club.tierName, budget: club.budget, category: mine.category, you: mine.aTotal, bot: mine.bTotal, winner, decidedBy: mine.decidedBy });
-  t.shown.add(`${r}:0`);   // your own result; the rest of the round stays hidden until the road leads there
+  // what the player may now see: this round's results except the tie that feeds his next opponent, and the winners going through (not that opponent)
+  for (let i = 0; i < t.ties[r].length; i++) if (i !== 1) t.shown.add(`${r}:${i}`);
   if (winner === 'bot') { t.status = 'out'; playOut(t, r); }
   else if (r === ROUNDS.length - 1) { t.status = 'champions'; advance(t, r); revealAll(t); }
-  else { advance(t, r); t.known.add(`${r + 1}:0`); t.round = r + 1; startRound(t); }
+  else { advance(t, r); for (let i = 0; i < t.bracket[r + 1].length; i++) if (i !== 1) t.known.add(`${r + 1}:${i}`); t.round = r + 1; startRound(t); }
   return { winner, decidedBy: mine.decidedBy, status: t.status };
 }
 
