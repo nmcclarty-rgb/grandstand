@@ -56,6 +56,22 @@ function show(id) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, reduceMotion ? 0 : ms));
 const say = (html) => { $('d-say').innerHTML = html; };
 
+// A wait you can skip: the game flows on by itself, and a tap (or Space / Enter) on the showdown screen moves on at once.
+let skipHold = null;
+const holdFor = (ms) => new Promise((resolve) => {
+  const t = setTimeout(done, ms);
+  function done() { clearTimeout(t); if (skipHold === done) skipHold = null; resolve(); }
+  skipHold = done;
+});
+// the same, counting down in whole seconds: render(secondsLeft)
+const countdown = (seconds, render) => new Promise((resolve) => {
+  let left = seconds;
+  render(left);
+  const iv = setInterval(() => { left--; if (left <= 0) done(); else render(left); }, 1000);
+  function done() { clearInterval(iv); if (skipHold === done) skipHold = null; resolve(); }
+  skipHold = done;
+});
+
 // ---- title ------------------------------------------------------------------------------------------------------------------
 function showTitle() {
   token++;
@@ -271,7 +287,8 @@ function renderAll() { renderBoard(); renderTeams(); renderMoney(); }
 
 // ---- the showdown -----------------------------------------------------------------------------------------------------------
 // After the draft: this match's showdown. The page plays one match at a time; the series stops as soon as one side has two.
-function goShowdown() {
+async function goShowdown() {
+  const my = token;
   result = showdown(state);
   show('show');
   $('s-tally').hidden = true;
@@ -280,7 +297,11 @@ function goShowdown() {
   $('s-head').textContent = `Match ${state.match}: ${attr(state.category).label}`;
   renderSeries('s-series', state.match - 1, true);
   $('s-say').textContent = `Both teams are in. ${attr(state.category).unit.replace(/^./, (c) => c.toUpperCase())}, added up.`;
-  $('s-actions').replaceChildren(el('button', { class: 'primary', type: 'button', text: 'Reveal the teams', onclick: countMatch }));
+  $('s-actions').replaceChildren();
+  $('s-hint').hidden = false;
+  await holdFor(2200);   // a moment to see who is playing what, then it counts by itself
+  if (my !== token) return;
+  countMatch();
 }
 
 // what each player cost against what he was: a bargain was priced below his tier, a trap above
@@ -331,6 +352,7 @@ async function countMatch() {
   const my = token;
   const m = result;
   $('s-actions').replaceChildren();
+  $('s-hint').hidden = true;
   $('s-say').textContent = `${attr(m.category).label}: the real career totals, added up.`;
   renderCards(m.category);
   $('s-cards').hidden = false;
@@ -367,8 +389,12 @@ async function countMatch() {
   const line = m.winner === 'draw' ? 'Exactly level.' : `${m.winner === 'you' ? 'You win' : 'The bot wins'} match ${m.match} by ${n(margin)}.`;
   const ser = m.series;
   if (!ser.over) {
-    $('s-say').textContent = `${line} It is ${ser.wins.you}–${ser.wins.bot}. Next: a fresh team.`;
-    $('s-actions').replaceChildren(el('button', { class: 'primary', type: 'button', text: `Match ${state.match + 1}: fresh team`, onclick: () => { nextMatch(state); beginMatchPage(++token); } }));
+    // on to the next match by itself, after time to read the result
+    $('s-hint').hidden = false;
+    await countdown(5, (left) => { $('s-say').textContent = `${line} It is ${ser.wins.you}–${ser.wins.bot}. Match ${state.match + 1}: a fresh team in ${left}…`; });
+    if (my !== token) return;
+    nextMatch(state);
+    beginMatchPage(++token);
     return;
   }
   const won = ser.winner === 'you', draw = ser.winner === 'draw';
@@ -417,6 +443,8 @@ function wire() {
   $('t-help').addEventListener('click', () => $('manual').showModal?.());
   $('d-quit').addEventListener('click', () => { token++; skipSpin = null; $('d-wheelbox').hidden = true; showTitle(); });
   $('d-wheelbox').addEventListener('click', () => skipSpin?.());
+  $('show').addEventListener('click', () => skipHold?.());
+  document.addEventListener('keydown', (e) => { if ((e.key === ' ' || e.key === 'Enter') && skipHold && !$('show').hidden && !(e.target instanceof HTMLButtonElement)) { e.preventDefault(); skipHold(); } });
   const m = params.get('mode'); if (m && MODES[m]) document.querySelector(`input[name=mode][value=${m}]`).checked = true;
   const l = params.get('level'); if (['easy', 'medium', 'hard'].includes(l)) document.querySelector(`input[name=level][value=${l}]`).checked = true;
   if (params.get('seed')) $('t-seed').value = params.get('seed');

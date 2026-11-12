@@ -17,6 +17,9 @@ Every draw is a **wheel you can see**: a spinning SVG wheel with a pointer, size
 wheel gives goalkeepers half as often), that lands on the slice the engine has already drawn. It spins for the attribute (faded slices are ones already used in the series), the formation
 (11-a-side) and each round's position (5-a-side). Click it to skip. (`src/ui/wheel.js`: the geometry is tested to land every slice under the pointer, away from the edges.)
 
+Nothing between the rounds needs a button: when a draft ends the page moves to the showdown, counts by itself after two seconds, and after a match it counts down five seconds (to read the
+result) and starts the next fresh draft. A tap, a click or Space on the showdown screen skips a wait. Only "Play again" and "Change opponent" at the very end are buttons.
+
 A series is a **best of three matches**, and every match is a fresh draft:
 
 1. **An attribute is drawn** at the start of the match: goals, assists, goal involvements (goals plus assists), appearances, league titles, wins (est.), clean sheets (est.) or discipline (a yellow card is 1 point, a red card is 3). Never the same one twice in a series.
