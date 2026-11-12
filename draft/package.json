@@ -1,9 +1,9 @@
 {
-  "name": "grandstand-blind-five",
+  "name": "grandstand-fpl-battler",
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "description": "Blind Five: a budget draft against a bot, on the Sticker Season career cards.",
+  "description": "FPL Battler: a budget draft against a bot, on the Sticker Season career cards.",
   "scripts": {
     "test": "node --test \"test/*.test.mjs\"",
     "simulate": "node tools/simulate.mjs",

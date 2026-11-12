@@ -1,4 +1,6 @@
-# BLIND FIVE (working title)
+# FPL BATTLER (working title)
+
+(The folder is still called `draft/`, and earlier versions were called Blind Five and then Draft Battles.)
 
 A **blind budget draft against a bot**, on the [Sticker Season](../stickers/) career cards (every Premier League player with
 100+ appearances, 1992/93 to 2025/26). Inspired by the "you have £10, pick your front three" quiz.
@@ -30,7 +32,7 @@ Same stack as Sticker Season: plain ES modules, no build step. It imports the en
 
 ## Publishing
 
-The Claude artifact viewer does not load scripts that climb several folders (`../../../stickers/...`), which is how Blind Five reaches
+The Claude artifact viewer does not load scripts that climb several folders (`../../../stickers/...`), which is how FPL Battler reaches
 Sticker Season's engine in this repo. (It shows "This browser isn't supported", on a phone that is fine in every other way.) So for
 publishing, `tools/stage.mjs` copies everything into one flat tree laid out like Sticker Season's page (`src/engine`, `src/ui`, `src/draft`,
 `src/data`, never more than one `../`) and rewrites the imports; it fails if any import would not resolve. Publish `.stage/blind-five/index.html`

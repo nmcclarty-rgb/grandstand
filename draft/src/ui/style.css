@@ -1,4 +1,4 @@
-/* Blind Five: on top of the Sticker Season stylesheet, which draws the cards. */
+/* FPL Battler: on top of the Sticker Season stylesheet, which draws the cards. */
 .screen[hidden] { display: none; }
 .bigh { font: 900 30px/1 Impact, "Arial Narrow Bold", sans-serif; letter-spacing: .04em; text-transform: uppercase; color: var(--gold); margin: 8px 0; }
 .lede b { color: var(--gold); }
@@ -81,7 +81,7 @@ h3 { font: 800 13px/1 system-ui; letter-spacing: .12em; text-transform: uppercas
 }
 @media (prefers-reduced-motion: reduce) { .tile { transition: none; } }
 
-/* nobody is held back in Blind Five: all five play, so the keeper's Safe Hands badge would mislead */
+/* nobody is held back in FPL Battler: all five play, so the keeper's Safe Hands badge would mislead */
 .abil { display: none; }
 
 .steps { max-width: 62ch; margin: 6px 0 10px; padding-left: 22px; color: #d3e3d8; font-size: 16px; }
@@ -113,7 +113,7 @@ h3 { font: 800 13px/1 system-ui; letter-spacing: .12em; text-transform: uppercas
   .trow.head .y { grid-column: 1 / 3; } .trow.head .b { grid-column: 3 / 5; }
 }
 
-/* a Blind Five card shows career totals, so the stat figure is the whole row: make room for it */
+/* a FPL Battler card shows career totals, so the stat figure is the whole row: make room for it */
 .stats li span { gap: 0; }
 
 .rolling { display: inline-block; min-width: 9ch; font: 900 28px/1 Impact, "Arial Narrow Bold", sans-serif; letter-spacing: .05em; color: #fff; text-transform: uppercase; }

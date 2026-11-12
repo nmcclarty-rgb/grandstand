@@ -4,7 +4,7 @@
 // pitch. Clean sheets go to goalkeepers and defenders only, season by season (see stickers/tools/build-cards.mjs).
 //
 // Each one is complete for every season (see "Attributes we have" in the README). Adding one is one entry here: the draw, the bot's idea
-// of value, the tally and the page all read this list. Blind Five has its own list, rather than reusing Sticker Season's four categories,
+// of value, the tally and the page all read this list. FPL Battler has its own list, rather than reusing Sticker Season's four categories,
 // so that adding one cannot change the card game's ratings.
 import { statOf } from '../../../stickers/src/engine/cards.js';
 

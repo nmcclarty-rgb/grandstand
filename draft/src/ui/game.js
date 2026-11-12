@@ -1,4 +1,4 @@
-// The Blind Five page. All the rules live in the engine (draft.js, bot.js); this file draws screens and calls it.
+// The FPL Battler page. All the rules live in the engine (draft.js, bot.js); this file draws screens and calls it.
 import { makePool } from '../../../stickers/src/engine/deck.js';
 import { firstNameOf, surnameOf } from '../../../stickers/src/engine/cards.js';
 import { renderCard } from '../../../stickers/src/ui/card.js';
@@ -286,7 +286,7 @@ function captionFor(who, c) {
   return el('div', { class: `cap ${tag}`, text: `£${e.price}${tag ? ` · ${tag}` : ''}` });
 }
 
-// The Sticker Season card, turned into a Blind Five card: here the REAL career totals are what counts, so each row shows the
+// The Sticker Season card, turned into a FPL Battler card: here the REAL career totals are what counts, so each row shows the
 // total (not the 1-99 rating), the rows being counted are highlighted, and the overall plate is hidden.
 function playerCard(c, category) {
   const node = renderCard(c, {});

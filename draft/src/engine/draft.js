@@ -1,4 +1,4 @@
-// BLIND FIVE: a budget draft against a bot, on the Sticker Season career cards. A BEST OF THREE, a fresh team each time.
+// FPL BATTLER: a budget draft against a bot, on the Sticker Season career cards. A BEST OF THREE, a fresh team each time.
 //
 // A series is three matches. Each match:
 //   1. An attribute is drawn at the start (goals, assists, goal involvements, appearances, discipline: three different ones in a series).
