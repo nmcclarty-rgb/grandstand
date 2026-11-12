@@ -9,7 +9,7 @@ Two games, one engine (pick on the title screen):
 
 | | 5-a-side | 11-a-side |
 |---|---|---|
-| Budget | £10 | £30 |
+| Budget | £10m | £30m |
 | Rounds | 5 | 11 |
 | Which position | a **formation** (1-2-1, 2-1-1, 1-1-2 or 2-2: one goalkeeper and four outfield players) is rolled at the start of every match | a **formation** is rolled at the start of every match (4-4-2, 4-3-3, 4-5-1, 3-5-2, 3-4-3, 5-3-2) |
 
@@ -33,12 +33,12 @@ are out; win the Final and you are champions.** The opponent is always the same 
 
 | Division | Budget share, strongest to weakest club | 5-a-side |
 |---|---|---|
-| Premier League | 130% down to 112% | £13 to £11 |
-| Championship | 115% down to 105% | £12 to £11 |
-| League One | 108% down to 100% | £11 to £10 |
-| League Two | 95% down to 80% | £10 to £8 |
+| Premier League | 132% down to 112% | £13.2m to £11.2m |
+| Championship | 116% down to 105% | £11.6m to £10.5m |
+| League One | 108% down to 100% | £10.8m to £10m |
+| League Two | 95% down to 82% | £9.5m to £8.2m |
 
-You are on the base budget, so you are level with the best League Two clubs and short of everyone from League One up.
+You are on the base budget: richer than most of League Two, poorer than every club from League One up. (Being the poorest club outright is too punishing: with a player as good as the bot, a 5% shortfall drops the first-round win rate from about 73% to 40-50%.)
 
 **The draw** (seeded) is made at the start and **you see all 64 clubs** in their places, in a bracket like a World Cup poster: the top half of the draw down the left, the bottom half down the right, the rounds closing in
 to the Final in the middle (you are top-left). It is random with one rule: slots 1 to 7 (your Round of 64 opponent and the clubs that could reach you in the Round of 32 and Round of 16) are League Two clubs, so **the big clubs
@@ -56,16 +56,16 @@ the count is decided by more appearances, then a coin (a knockout needs a winner
 the benefit), and it works as a handicap too: a price-only player beats a hard bot 1% of the time at equal money, 19% with 50% more and 61% with double. The effect is **steep** (each £1 in 5-a-side is 10%) and **saturates** (a pick costs
 at most £5, so money above about £25 in 5-a-side and £55 in 11-a-side buys nothing). One fixed bot also means the same opponent behaviour all the way up, which a human can learn.
 
-**How far does each kind of player get?** (`node tools/cup-sim.mjs`, 200 cups each; the share who win at least n rounds)
+**How far does each kind of player get?** (`node tools/cup-sim.mjs`, 300 cups each; the share who win at least n rounds)
 
 | 5-a-side | R64 | R32 | R16 | QF | SF | Final |
 |---|---|---|---|---|---|---|
-| random picker | 24% | 5% | 1% | 0% | 0% | 0% |
-| price-only (easy) | 27% | 5% | 1% | 0% | 0% | 0% |
-| equal to the bot (medium) | 68% | 44% | 28% | 11% | 5% | 2% |
-| knows the stats exactly (hard) | 87% | 75% | 60% | 31% | 17% | 9% |
+| random picker | 20% | 3% | 1% | 0% | 0% | 0% |
+| price-only (easy) | 24% | 6% | 0% | 0% | 0% | 0% |
+| equal to the bot (medium) | 73% | 46% | 30% | 10% | 2% | 1% |
+| knows the stats exactly (hard) | 87% | 76% | 64% | 33% | 14% | 6% |
 
-(11-a-side: medium 62 / 35 / 21 / 10 / 6 / 1%, hard 89 / 82 / 72 / 47 / 33 / 25%.) A player as good as the bot is an underdog from the start: about a one in four chance of the last 16, one in ten of the semi-final. A player who knows
+(11-a-side: medium 67 / 44 / 28 / 14 / 7 / 4%, hard 89 / 79 / 73 / 54 / 36 / 24%.) A player as good as the bot is an underdog from the start: about a one in four chance of the last 16, one in ten of the semi-final. A player who knows
 football better than the bot's fog should go further. Nobody has played it yet: the strengths (`TIERS` in `pyramid.js`) and `SAFE_SLOTS` (how many early slots are League Two only) are the first things to tune from real runs. The divisions are as they
 were at about the time of writing (the pool of clubs is not kept up to date), and the badges are generated, not real crests.
 
@@ -109,11 +109,12 @@ tools/simulate.mjs    bots against bots
 
 ## Rules in numbers
 
-- **Budget** £10 for the team (£30 in 11-a-side), renewed every match. **You must keep £1 for every round still to come**, so a pick is never impossible.
-- **Board** 8 players: three true tier 1 (always £1), two tier 2, one each tier 3, 4, 5. Tiers are the player's overall within his
+- **Budget** £10m for the team (£30m in 11-a-side), renewed every match. Money is in £m to one decimal. **You must keep £1m for every round still to come**, so a pick is never impossible.
+- **Board** 8 players: three true tier 1 (always £1m), two tier 2, one each tier 3, 4, 5. Tiers are the player's overall within his
   position (top 5% is tier 5, then 10%, 20%, 30%, 35%). Only players with 100+ Premier League appearances are on a board.
-- **Price** is the true tier, nudged one step with probability 0.3 for tiers 2-4 (a **bargain** if down, a **trap** if up);
-  a star can only be a £4 bargain. After the draft each player's caption says what he cost and whether he was a bargain or a trap.
+- **Price** starts from a **fair price** in £m: a tier-1 player is £1m, tiers 2-4 run from tier + 0.45 (the best of the tier) down to tier - 0.45, a star is £4.5m to £5m. The board price is the fair price, or
+  with probability 0.3 (tiers 2-4) shifted by £0.8m to £1.6m: down is a **bargain**, up is a **trap** (a star can only be a bargain). Prices have one decimal, so a board has real variety (£2.2m, £3.5m, £4.9m) and
+  a club's budget can be £25.7m against your £30m instead of moving in £3m steps. After the draft each player's caption says what he cost and whether he was a bargain (half a million or more under his fair price) or a trap.
 - **Formation** rolled at the start of every match, the same for both teams, worked through goalkeeper first (5-a-side: 1-2-1 and 2-1-1 at weight 3, 1-1-2 at 2, 2-2 at 1; 11-a-side: 4-4-2 and 4-3-3 at 3, 4-5-1 and 3-5-2 at 2, 3-4-3 and 5-3-2 at 1). There is always exactly **one goalkeeper**. (5-a-side used to roll a position each round on a wheel, which could give two goalkeepers; it works like 11-a-side now.)
 - **Attributes** one per match, drawn at the start of the match from those not yet used in the series, from the seed (so it never depends on who you buy). Goals, assists, appearances and league titles are career totals; goal involvements are goals + assists; wins and clean sheets are estimates (below); discipline is yellow cards + 3 × red cards. The list is in `src/engine/attributes.js`: **adding an attribute is one entry there** and the draw, the bot, the tally and the page pick it up.
 - **Clean sheets always have a back line.** Only goalkeepers and defenders earn them, and every formation has a goalkeeper and at least one defender (every 5-a-side formation has a defender, and 11-a-side has three or more), so a clean-sheets match is never empty.
@@ -212,7 +213,7 @@ Best of three, fresh teams, 11-a-side (£30), 200 series per pairing:
 ## Not built
 
 A **league** after the cup: a mini-league against clubs, single matches, with a table whose other fixtures are played by the same engine bot against bot, and promotion to a division with bigger budgets · cup ties of best-of-3 ·
-the budget in finer steps (£m, so a rung can be 5%) · more attributes (minutes, penalties scored, nationality) · a human-tested cup: the division budgets and the draw are guesses from the simulator · sound.
+more attributes (minutes, penalties scored, nationality) · a human-tested cup: the division budgets and the draw are guesses from the simulator · sound.
 
 ## Positions
 

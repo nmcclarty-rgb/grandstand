@@ -49,6 +49,8 @@ const CLUB_KEY = 'prem-wheel:club:v1';
 const KIT_KEY = 'prem-wheel:kit:v1';
 const DEFAULT_CLUB = 'Grandstand Town';
 const ROUND_SHORT = ['R64', 'R32', 'R16', 'QF', 'SF', 'Final'];
+// money is in £m, to one decimal: £30m, £4.5m
+const gbp = (x) => '£' + (Number.isInteger(x) ? x : x.toFixed(1)) + 'm';
 const clubName = (code) => CLUB_LABELS[code] ?? code;
 // a crest for a club in the cup (the ones on the cards are looked up by code; the rest carry their own kit)
 const crest = (x) => badgeSvg(x.code, { colours: x.colours, pattern: x.pattern });
@@ -150,12 +152,12 @@ function buildClubPicker() {
   $('t-dice').addEventListener('click', () => { $('t-name').value = `${pickOf(PLACES)} ${pickOf(SUFFIXES)}`; drawClub(); });
   drawClub();
 }
-// "The Cup · 11-a-side · £30" under the Kick off button, so the defaults are visible and the other modes are one click away
+// "The Cup · 11-a-side · £30m" under the Kick off button, so the defaults are visible and the other modes are one click away
 function drawSummary() {
   const cup = document.querySelector('input[name=format]:checked').value === 'cup';
   const m = document.querySelector('input[name=mode]:checked').value;
   const lv = document.querySelector('input[name=level]:checked').value;
-  $('t-summary').textContent = `${cup ? 'The Cup' : `Quick series vs ${lv} bot`} · ${MODES[m].label} · £${MODES[m].budget}`;
+  $('t-summary').textContent = `${cup ? 'The Cup' : `Quick series vs ${lv} bot`} · ${MODES[m].label} · ${gbp(MODES[m].budget)}`;
   $('t-club').hidden = !cup;
 }
 
@@ -183,7 +185,7 @@ function renderRoad(targetId) {
 const COLW = 90;
 function slotEl(x, side) {
   if (!x.known) return el('div', { class: 'bslot unknown' }, el('span', { class: 'bq', text: '?' }));
-  return el('div', { class: `bslot ${x.you ? 'you' : ''} ${side ? (side.won ? 'won' : 'lost') : ''}`, title: `${x.name} (${x.tierName}, £${x.budget})` },
+  return el('div', { class: `bslot ${x.you ? 'you' : ''} ${side ? (side.won ? 'won' : 'lost') : ''}`, title: `${x.name} (${x.tierName}, ${gbp(x.budget)})` },
     el('span', { class: 'bb', style: `background:${x.colours[0]}` }), el('span', { class: 'bn', text: x.name }), side ? el('span', { class: 'bs', text: n(side.score) }) : null);
 }
 // The bracket like a World Cup poster: the top half of the draw down the left, the bottom half down the right, the rounds closing in towards the Final in the middle.
@@ -222,14 +224,14 @@ async function cupIntro(my) {
   $('l-you-badge').innerHTML = crest(you);
   $('l-you-name').textContent = you.name;
   $('l-you-div').textContent = you.tierName;
-  $('l-you').textContent = `£${state.money.you}`;
+  $('l-you').textContent = `${gbp(state.money.you)}`;
   drawCup('l-path', 'l-bracket');
   if (t.round > 0) {
     // the draw showed you who it could be (the two clubs of the tie that feeds this round); who won is a secret until now
     $('l-badge').innerHTML = '<span class="qmark">?</span>';
     $('l-club').textContent = 'Who won?';
     $('l-div').textContent = ' ';
-    $('l-bot').textContent = '£?';
+    $('l-bot').textContent = '£?m';
     $('l-say').textContent = 'The tie that feeds your match has been played. You find out who you have in a moment.';
     await holdFor(1800);
     if (my !== token) return;
@@ -238,7 +240,7 @@ async function cupIntro(my) {
   $('l-badge').innerHTML = crest(opp);
   $('l-club').textContent = opp.name;
   $('l-div').textContent = opp.tierName;
-  $('l-bot').textContent = `£${opp.budget}`;
+  $('l-bot').textContent = `${gbp(opp.budget)}`;
   const pct = Math.round((opp.budget / state.money.you - 1) * 100);
   $('l-say').textContent = (t.round === 0 ? 'The draw is made. ' : '') + (pct === 0 ? 'The same money as you.' : pct < 0 ? `${-pct}% less money than you.` : `${pct}% more money than you: an upset if you win.`);
   drawCup('l-path', 'l-bracket');
@@ -396,7 +398,7 @@ async function botTurn(my) {
   const before = state.round;
   const e = botMove(state);
   renderAll();
-  say(`The bot took <b>${esc(e.card.full)}</b> for £${e.price}.`);
+  say(`The bot took <b>${esc(e.card.full)}</b> for ${gbp(e.price)}.`);
   await after(my, before);
 }
 
@@ -412,18 +414,18 @@ async function choose(id) {
   if (busy || !state || state.turn !== 'you') return;
   const entry = state.board.find((b) => b.card.id === id);
   if (!entry || entry.takenBy) return;
-  if (!canAfford(state, 'you', entry.price)) { say(`Too dear: you must keep £${COMMON.minPrice} for every round still to come. The most you can spend now is <b>£${maxSpend(state, 'you')}</b>.`); return; }
+  if (!canAfford(state, 'you', entry.price)) { say(`Too dear: you must keep ${gbp(COMMON.minPrice)} for every round still to come. The most you can spend now is <b>${gbp(maxSpend(state, 'you'))}</b>.`); return; }
   busy = true;
   const my = token, before = state.round;
   pick(state, 'you', id);
   renderAll();
-  say(`You took <b>${esc(entry.card.full)}</b> for £${entry.price}.`);
+  say(`You took <b>${esc(entry.card.full)}</b> for ${gbp(entry.price)}.`);
   await after(my, before);
 }
 
 function renderMoney() {
-  $('d-money').textContent = `£${state.money.you}`;
-  $('d-botmoney').textContent = `£${state.money.bot}`;
+  $('d-money').textContent = `${gbp(state.money.you)}`;
+  $('d-botmoney').textContent = `${gbp(state.money.bot)}`;
 }
 
 function renderBoard() {
@@ -433,13 +435,13 @@ function renderBoard() {
     const t = el('button', {
       class: `tile${dear ? ' over' : ''}${b.takenBy ? ` taken ${b.takenBy}` : ''}`, type: 'button',
       'data-by': b.takenBy ? (b.takenBy === 'you' ? 'YOURS' : "BOT'S") : null,
-      'aria-label': `${b.card.full}, £${b.price}${b.takenBy ? `, taken by ${b.takenBy === 'you' ? 'you' : 'the bot'}` : dear ? ', over budget' : ''}`,
+      'aria-label': `${b.card.full}, ${gbp(b.price)}${b.takenBy ? `, taken by ${b.takenBy === 'you' ? 'you' : 'the bot'}` : dear ? ', over budget' : ''}`,
       'aria-disabled': b.takenBy || dear ? 'true' : null,
       onclick: () => choose(b.card.id),
     },
     el('span', { class: 'first', text: first || ' ' }),
     el('span', { class: 'last', text: surnameOf(b.card) }),
-    el('span', { class: 'price', text: `£${b.price}` }),
+    el('span', { class: 'price', text: `${gbp(b.price)}` }),
     el('span', { class: 'over-note', text: 'Over budget' }));
     return t;
   }));
@@ -456,9 +458,9 @@ function renderPitches() {
       state.positions.map((pos, i) => pos === line ? i : -1).filter((i) => i >= 0).map((i) => {
         const c = state.teams[who][i];
         const now = state.phase === 'draft' && i === state.round - 1 && !c;
-        return el('div', { class: `pslot${c ? ' full' : ''}${now ? ' now' : ''}`, title: c ? `${c.full}, £${state.paid[who][i]}` : '' },
+        return el('div', { class: `pslot${c ? ' full' : ''}${now ? ' now' : ''}`, title: c ? `${c.full}, ${gbp(state.paid[who][i])}` : '' },
           el('span', { class: 'sn', text: c ? surnameOf(c) : (now ? '?' : '') }),
-          c ? el('span', { class: 'sc', text: `£${state.paid[who][i]}` }) : null);
+          c ? el('span', { class: 'sc', text: `${gbp(state.paid[who][i])}` }) : null);
       }))));
   }
 }
@@ -490,7 +492,7 @@ function captionFor(who, c) {
   const e = state.log.find((l) => l.who === who && l.id === c.id);
   if (!e) return null;
   const tag = e.price < e.tier ? 'bargain' : e.price > e.tier ? 'trap' : '';
-  return el('div', { class: `cap ${tag}`, text: `£${e.price}${tag ? ` · ${tag}` : ''}` });
+  return el('div', { class: `cap ${tag}`, text: `${gbp(e.price)}${tag ? ` · ${tag}` : ''}` });
 }
 
 // The Sticker Season card, turned into a Prem Wheel card: here the REAL career totals are what counts, so each row shows the
@@ -541,7 +543,7 @@ async function countMatch() {
   tally.hidden = false;
   const rows = Array.from({ length: rules().rounds }, (_, i) => {
     const y = m.you.players[i], b = m.bot.players[i];
-    const pay = (p) => el('small', { text: `£${p.paid}` });
+    const pay = (p) => el('small', { text: `${gbp(p.paid)}` });
     return el('div', { class: 'trow pending' },
       el('div', { class: 'nm' }, y.card.full, pay(y)), el('div', { class: 'v', text: n(y.value) }),
       el('div', { class: 'tpos', text: y.card.pos === b.card.pos ? y.card.pos : `${y.card.pos}/${b.card.pos}` }),
@@ -603,11 +605,11 @@ function buildManual() {
     <h3>In a quick series: up to three matches</h3>
     <ol>
       <li><b>An attribute is drawn</b> at the start of each match (never the same one twice in a series). The attributes are:<ul>${list}</ul>Each is a player's <b>real Premier League career total</b>, 1992/93 to 2025/26.</li>
-      <li><b>You draft a fresh team</b> for it, every match, on a fresh budget: <b>£${five.budget}</b> in 5-a-side, <b>£${eleven.budget}</b> in 11-a-side. You know the attribute while you pick, so you can tailor the team to it. Anyone who played in an earlier match is gone.</li>
+      <li><b>You draft a fresh team</b> for it, every match, on a fresh budget: <b>${gbp(five.budget)}</b> in 5-a-side, <b>${gbp(eleven.budget)}</b> in 11-a-side. You know the attribute while you pick, so you can tailor the team to it. Anyone who played in an earlier match is gone.</li>
       <li><b>The teams are counted.</b> Each player's total in the attribute is added up and the bigger total wins the match. <b>First to two matches wins the series</b>, so it can be over after two.</li>
     </ol>
     <h3>The draft</h3>
-    <p>Each round a board of eight players of one position goes up with <b>a name and a price</b> of £1 to £5: no stats, no club. You and the bot take turns to pick <b>one</b> each; who picks first swaps every round. Once a player is taken he is gone, and you see what the bot takes as it takes it. You must keep <b>£${COMMON.minPrice} for every round still to come</b>, so you can never be locked out.</p>
+    <p>Each round a board of eight players of one position goes up with <b>a name and a price</b> from £1m to £5m: no stats, no club. You and the bot take turns to pick <b>one</b> each; who picks first swaps every round. Once a player is taken he is gone, and you see what the bot takes as it takes it. You must keep <b>${gbp(COMMON.minPrice)} for every round still to come</b>, so you can never be locked out.</p>
     <ul>
       <li><b>5-a-side</b>: ${five.rounds} rounds a match. A <b>formation</b> (1-2-1, 2-1-1, 1-1-2 or 2-2: one goalkeeper and four outfield players) is rolled at the start of each match and both teams play it.</li>
       <li><b>11-a-side</b>: ${eleven.rounds} rounds a match. A <b>formation</b> (4-4-2, 4-3-3, 4-5-1, 3-5-2, 3-4-3 or 5-3-2) is rolled at the start of each match and both teams play it. You work through it from the goalkeeper to the forwards, so you decide early how much of the money goes into defence and how much is kept for attack.</li>
@@ -615,10 +617,10 @@ function buildManual() {
     <h3>Estimates</h3>
     <p><b>Wins</b> and <b>clean sheets</b> are estimates. We know every club's real results, so a club-season's wins and clean sheets are exact; a player gets the share that matches the minutes he was on the pitch (a goalkeeper who played every minute gets all of them). Clean sheets only count for the seasons he is listed as a goalkeeper or defender. Checked against the published totals: Čech 199 against 202, James 169 against 169.</p>
     <h3>Prices are a hint, not the truth</h3>
-    <p>A £5 is usually a star of his position and a £1 a squad man, but about one player in three in the middle prices is a <b>bargain</b> (cheaper than he is) or a <b>trap</b> (dearer). Prices are by position: the best goalkeeper in the league is a £5 goalkeeper, but he will score no goals. Everyone on a board has made at least ${COMMON.minGames} Premier League appearances.</p>
+    <p>A £5m player is usually a star of his position and a £1m player a squad man, but about one player in three in the middle prices is a <b>bargain</b> (at least half a million cheaper than he should be) or a <b>trap</b> (at least half a million dearer). Prices are by position: the best goalkeeper in the league is a £5 goalkeeper, but he will score no goals. Everyone on a board has made at least ${COMMON.minGames} Premier League appearances.</p>
     <h3>Tips</h3>
     <ul>
-      <li>Tailor each team to its attribute. <b>Clean sheets</b>: only goalkeepers and defenders earn them (a striker is worth nothing), so spend on the back line and £1 on everyone else. <b>Wins</b>: everyone counts, so it is the long careers at winning clubs: a £1 midfielder at Man Utd can beat a £5 striker at a mid-table side. <b>League titles</b>: think of the champions (Man Utd in the 90s and 00s, Chelsea, Man City now, Arsenal, Liverpool): a squad player at a club that won it beats a star at one that never did. <b>Goals</b>: forwards, and never pay for a goalkeeper. <b>Assists</b>: midfielders and wingers. <b>Goal involvements</b>: goals plus assists, so attacking midfielders are as good as strikers. <b>Appearances</b>: a long-serving defender or keeper is worth as much as a star. <b>Discipline</b>: find the hard men.</li>
+      <li>Tailor each team to its attribute. <b>Clean sheets</b>: only goalkeepers and defenders earn them (a striker is worth nothing), so spend on the back line and £1m on everyone else. <b>Wins</b>: everyone counts, so it is the long careers at winning clubs: a £1 midfielder at Man Utd can beat a £5 striker at a mid-table side. <b>League titles</b>: think of the champions (Man Utd in the 90s and 00s, Chelsea, Man City now, Arsenal, Liverpool): a squad player at a club that won it beats a star at one that never did. <b>Goals</b>: forwards, and never pay for a goalkeeper. <b>Assists</b>: midfielders and wingers. <b>Goal involvements</b>: goals plus assists, so attacking midfielders are as good as strikers. <b>Appearances</b>: a long-serving defender or keeper is worth as much as a star. <b>Discipline</b>: find the hard men.</li>
       <li>Money left at the end is wasted. Spend it, but not on the wrong name.</li>
       <li>A career total rewards a long career: someone who played 15 years beats a brilliant two-season wonder.</li>
       <li>You can only use a player once in a series, so a bargain you spend in match 1 is not there in match 3.</li>

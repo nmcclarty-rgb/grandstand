@@ -12,8 +12,8 @@
 // bargains and traps.
 //
 // TWO MODES, one engine:
-//   five    5-a-side. £10, five rounds: a goalkeeper and a formation of four outfield players (1-2-1, 2-1-1, 1-1-2 or 2-2) rolled at the start of each match.
-//   eleven  11-a-side. £25, eleven rounds. A FORMATION is rolled at the start (4-4-2, 4-3-3, ...) and the draft works through it back
+//   five    5-a-side. £10m, five rounds: a goalkeeper and a formation of four outfield players (1-2-1, 2-1-1, 1-1-2 or 2-2) rolled at the start of each match.
+//   eleven  11-a-side. £30m, eleven rounds. A FORMATION is rolled at the start (4-4-2, 4-3-3, ...) and the draft works through it back
 //           to front: the goalkeeper, then the defenders, the midfielders, the forwards. Both teams play the same formation.
 //
 // Pure state machine (no DOM, no clock). Randomness comes from labelled seed streams, so a seed is a whole series.
@@ -64,9 +64,13 @@ export const formationsOf = (mode) => (mode === 'eleven' ? FORMATIONS : FIVE_A_S
 export const TIER_SLOTS = [1, 1, 1, 2, 2, 3, 4, 5];
 // share of a position's players (best first) in each true tier
 const TIER_SHARE = [[5, 0.05], [4, 0.10], [3, 0.20], [2, 0.30], [1, 0.35]];
-// A price is the true tier, nudged: tiers 2-4 move one step with this chance (a bargain if down, a trap if up); a star (5)
-// can only be a bargain at £4. Tier 1 is always £1.
+// MONEY is in £m, to one decimal. A player's FAIR price is his true tier with a fraction for where he sits in it (the best of tier 3 is £3.5m, the worst
+// £2.6m; a tier-1 player is always £1m, and a star is £4.5m to £5m). The price on the board is the fair price, nudged: tiers 2-4 move by £0.8m to £1.6m with this
+// chance (a bargain if down, a trap if up); a star (5) can only be a bargain.
 export const PRICE_NOISE = 0.3;
+export const m1 = (x) => Math.round(x * 10) / 10 + 0;       // money stays on one decimal, so sums never drift
+// 'bargain' if the board price is half a million or more below the fair price, 'trap' if the same above
+export const tagOf = (price, fair) => (m1(price - fair) <= -0.5 ? 'bargain' : m1(price - fair) >= 0.5 ? 'trap' : '');
 
 
 // ---- who can be on a board ----------------------------------------------------------------------------------------------
@@ -85,6 +89,15 @@ export function universeOf(pool) {
       while (i < Math.round(cut)) u[pos][tier].push(ranked[i++]);
     }
     while (i < ranked.length) u[pos][1].push(ranked[i++]);
+    // the fair price of each: tier 1 is £1m; tiers 2-4 run from tier + 0.45 (best of the tier) down to tier - 0.45; a star from £5m down to £4.5m
+    u[pos].fair = new Map();
+    for (const tier of [1, 2, 3, 4, 5]) {
+      const list = u[pos][tier];
+      list.forEach((c, k) => {
+        const f = list.length > 1 ? k / (list.length - 1) : 0.5;
+        u[pos].fair.set(c.id, tier === 1 ? 1 : tier === 5 ? m1(5 - 0.5 * f) : m1(tier + 0.45 - 0.9 * f));
+      });
+    }
   }
   universes.set(pool, u);
   return u;
@@ -153,8 +166,8 @@ export const firstPicker = (state) => ((state.round + state.match) % 2 === 0 ? s
 export const roundsAfter = (state) => rulesOf(state).rounds - state.round;
 
 // You must keep £1 for each later round. So the most you can spend this round:
-export const maxSpend = (state, who) => state.money[who] - roundsAfter(state) * COMMON.minPrice;
-export const canAfford = (state, who, price) => price <= maxSpend(state, who);
+export const maxSpend = (state, who) => m1(state.money[who] - roundsAfter(state) * COMMON.minPrice);
+export const canAfford = (state, who, price) => m1(price) <= maxSpend(state, who);
 
 function dealBoard(state) {
   const pos = positionOf(state);
@@ -172,9 +185,13 @@ function dealBoard(state) {
     if (!options.length) throw new Error(`no ${pos} left`);
     const card = rng.pick(options);
     on.add(card.id);
-    let price = tier;
-    if (tier >= 2 && rng.next() < PRICE_NOISE) price += tier === 5 ? -1 : (rng.next() < 0.5 ? -1 : 1);
-    return { card, price: Math.max(COMMON.minPrice, Math.min(COMMON.maxPrice, price)), tier, takenBy: null };
+    const fair = u.fair.get(card.id);
+    let price = fair;
+    if (tier >= 2 && rng.next() < PRICE_NOISE) {
+      const down = tier === 5 || rng.next() < 0.5;
+      price += (down ? -1 : 1) * (0.8 + 0.8 * rng.next());
+    }
+    return { card, price: Math.max(COMMON.minPrice, Math.min(COMMON.maxPrice, m1(price))), fair, tier, takenBy: null };
   });
   rng.shuffle(board);
   state.board = board;
@@ -190,12 +207,12 @@ export function pick(state, who, id) {
   const entry = state.board.find((b) => b.card.id === id);
   if (!entry) throw new Error('that player is not on the board');
   if (entry.takenBy) throw new Error('already picked');
-  if (!canAfford(state, who, entry.price)) throw new Error(`over budget: you must keep £${COMMON.minPrice} for every round still to come`);
+  if (!canAfford(state, who, entry.price)) throw new Error(`over budget: you must keep £${COMMON.minPrice}m for every round still to come`);
   entry.takenBy = who;
-  state.money[who] -= entry.price;
+  state.money[who] = m1(state.money[who] - entry.price);
   state.teams[who].push(instance(entry.card, 'base'));
   state.paid[who].push(entry.price);
-  state.log.push({ round: state.round, who, id, name: entry.card.full, price: entry.price, tier: entry.tier });
+  state.log.push({ round: state.round, who, id, name: entry.card.full, price: entry.price, fair: entry.fair, tier: entry.tier });
   state.picksThisRound++;
   if (state.picksThisRound === 1) { state.turn = other(who); return entry; }
   if (state.round === rulesOf(state).rounds) { state.phase = 'showdown'; state.turn = null; return entry; }

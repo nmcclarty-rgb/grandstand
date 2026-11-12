@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { pool } from './helpers.mjs';
-import { MODES, FORMATIONS, formationPositions, newMatch, nextMatch, pick, free, canAfford, positionOf, showdown, seriesOf, rulesOf, valueOf } from '../src/engine/draft.js';
+import { m1, MODES, FORMATIONS, formationPositions, newMatch, nextMatch, pick, free, canAfford, positionOf, showdown, seriesOf, rulesOf, valueOf } from '../src/engine/draft.js';
 import { choose, botMove } from '../src/engine/bot.js';
 
 const play = (seed, policy = (s, who) => choose(s, who, 'medium'), opts = {}) => {
@@ -116,7 +116,7 @@ test('RULE: every 11-a-side draft finishes, whatever the policy: eleven players 
       const s = play(`f${i}`, policy);
       assert.equal(s.teams.you.length, 11); assert.equal(s.teams.bot.length, 11);
       assert.ok(s.money.you >= 0 && s.money.bot >= 0);
-      assert.equal(s.money.you, 30 - s.paid.you.reduce((a, b) => a + b, 0));
+      assert.equal(s.money.you, m1(30 - s.paid.you.reduce((a, b) => a + b, 0)));
     }
   }
 });

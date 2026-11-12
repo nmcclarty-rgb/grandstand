@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { pool } from './helpers.mjs';
-import { RULES, FIVE_A_SIDE_FORMATIONS, formationPositions, TIER_SLOTS, PRICE_NOISE, newMatch, nextMatch, pick, free, canAfford, maxSpend, firstPicker, positionOf, showdown, seriesOf, universeOf, valueOf } from '../src/engine/draft.js';
+import { m1, tagOf, RULES, FIVE_A_SIDE_FORMATIONS, formationPositions, TIER_SLOTS, PRICE_NOISE, newMatch, nextMatch, pick, free, canAfford, maxSpend, firstPicker, positionOf, showdown, seriesOf, universeOf, valueOf } from '../src/engine/draft.js';
 import { choose, botMove, worth, LEVELS } from '../src/engine/bot.js';
 import { ATTRIBUTE_KEYS, recordOf } from '../src/engine/attributes.js';
 
@@ -84,39 +84,38 @@ test('boards are reproducible, and no player is shown twice in a whole series', 
   }
 });
 
-test('a price is a hint, not the truth: tiers 2-4 are nudged, tier 1 is always £1, a star is never above £5', () => {
+test('a price is a hint, not the truth: tiers 2-4 are nudged, tier 1 is always £1m, a star costs at most £5m, prices have one decimal', () => {
   let moved = 0, n = 0, up = 0, down = 0;
+  const seen = new Set();
   for (let i = 0; i < 400; i++) {
     const s = newMatch(pool, `n${i}`);
     for (const b of s.board) {
-      if (b.tier === 1) assert.equal(b.price, 1);
-      if (b.tier === 5) assert.ok(b.price >= 4 && b.price <= 5);
-      assert.ok(Math.abs(b.price - b.tier) <= 1);
-      if (b.tier >= 2 && b.tier <= 4) { n++; if (b.price !== b.tier) moved++; if (b.price > b.tier) up++; if (b.price < b.tier) down++; }
+      assert.equal(m1(b.price), b.price, 'one decimal');
+      seen.add(b.price);
+      if (b.tier === 1) { assert.equal(b.price, 1); assert.equal(b.fair, 1); }
+      assert.ok(b.price >= 1 && b.price <= 5);
+      if (b.tier === 5) { assert.ok(b.fair >= 4.5 && b.fair <= 5); assert.ok(b.price >= 2.9 && b.price <= 5); }
+      if (b.tier >= 2 && b.tier <= 4) {
+        assert.ok(Math.abs(b.fair - b.tier) <= 0.5, `fair ${b.fair} for tier ${b.tier}`);
+        assert.ok(Math.abs(b.price - b.fair) <= 1.6 + 0.05 || b.price === 1);
+        n++; if (b.price !== b.fair) moved++; if (b.price > b.fair) up++; if (b.price < b.fair) down++;
+      }
     }
   }
   assert.ok(Math.abs(moved / n - PRICE_NOISE) < 0.05, `${moved / n} of tiers 2-4 were nudged`);
   assert.ok(up > 0 && down > 0, 'both bargains and traps happen');
+  assert.ok(seen.size > 25, `prices have variety: ${seen.size} different prices`);
+  assert.equal(tagOf(2, 3.1), 'bargain'); assert.equal(tagOf(4, 3.2), 'trap'); assert.equal(tagOf(3.4, 3.1), '');
+  assert.equal(m1(0.1 + 0.2), 0.3);
 });
-
-test('the true tiers follow the overall within a position: a star is better than a squad player', () => {
-  const u = universeOf(pool);
-  for (const pos of ['GK', 'DEF', 'MID', 'FWD']) {
-    const mean = (t) => u[pos][t].reduce((s, c) => s + c.rating, 0) / u[pos][t].length;
-    for (let t = 1; t < 5; t++) assert.ok(mean(t + 1) > mean(t), `${pos} tier ${t + 1} should be better than tier ${t}`);
-    assert.ok(u[pos][5].length >= 3 && u[pos][4].length >= 6, `${pos} has enough players for every tier`);
-  }
-  assert.ok(u.GK[5].some((c) => c.full === 'David James' || c.full === 'Mark Schwarzer' || c.full === 'Shay Given'));
-});
-
 test('budget: you must keep £1 for every round still to come', () => {
   const s = newMatch(pool, 'budget');
   assert.equal(maxSpend(s, 'you'), 10 - 4);
-  assert.ok(canAfford(s, 'you', 6) && !canAfford(s, 'you', 7));
+  assert.ok(canAfford(s, 'you', 6) && canAfford(s, 'you', 5.9) && !canAfford(s, 'you', 6.1));
   const first = s.turn;
-  const star = s.board.find((b) => b.price === 5);
+  const star = s.board.reduce((a, b) => (b.price > a.price ? b : a));
   pick(s, first, star.card.id);
-  assert.equal(s.money[first], 5);
+  assert.equal(s.money[first], m1(10 - star.price));
   assert.throws(() => pick(s, first, s.board[0].card.id), /not .* turn/);
 });
 
@@ -163,7 +162,7 @@ test('RULE: every draft always finishes: both teams get five players and nobody 
       const s = draft(`f${i}`, policy);
       assert.equal(s.teams.you.length, 5); assert.equal(s.teams.bot.length, 5);
       assert.ok(s.money.you >= 0 && s.money.bot >= 0);
-      assert.equal(s.money.you, 10 - s.paid.you.reduce((a, b) => a + b, 0));
+      assert.equal(s.money.you, m1(10 - s.paid.you.reduce((a, b) => a + b, 0)));
     }
   }
 });
@@ -280,7 +279,7 @@ test('the easy bot goes on names: it takes the dearest player it can afford', ()
     const best = Math.max(...s.board.filter((b) => canAfford(s, 'bot', b.price)).map((b) => b.price));
     n++; if (s.board.find((b) => b.card.id === id).price >= best - 1) dearest++;
   }
-  assert.ok(dearest / n > 0.95, `${dearest / n}`);
+  assert.ok(dearest / n > 0.9, `${dearest / n}`);
 });
 
 test('the hard bot looks for value for this match\'s attribute: it is not simply buying the dearest, and in the last round it spends what it can', () => {

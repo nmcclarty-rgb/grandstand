@@ -15,7 +15,7 @@
 //
 // A tie that is level on the attribute goes to the side whose team made more appearances, then to a coin: a knockout needs a winner.
 import { makeRng } from '../../../stickers/src/engine/rng.js';
-import { newMatch, pick, showdown, MODES } from './draft.js';
+import { newMatch, pick, showdown, MODES, m1 } from './draft.js';
 import { choose } from './bot.js';
 import { opponents, YOUR_TIER, YOUR_MULT, TIERS, cleanKit, codeFor } from './pyramid.js';
 
@@ -25,7 +25,7 @@ export const SIZE = 64;
 // the slots on your road that only League One and League Two clubs can fill: your opponent in each of the first three rounds and the clubs that feed them (1 + 2 + 4)
 export const SAFE_SLOTS = 7;
 
-export const budgetFor = (mode, mult) => Math.round(MODES[mode].budget * mult);
+export const budgetFor = (mode, mult) => m1(MODES[mode].budget * mult);   // £m, one decimal: every club's money is its own
 
 // your team, from the name and kit you gave it ({ colours: [primary, secondary], pattern })
 export function youTeam(mode, name = 'Your Club', kit) {

@@ -39,7 +39,7 @@ h3 { font: 800 13px/1 system-ui; letter-spacing: .12em; text-transform: uppercas
 .tile:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 8px 14px #000a, 0 0 0 3px var(--gold); }
 .tile .first { font: 700 11px/1 system-ui; letter-spacing: .14em; text-transform: uppercase; color: #5b636b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 36px; }
 .tile .last { font: 900 20px/1.05 var(--display); letter-spacing: .03em; text-transform: uppercase; overflow-wrap: anywhere; padding-right: 36px; }
-.tile .price { position: absolute; right: 8px; top: 8px; min-width: 34px; height: 34px; border-radius: 50%; background: #14181c; color: var(--gold); display: grid; place-items: center; font: 900 16px var(--display); }
+.tile .price { position: absolute; right: 8px; top: 8px; min-width: 34px; height: 30px; padding: 0 9px; border-radius: 15px; background: #14181c; color: var(--gold); display: grid; place-items: center; font: 800 15px var(--display); white-space: nowrap; }
 .tile.over { opacity: .45; cursor: not-allowed; }
 .tile.over .over-note { display: block; }
 .tile .over-note { display: none; font: 700 10px system-ui; color: #8a1f1f; letter-spacing: .04em; text-transform: uppercase; }

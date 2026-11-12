@@ -7,13 +7,13 @@
 //
 // Each tier lists its clubs from strongest to weakest, and the budget runs from `hi` down to `lo` (as a share of the player's budget) in that order.
 export const TIERS = [
-  { key: 'prem', name: 'Premier League', hi: 1.30, lo: 1.12 },
-  { key: 'champ', name: 'Championship', hi: 1.15, lo: 1.05 },
+  { key: 'prem', name: 'Premier League', hi: 1.32, lo: 1.12 },
+  { key: 'champ', name: 'Championship', hi: 1.16, lo: 1.05 },
   { key: 'one', name: 'League One', hi: 1.08, lo: 1.00 },
-  { key: 'two', name: 'League Two', hi: 0.95, lo: 0.80 },
+  { key: 'two', name: 'League Two', hi: 0.95, lo: 0.82 },
 ];
 export const YOUR_TIER = 3;     // League Two
-export const YOUR_MULT = 1.0;   // you are on the base budget (£10 in 5-a-side, £30 in 11-a-side): level with the best League Two clubs, short of everyone from League One up
+export const YOUR_MULT = 1.0;   // you are on the base budget (£10m in 5-a-side, £30m in 11-a-side): richer than most of League Two, poorer than everyone from League One up
 
 // code, name, kit colours, optional badge pattern ('stripes' | 'hoops' | 'halves' | 'sash')
 const C = (code, name, c1, c2, pattern) => ({ code, name, colours: [c1, c2], pattern });
