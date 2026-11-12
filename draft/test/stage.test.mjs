@@ -14,6 +14,7 @@ test('the staged site is flat: every import resolves inside it and climbs at mos
   for (const f of ['index.html', 'src/ui/blind.js', 'src/draft/draft.js', 'src/draft/bot.js', 'src/draft/attributes.js', 'src/draft/tournament.js', 'src/ui/wheel.js', 'src/engine/rng.js', 'src/data/cards.json']) assert.ok(existsSync(join(out, f)), f);
   const html = readFileSync(join(out, 'index.html'), 'utf8');
   assert.match(html, /<script type="module" src="src\/ui\/blind\.js">/);
-  assert.ok(!/<link rel="stylesheet"/.test(html), 'styles are inlined');
+  assert.ok(!/<link rel="stylesheet" href="(?!https:\/\/fonts\.googleapis\.com\/)/.test(html), 'our styles are inlined; only the Google font stylesheet is linked');
+  assert.match(html, /fonts\.googleapis\.com\/css2\?family=Barlow\+Condensed/);
   for (const f of ['src/ui/blind.js', 'src/draft/draft.js', 'src/draft/bot.js', 'src/draft/attributes.js', 'src/draft/tournament.js']) assert.ok(!/\.\.\/\.\.\//.test(readFileSync(join(out, f), 'utf8')), `${f} has a deep import`);
 });

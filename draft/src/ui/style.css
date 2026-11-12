@@ -1,6 +1,11 @@
 /* Prem Wheel: on top of the Sticker Season stylesheet, which draws the cards. */
+/* Type: Impact is hard to read small (card names), and Arial Narrow body text is cramped. A clean condensed face for headings, names and numbers, and the system sans for the rest. */
+:root { --display: "Barlow Condensed", "Roboto Condensed", "Arial Narrow", system-ui, sans-serif; }
+body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif; }
+.name span { font-size: 15px; font-weight: 800; letter-spacing: .03em; }
+.name.long span { font-size: 13px; } .name.xl span { font-size: 11.5px; }
 .screen[hidden] { display: none; }
-.bigh { font: 900 30px/1 Impact, "Arial Narrow Bold", sans-serif; letter-spacing: .04em; text-transform: uppercase; color: var(--gold); margin: 8px 0; }
+.bigh { font: 900 30px/1 var(--display); letter-spacing: .04em; text-transform: uppercase; color: var(--gold); margin: 8px 0; }
 .lede b { color: var(--gold); }
 a { color: var(--gold); }
 h3 { font: 800 13px/1 system-ui; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); margin: 20px 0 8px; }
@@ -18,12 +23,12 @@ h3 { font: 800 13px/1 system-ui; letter-spacing: .12em; text-transform: uppercas
 
 .dhud { display: grid; grid-template-columns: auto auto 1fr auto auto; gap: 12px 18px; align-items: end; background: #0006; border-radius: 10px; padding: 10px 14px; }
 .dhud small { display: block; font: 700 10px system-ui; letter-spacing: .12em; text-transform: uppercase; color: #b7cdbd; }
-.dstat b { font: 900 30px/1 Impact, sans-serif; }
+.dstat b { font: 900 30px/1 var(--display); }
 .dstat i { font-style: normal; color: #b7cdbd; margin-left: 2px; }
 .dstat.money b { color: var(--gold); }
 .dstat.attr b { font-size: 22px; color: #fff; letter-spacing: .04em; }
 .dstat.bot b { color: #ff9d8a; }
-.dpos h2 { margin: 2px 0 0; font: 900 32px/1 Impact, "Arial Narrow Bold", sans-serif; letter-spacing: .05em; text-transform: uppercase; color: #fff; min-height: 1em; }
+.dpos h2 { margin: 2px 0 0; font: 900 32px/1 var(--display); letter-spacing: .05em; text-transform: uppercase; color: #fff; min-height: 1em; }
 .dpos h2.spinning { opacity: .75; }
 .say { margin: 10px 0 6px; font: 700 16px system-ui; min-height: 1.5em; color: #eef3ee; }
 .say b { color: var(--gold); }
@@ -33,8 +38,8 @@ h3 { font: 800 13px/1 system-ui; letter-spacing: .12em; text-transform: uppercas
   background: var(--paper); color: var(--ink); border: 0; border-radius: 10px; box-shadow: 0 3px 8px #0008; letter-spacing: 0; font-weight: 400; transition: transform .12s ease, box-shadow .12s ease; }
 .tile:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 8px 14px #000a, 0 0 0 3px var(--gold); }
 .tile .first { font: 700 11px/1 system-ui; letter-spacing: .14em; text-transform: uppercase; color: #5b636b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 36px; }
-.tile .last { font: 900 20px/1.05 Impact, "Arial Narrow Bold", sans-serif; letter-spacing: .03em; text-transform: uppercase; overflow-wrap: anywhere; padding-right: 36px; }
-.tile .price { position: absolute; right: 8px; top: 8px; min-width: 34px; height: 34px; border-radius: 50%; background: #14181c; color: var(--gold); display: grid; place-items: center; font: 900 16px Impact, sans-serif; }
+.tile .last { font: 900 20px/1.05 var(--display); letter-spacing: .03em; text-transform: uppercase; overflow-wrap: anywhere; padding-right: 36px; }
+.tile .price { position: absolute; right: 8px; top: 8px; min-width: 34px; height: 34px; border-radius: 50%; background: #14181c; color: var(--gold); display: grid; place-items: center; font: 900 16px var(--display); }
 .tile.over { opacity: .45; cursor: not-allowed; }
 .tile.over .over-note { display: block; }
 .tile .over-note { display: none; font: 700 10px system-ui; color: #8a1f1f; letter-spacing: .04em; text-transform: uppercase; }
@@ -51,7 +56,7 @@ h3 { font: 800 13px/1 system-ui; letter-spacing: .12em; text-transform: uppercas
 .five-slot .p { font: 800 10px system-ui; letter-spacing: .08em; color: #b7cdbd; }
 .five-slot.full { border-style: solid; border-color: #ffffff22; background: #ffffff14; }
 .five-slot .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.five-slot .c { font: 900 14px Impact, sans-serif; color: var(--gold); }
+.five-slot .c { font: 900 14px var(--display); color: var(--gold); }
 .five-slot.bot.full .c { color: #ff9d8a; }
 
 .matchpanel { background: #0007; border-radius: 12px; padding: 14px 16px; margin: 8px 0 12px; }
@@ -61,11 +66,11 @@ h3 { font: 800 13px/1 system-ui; letter-spacing: .12em; text-transform: uppercas
 .vs .who { font: 800 11px system-ui; letter-spacing: .12em; text-transform: uppercase; color: #b7cdbd; }
 .vs .hname { font: 800 15px system-ui; margin: 2px 0; }
 .vs .sum { font: 600 13px system-ui; color: #cfe0d4; font-variant-numeric: tabular-nums; }
-.vs .tot { font: 900 40px/1 Impact, sans-serif; color: #fff; font-variant-numeric: tabular-nums; }
+.vs .tot { font: 900 40px/1 var(--display); color: #fff; font-variant-numeric: tabular-nums; }
 .vs .side.win .tot { color: var(--ok); }
 .vs .side.win .who::after { content: " · wins"; color: var(--ok); }
-.vs .mid { font: 900 18px Impact, sans-serif; color: #b7cdbd; }
-.verdict { font: 900 34px/1 Impact, sans-serif; text-transform: uppercase; letter-spacing: .03em; margin: 12px 0 2px; }
+.vs .mid { font: 900 18px var(--display); color: #b7cdbd; }
+.verdict { font: 900 34px/1 var(--display); text-transform: uppercase; letter-spacing: .03em; margin: 12px 0 2px; }
 .verdict.won { color: var(--ok); } .verdict.lost { color: var(--bad); }
 .cap { text-align: center; font: 800 11px system-ui; letter-spacing: .06em; color: #cfe0d4; margin-top: 4px; }
 .cap.bargain { color: var(--ok); } .cap.trap { color: #ffb0b0; }
@@ -94,7 +99,7 @@ h3 { font: 800 13px/1 system-ui; letter-spacing: .12em; text-transform: uppercas
 .trow .nm { overflow-wrap: anywhere; line-height: 1.2; }
 .trow .nm.r { text-align: right; }
 .trow .nm small { color: #b7cdbd; font-weight: 700; margin-left: 6px; }
-.trow .v { text-align: right; font: 900 20px Impact, sans-serif; font-variant-numeric: tabular-nums; }
+.trow .v { text-align: right; font: 900 20px var(--display); font-variant-numeric: tabular-nums; }
 .trow .v.r { text-align: left; }
 .trow .tpos, .trow .lbl { text-align: center; font: 800 10px system-ui; letter-spacing: .1em; color: #b7cdbd; }
 .trow.pending > * { color: transparent; } .trow.pending small { color: transparent; }
@@ -116,7 +121,7 @@ h3 { font: 800 13px/1 system-ui; letter-spacing: .12em; text-transform: uppercas
 /* a Prem Wheel card shows career totals, so the stat figure is the whole row: make room for it */
 .stats li span { gap: 0; }
 
-.rolling { display: inline-block; min-width: 9ch; font: 900 28px/1 Impact, "Arial Narrow Bold", sans-serif; letter-spacing: .05em; color: #fff; text-transform: uppercase; }
+.rolling { display: inline-block; min-width: 9ch; font: 900 28px/1 var(--display); letter-spacing: .05em; color: #fff; text-transform: uppercase; }
 .rolling.landed { min-width: 0; color: var(--gold); }
 
 #s-say { min-height: 1.6em; }
@@ -125,13 +130,13 @@ h3 { font: 800 13px/1 system-ui; letter-spacing: .12em; text-transform: uppercas
 .pitches { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 6px; }
 .pitch.small { min-height: 230px; }
 .formation { margin: 4px 0 0; font: 700 13px system-ui; letter-spacing: .08em; text-transform: uppercase; color: #b7cdbd; }
-.formation b { color: var(--gold); font: 900 18px Impact, sans-serif; letter-spacing: .05em; margin-left: 4px; }
+.formation b { color: var(--gold); font: 900 18px var(--display); letter-spacing: .05em; margin-left: 4px; }
 .pitch { display: flex; flex-direction: column; justify-content: space-around; gap: 8px; min-height: 330px; padding: 12px 6px; border-radius: 10px; border: 2px solid #ffffff55;
   background: linear-gradient(#ffffff10 0 1px, transparent 1px) 0 50% / 100% 50% no-repeat, repeating-linear-gradient(180deg, #1b6a3d 0 40px, #1f7443 40px 80px); position: relative; }
 .pitch .line { display: flex; justify-content: space-evenly; gap: 4px; }
 .pslot { width: 66px; min-height: 44px; border-radius: 8px; border: 1.5px dashed #ffffff66; background: #0003; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3px 2px; text-align: center; }
 .pslot .sn { font: 800 10.5px/1.1 system-ui; letter-spacing: .02em; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; max-width: 100%; white-space: nowrap; color: #fff; }
-.pslot .sc { font: 900 12px Impact, sans-serif; color: var(--gold); }
+.pslot .sc { font: 900 12px var(--display); color: var(--gold); }
 .pslot.full { border-style: solid; border-color: #ffffffaa; background: #0f2a1ccc; }
 .pitches > div:last-child .pslot.full .sc { color: #ff9d8a; }
 .pslot.now { border-color: var(--gold); border-style: solid; background: #f5c54233; animation: pulse 1.4s ease-in-out infinite; }
@@ -144,7 +149,7 @@ h3 { font: 800 13px/1 system-ui; letter-spacing: .12em; text-transform: uppercas
 .series { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0 4px; }
 .series .pill { background: #0007; border: 2px solid #ffffff22; border-radius: 10px; padding: 8px 6px; text-align: center; }
 .series .pill small { display: block; font: 700 10px system-ui; letter-spacing: .12em; text-transform: uppercase; color: #b7cdbd; }
-.series .pill b { display: block; font: 900 20px/1.1 Impact, sans-serif; letter-spacing: .04em; margin: 2px 0; }
+.series .pill b { display: block; font: 900 20px/1.1 var(--display); letter-spacing: .04em; margin: 2px 0; }
 .series .pill span { font: 700 12px system-ui; color: #cfe0d4; font-variant-numeric: tabular-nums; }
 .series .pill.next { border-color: var(--gold); }
 .series .pill.landed b { color: var(--gold); }
@@ -158,18 +163,18 @@ h3 { font: 800 13px/1 system-ui; letter-spacing: .12em; text-transform: uppercas
 .wheelbox { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 10px 0 14px; cursor: pointer; }
 .wheelbox svg { width: min(82vw, 340px); height: auto; filter: drop-shadow(0 8px 12px #000b); overflow: visible; }
 .wheelbox svg.landed { filter: drop-shadow(0 0 18px #f5c542aa) drop-shadow(0 8px 12px #000b); }
-.wheelcap { margin: 0; font: 900 22px/1.1 Impact, "Arial Narrow Bold", sans-serif; letter-spacing: .05em; text-transform: uppercase; text-align: center; min-height: 1.1em; color: #fff; }
+.wheelcap { margin: 0; font: 900 22px/1.1 var(--display); letter-spacing: .05em; text-transform: uppercase; text-align: center; min-height: 1.1em; color: #fff; }
 
 /* the cup: the screen before a round, the road, and the bracket */
 .laddervs { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: start; background: #0007; border-radius: 12px; padding: 16px; margin: 8px 0 10px; }
 .lv { display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center; min-width: 0; }
 .lv small { font: 700 11px system-ui; letter-spacing: .12em; text-transform: uppercase; color: #b7cdbd; min-height: 1.2em; }
-.lv .lname { font: 900 22px/1.1 Impact, sans-serif; letter-spacing: .03em; text-transform: uppercase; overflow-wrap: anywhere; }
-.lv.vsword { font: 900 22px Impact, sans-serif; color: #b7cdbd; align-self: center; }
+.lv .lname { font: 900 22px/1.1 var(--display); letter-spacing: .03em; text-transform: uppercase; overflow-wrap: anywhere; }
+.lv.vsword { font: 900 22px var(--display); color: #b7cdbd; align-self: center; }
 .lbadge { display: block; min-height: 66px; }
 .lbadge svg { width: 56px; height: auto; display: block; filter: drop-shadow(0 2px 3px #0009); }
-.lbadge .qmark { display: grid; place-items: center; width: 56px; height: 66px; font: 900 34px Impact, sans-serif; color: #b7cdbd; border: 2px dashed #ffffff44; border-radius: 10px 10px 28px 28px; }
-.lmoney { font: 900 40px/1 Impact, sans-serif; color: #ff9d8a; }
+.lbadge .qmark { display: grid; place-items: center; width: 56px; height: 66px; font: 900 34px var(--display); color: #b7cdbd; border: 2px dashed #ffffff44; border-radius: 10px 10px 28px 28px; }
+.lmoney { font: 900 40px/1 var(--display); color: #ff9d8a; }
 .lmoney.gold { color: var(--gold); }
 .clubbox { display: flex; flex-direction: column; gap: 4px; margin: 14px 0 0; font: 700 12px system-ui; letter-spacing: .06em; text-transform: uppercase; color: #b7cdbd; max-width: 340px; }
 .clubbox input { font: 700 16px system-ui; padding: 10px 12px; border-radius: 8px; border: 1px solid #ffffff33; background: #0006; color: #fff; text-transform: none; letter-spacing: 0; }
@@ -180,7 +185,7 @@ h3 { font: 800 13px/1 system-ui; letter-spacing: .12em; text-transform: uppercas
 .stop .sn { color: #b7cdbd; font: 800 10px system-ui; letter-spacing: .08em; text-transform: uppercase; }
 .stop .sb { display: grid; place-items: center; height: 30px; }
 .stop .sb svg { width: 22px; height: auto; display: block; }
-.stop .sb i { font: 900 20px Impact, sans-serif; font-style: normal; color: #ffffff55; }
+.stop .sb i { font: 900 20px var(--display); font-style: normal; color: #ffffff55; }
 .stop .sr { font: 800 10px system-ui; min-height: 1.2em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .stop.now { border-color: var(--gold); background: #f5c54222; box-shadow: 0 0 12px #f5c54255; } .stop.now .sb svg { width: 28px; animation: bob 1.2s ease-in-out infinite; } .stop.now .sr { color: var(--gold); }
 .stop.won { background: #58d68d22; border-color: #58d68d77; } .stop.won .sr { color: #9df0bd; }
@@ -229,7 +234,7 @@ h3 { font: 800 13px/1 system-ui; letter-spacing: .12em; text-transform: uppercas
 
 .hooks { list-style: none; margin: 22px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .hooks li { display: flex; flex-direction: column; gap: 4px; padding: 14px; border-radius: 12px; background: #0006; border: 1px solid #ffffff1a; font: 400 13px/1.4 system-ui; color: #cfe0d4; }
-.hooks b { font: 900 17px/1.1 Impact, "Arial Narrow Bold", sans-serif; letter-spacing: .05em; text-transform: uppercase; color: #fff; }
+.hooks b { font: 900 17px/1.1 var(--display); letter-spacing: .05em; text-transform: uppercase; color: #fff; }
 .hooks .hi { font-size: 26px; line-height: 1; }
 
 .clubcard { display: grid; grid-template-columns: 190px 1fr; gap: 22px; align-items: center; margin: 22px 0 0; padding: 22px; border-radius: 16px; background: linear-gradient(160deg, #0a2417, #06150d); border: 2px solid #f5c54255; box-shadow: 0 14px 40px #0008, inset 0 0 0 1px #ffffff10; }
@@ -238,7 +243,7 @@ h3 { font: 800 13px/1 system-ui; letter-spacing: .12em; text-transform: uppercas
 .clubname { display: block; font: 800 12px system-ui; letter-spacing: .28em; text-transform: uppercase; color: var(--gold); margin: 0 0 6px; }
 .namerow { display: flex; gap: 8px; }
 .clubform { min-width: 0; }
-.namerow input { flex: 1; min-width: 0; width: 100%; box-sizing: border-box; font: 900 clamp(22px, 5.5vw, 32px)/1.1 Impact, "Arial Narrow Bold", sans-serif; letter-spacing: .03em; text-transform: uppercase; padding: 8px 12px; color: #fff; background: #ffffff10; border: 2px solid #ffffff33; border-radius: 10px; }
+.namerow input { flex: 1; min-width: 0; width: 100%; box-sizing: border-box; font: 900 clamp(22px, 5.5vw, 32px)/1.1 var(--display); letter-spacing: .03em; text-transform: uppercase; padding: 8px 12px; color: #fff; background: #ffffff10; border: 2px solid #ffffff33; border-radius: 10px; }
 .namerow input:focus { outline: none; border-color: var(--gold); background: #ffffff18; }
 .namerow input::placeholder { color: #ffffff55; }
 .namerow button { font-size: 22px; padding: 0 14px; border-radius: 10px; }
@@ -252,7 +257,7 @@ h3 { font: 800 13px/1 system-ui; letter-spacing: .12em; text-transform: uppercas
 .design[aria-pressed="true"] { background: var(--gold); color: #261c00; border-color: var(--gold); }
 
 .cta { text-align: center; margin: 22px 0 6px; }
-button.kickoff { font: 900 26px/1 Impact, "Arial Narrow Bold", sans-serif; letter-spacing: .1em; text-transform: uppercase; padding: 18px 56px; border-radius: 14px; box-shadow: 0 6px 0 #a67d12, 0 14px 30px #0009; transition: transform .1s, box-shadow .1s; }
+button.kickoff { font: 900 26px/1 var(--display); letter-spacing: .1em; text-transform: uppercase; padding: 18px 56px; border-radius: 14px; box-shadow: 0 6px 0 #a67d12, 0 14px 30px #0009; transition: transform .1s, box-shadow .1s; }
 button.kickoff:hover { transform: translateY(-2px); box-shadow: 0 8px 0 #a67d12, 0 18px 34px #000a; }
 button.kickoff:active { transform: translateY(4px); box-shadow: 0 2px 0 #a67d12, 0 6px 12px #0009; }
 .runline { margin: 14px 0 6px; font: 700 13px system-ui; letter-spacing: .12em; text-transform: uppercase; color: #b7cdbd; }

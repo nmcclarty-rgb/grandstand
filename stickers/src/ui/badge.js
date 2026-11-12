@@ -23,7 +23,7 @@ export function badgeSvg(club, look) {
   <path d="${SHIELD}" fill="${c1}"/>
   <g clip-path="url(#${id})">${over}<rect x="0" y="0" width="100" height="22" fill="#000" opacity=".16"/></g>
   <rect x="8" y="44" width="84" height="30" fill="#10161c" opacity=".86" clip-path="url(#${id})"/>
-  <text x="50" y="66" text-anchor="middle" font-family="Impact, 'Arial Narrow Bold', sans-serif" font-size="26" letter-spacing="1.5" fill="#fff">${code}</text>
+  <text x="50" y="66" text-anchor="middle" style="font-family:var(--display);font-weight:800" font-size="26" letter-spacing="1.5" fill="#fff">${code}</text>
   <path d="${SHIELD}" fill="none" stroke="#10161c" stroke-width="5"/>
   <path d="${SHIELD}" fill="none" stroke="${inkOn(c1) === '#ffffff' ? '#ffffffcc' : '#10161ccc'}" stroke-width="1.6" transform="translate(50 60) scale(.93) translate(-50 -60)"/>
 </svg>`;

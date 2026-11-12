@@ -39,7 +39,7 @@ let html = read('draft/index.html');
 const css = `${read('stickers/src/ui/style.css')}\n${read('draft/src/ui/style.css')}`;
 html = html.replace(/ {2}<link rel="stylesheet" href="\.\.\/stickers\/src\/ui\/style\.css">\n {2}<link rel="stylesheet" href="src\/ui\/style\.css">/, `  <style>\n${css}\n  </style>`)
   .replace('src="src/ui/game.js"', 'src="src/ui/blind.js"').replace('<a href="../stickers/">Sticker Season</a>', 'Sticker Season');
-if (html.includes('<link rel="stylesheet"')) throw new Error('a stylesheet link was left in the page');
+if (/<link rel="stylesheet" href="(?!https:\/\/fonts\.googleapis\.com\/)/.test(html)) throw new Error('a local stylesheet link was left in the page');
 put('index.html', html);
 
 // every import in the staged tree must resolve to a staged file, with at most one "../"

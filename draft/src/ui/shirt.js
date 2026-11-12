@@ -22,7 +22,7 @@ export function shirtSvg(kit, code = '') {
   <g clip-path="url(#${id})">${over}<path d="M30 47 L30 112 L90 112 L90 47" fill="#000" opacity=".06"/><rect x="0" y="8" width="120" height="6" fill="#000" opacity=".08"/></g>
   <path d="M40 8 C46 18 74 18 80 8" fill="none" stroke="${trim}" stroke-width="4" stroke-linecap="round"/>
   <path d="M5 47 L22 57 M115 47 L98 57" stroke="${trim}" stroke-width="5" stroke-linecap="round"/>
-  ${letters ? `<g><path d="M44 34 H76 V54 C76 63 68 67 60 71 C52 67 44 63 44 54 Z" fill="#10161c" opacity=".88"/><text x="60" y="52" text-anchor="middle" font-family="Impact, 'Arial Narrow Bold', sans-serif" font-size="11" fill="#fff" textLength="${Math.min(24, letters.length * 8.5)}" lengthAdjust="spacingAndGlyphs">${letters}</text></g>` : ''}
+  ${letters ? `<g><path d="M44 34 H76 V54 C76 63 68 67 60 71 C52 67 44 63 44 54 Z" fill="#10161c" opacity=".88"/><text x="60" y="52" text-anchor="middle" style="font-family:var(--display);font-weight:800" font-size="11" fill="#fff" textLength="${Math.min(24, letters.length * 8.5)}" lengthAdjust="spacingAndGlyphs">${letters}</text></g>` : ''}
   <path d="${SHIRT}" fill="none" stroke="#10161c" stroke-width="3" stroke-linejoin="round"/>
 </svg>`;
 }

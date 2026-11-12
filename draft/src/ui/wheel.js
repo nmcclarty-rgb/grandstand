@@ -60,7 +60,7 @@ export function drawWheel(svg, slices, { hub = 'PREM' } = {}) {
     // the label runs outwards along the slice's middle
     const len = s.label.length;
     const size = Math.max(9, Math.min(17, 92 / (len * 0.62)));
-    const t = node('text', { transform: `rotate(${s.mid - 90} ${C} ${C})`, x: C + 38, y: C + size * 0.35, 'font-size': size, 'font-weight': 900, 'font-family': 'Impact, "Arial Narrow Bold", system-ui, sans-serif', 'letter-spacing': '.04em', fill: INKS[i % INKS.length] }, s.label);
+    const t = node('text', { transform: `rotate(${s.mid - 90} ${C} ${C})`, x: C + 38, y: C + size * 0.35, 'font-size': size, 'font-weight': 900, style: 'font-family:var(--display)', 'letter-spacing': '.04em', fill: INKS[i % INKS.length] }, s.label);
     g.append(t);
     rot.append(g);
   });
