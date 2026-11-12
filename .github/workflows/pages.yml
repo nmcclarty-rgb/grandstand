@@ -1,11 +1,14 @@
-# Publishes Prem Wheel as a website with GitHub Pages: the flat site that draft/tools/stage.mjs builds (index.html at the root, no build step beyond that).
-# One-time setup in the repository: Settings > Pages > Build and deployment > Source: GitHub Actions. After that every push to main that touches the game redeploys it.
+# Publishes the repository's games as one website with GitHub Pages:
+#   /              Grandstand, the original game, exactly as it is in docs/index.html (so its address does not change)
+#   /prem-wheel/   Prem Wheel, the flat site that draft/tools/stage.mjs builds
+# One-time setup in the repository: Settings > Pages > Build and deployment > Source: GitHub Actions (it was "Deploy from a branch", serving docs/). After that every
+# push to main that touches either game redeploys the whole site.
 name: Deploy Prem Wheel
 
 on:
   push:
     branches: [main]
-    paths: ['draft/**', 'stickers/src/**', 'stickers/test/**', '.github/workflows/pages.yml']
+    paths: ['draft/**', 'stickers/src/**', 'stickers/test/**', 'docs/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -34,7 +37,9 @@ jobs:
           (cd draft && npm test)
       - name: Build the site
         run: |
-          node draft/tools/stage.mjs _site
+          mkdir _site
+          cp -r docs/. _site/
+          node draft/tools/stage.mjs _site/prem-wheel
           touch _site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
