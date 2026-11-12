@@ -58,7 +58,6 @@ test('wins (est.) count for everyone; clean sheets (est.) only for goalkeepers a
   assert.equal(valueOf(get2('Alan Shearer'), 'cleansheets'), 0);
   assert.ok(valueOf(get2('Petr Čech'), 'cleansheets') > 190);
   assert.equal(recordOf(pool, 'cleansheets'), valueOf(get2('John Terry'), 'cleansheets'));
-  assert.deepEqual(ATTRIBUTE.cleansheets.needs, { positions: ['GK', 'DEF'], min: 2 });
   const byPos = (k, p) => { const a = pool.cards.filter((c) => c.pos === p && c.games >= 100); return a.reduce((s, c) => s + valueOf(c, k), 0) / a.length; };
   assert.ok(byPos('cleansheets', 'GK') > 20 && byPos('cleansheets', 'DEF') > 20 && byPos('cleansheets', 'FWD') < 1, 'clean sheets belong to the back line');
   assert.ok(byPos('wins', 'FWD') > 50 && byPos('wins', 'GK') > 50, 'wins belong to everyone');

@@ -15,9 +15,7 @@ export const ATTRIBUTES = [
   { key: 'games',        label: 'APPEARANCES',       short: 'APPS',       unit: 'appearances',                                    value: (c) => c.games },
   { key: 'titles',       label: 'LEAGUE TITLES',     short: 'TITLES',     unit: 'Premier League titles (a season with the champions, 5+ league appearances)', value: (c) => c.titles },
   { key: 'wins',         label: 'WINS (EST.)',       short: 'WINS',       unit: 'Premier League wins while on the pitch (estimated from his minutes)', value: (c) => c.wins },
-  { key: 'cleansheets',  label: 'CLEAN SHEETS (EST.)', short: 'CLEAN SHEETS', unit: 'clean sheets as a goalkeeper or defender (estimated from his minutes)', value: (c) => c.cleanSheets,
-    // only goalkeepers and defenders earn them, so a 5-a-side match on this needs at least two of those slots to be worth playing
-    needs: { positions: ['GK', 'DEF'], min: 2 } },
+  { key: 'cleansheets',  label: 'CLEAN SHEETS (EST.)', short: 'CLEAN SHEETS', unit: 'clean sheets as a goalkeeper or defender (estimated from his minutes)', value: (c) => c.cleanSheets },
   { key: 'discipline',   label: 'DISCIPLINE',        short: 'DISCIPLINE', unit: 'discipline points (a yellow card is 1, a red 3)', value: (c) => statOf(c, 'discipline') },
 ];
 export const ATTRIBUTE_KEYS = ATTRIBUTES.map((a) => a.key);

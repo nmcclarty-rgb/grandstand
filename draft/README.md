@@ -11,11 +11,10 @@ Two games, one engine (pick on the title screen):
 |---|---|---|
 | Budget | £10 | £30 |
 | Rounds | 5 | 11 |
-| Which position | a wheel names it each round (never one position three times) | a **formation** is rolled at the start of every match (4-4-2, 4-3-3, 4-5-1, 3-5-2, 3-4-3, 5-3-2) and both teams work through it, goalkeeper first, then defenders, midfielders, forwards |
+| Which position | a **formation** (1-2-1, 2-1-1, 1-1-2 or 2-2: one goalkeeper and four outfield players) is rolled at the start of every match | a **formation** is rolled at the start of every match (4-4-2, 4-3-3, 4-5-1, 3-5-2, 3-4-3, 5-3-2) |
 
-Every draw is a **wheel you can see**: a spinning SVG wheel with a pointer, sized by the real odds (the 5-a-side position wheel's goalkeeper slice is half the size of the others, because the
-wheel gives goalkeepers half as often), that lands on the slice the engine has already drawn. It spins for the attribute (faded slices are ones already used in the series), the formation
-(11-a-side) and each round's position (5-a-side). Click it to skip. (`src/ui/wheel.js`: the geometry is tested to land every slice under the pointer, away from the edges.)
+Every draw is a **wheel you can see**: a spinning SVG wheel with a pointer, sized by the real odds (4-4-2 is a bigger slice than 5-3-2), that lands on the slice the engine has already drawn. It spins for the attribute (faded slices are ones already used in the series) and
+the formation, in both modes. Click it to skip. (`src/ui/wheel.js`: the geometry is tested to land every slice under the pointer, away from the edges.)
 
 Nothing between the rounds needs a button: when a draft ends the page moves to the showdown, counts by itself after two seconds, and after a match it counts down five seconds (to read the
 result) and starts the next fresh draft. A tap, a click or Space on the showdown screen skips a wait. Only "Play again" and "Change opponent" at the very end are buttons.
@@ -50,7 +49,7 @@ node tools/stage.mjs      # -> ../.stage/blind-five   (git-ignored)
 ```
 
 ```
-src/engine/draft.js   the whole match as a pure state machine: wheel, boards, prices, budget, picks, showdown
+src/engine/draft.js   the whole series as a pure state machine: attribute, formation, boards, prices, budget, picks, showdown
 src/engine/bot.js     easy / medium / hard
 src/ui/               the page (game.js) and its stylesheet, on top of Sticker Season's card face
 tools/simulate.mjs    bots against bots
@@ -63,9 +62,9 @@ tools/simulate.mjs    bots against bots
   position (top 5% is tier 5, then 10%, 20%, 30%, 35%). Only players with 100+ Premier League appearances are on a board.
 - **Price** is the true tier, nudged one step with probability 0.3 for tiers 2-4 (a **bargain** if down, a **trap** if up);
   a star can only be a £4 bargain. After the draft each player's caption says what he cost and whether he was a bargain or a trap.
-- **Wheel** GK 1 : DEF 2 : MID 2 : FWD 2, never one position more than twice in a match.
+- **Formation** rolled at the start of every match, the same for both teams, worked through goalkeeper first (5-a-side: 1-2-1 and 2-1-1 at weight 3, 1-1-2 at 2, 2-2 at 1; 11-a-side: 4-4-2 and 4-3-3 at 3, 4-5-1 and 3-5-2 at 2, 3-4-3 and 5-3-2 at 1). There is always exactly **one goalkeeper**. (5-a-side used to roll a position each round on a wheel, which could give two goalkeepers; it works like 11-a-side now.)
 - **Attributes** one per match, drawn at the start of the match from those not yet used in the series, from the seed (so it never depends on who you buy). Goals, assists, appearances and league titles are career totals; goal involvements are goals + assists; wins and clean sheets are estimates (below); discipline is yellow cards + 3 × red cards. The list is in `src/engine/attributes.js`: **adding an attribute is one entry there** and the draw, the bot, the tally and the page pick it up.
-- **Clean sheets need a back line.** Only goalkeepers and defenders earn them, so a 5-a-side match on clean sheets re-draws the wheel until it has at least two goalkeeper or defender slots (`needs` on the attribute in `attributes.js`); in 11-a-side every formation has four or more.
+- **Clean sheets always have a back line.** Only goalkeepers and defenders earn them, and every formation has a goalkeeper and at least one defender (every 5-a-side formation has a defender, and 11-a-side has three or more), so a clean-sheets match is never empty.
 - **Fresh teams** every match: a fresh budget, a fresh team, a fresh formation (11-a-side). A player who was on any board earlier in the series is not on a later one, so nobody can be used twice (if a tier runs out, the board takes the nearest tier that has someone left: there are only five star goalkeepers).
 - **Showdown** the sum of each team's players' totals in the match's attribute; the bigger total wins the match, equal totals are a draw. First to two matches wins (the series stops at 2-0). If a three-match series is level (a drawn match), the larger share of each attribute's all-time record wins; otherwise a draw.
 

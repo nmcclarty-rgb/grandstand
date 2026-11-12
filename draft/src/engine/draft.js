@@ -12,7 +12,7 @@
 // bargains and traps.
 //
 // TWO MODES, one engine:
-//   five    5-a-side. £10, five rounds, and the WHEEL names the position each round.
+//   five    5-a-side. £10, five rounds: a goalkeeper and a formation of four outfield players (1-2-1, 2-1-1, 1-1-2 or 2-2) rolled at the start of each match.
 //   eleven  11-a-side. £25, eleven rounds. A FORMATION is rolled at the start (4-4-2, 4-3-3, ...) and the draft works through it back
 //           to front: the goalkeeper, then the defenders, the midfielders, the forwards. Both teams play the same formation.
 //
@@ -20,7 +20,7 @@
 import { makeRng } from '../../../stickers/src/engine/rng.js';
 import { instance } from '../../../stickers/src/engine/deck.js';
 import { POSITIONS } from '../../../stickers/src/engine/cards.js';
-import { ATTRIBUTE_KEYS, ATTRIBUTE, valueOf, recordOf } from './attributes.js';
+import { ATTRIBUTE_KEYS, valueOf, recordOf } from './attributes.js';
 export { valueOf };
 
 // What is the same in every mode.
@@ -31,7 +31,7 @@ export const COMMON = {
   matches: 3,          // a series is a best of three
 };
 export const MODES = {
-  five:   { id: 'five',   label: '5-a-side',  budget: 10, rounds: 5,  maxPerPosition: 2 },   // the wheel never gives one position three times
+  five:   { id: 'five',   label: '5-a-side',  budget: 10, rounds: 5 },
   eleven: { id: 'eleven', label: '11-a-side', budget: 30, rounds: 11 },
 };
 // the five-a-side rules, for callers that do not care about the mode
@@ -49,6 +49,15 @@ export const FORMATIONS = [
 ];
 export const formationPositions = (f) => ['GK', ...Array(f.DEF).fill('DEF'), ...Array(f.MID).fill('MID'), ...Array(f.FWD).fill('FWD')];
 
+// 5-a-side: one goalkeeper and four outfield players, as DEF-MID-FWD. Every one has at least one defender, so a clean-sheets match always has a back line.
+export const FIVE_A_SIDE_FORMATIONS = [
+  { name: '1-2-1', DEF: 1, MID: 2, FWD: 1, weight: 3 },
+  { name: '2-1-1', DEF: 2, MID: 1, FWD: 1, weight: 3 },
+  { name: '1-1-2', DEF: 1, MID: 1, FWD: 2, weight: 2 },
+  { name: '2-2', DEF: 2, MID: 2, FWD: 0, weight: 1 },
+];
+export const formationsOf = (mode) => (mode === 'eleven' ? FORMATIONS : FIVE_A_SIDE_FORMATIONS);
+
 // The truth about a board: its eight players' TRUE TIERS (1 cheap to 5 star), by the overall within their position. Three
 // of the eight are always tier 1 (and priced £1): that is what guarantees a legal pick for whoever picks second, however the
 // money has gone.
@@ -59,8 +68,6 @@ const TIER_SHARE = [[5, 0.05], [4, 0.10], [3, 0.20], [2, 0.30], [1, 0.35]];
 // can only be a bargain at £4. Tier 1 is always £1.
 export const PRICE_NOISE = 0.3;
 
-// how likely each position is to come up on the 5-a-side wheel (the page draws the slices in these proportions)
-export const WHEEL = { GK: 1, DEF: 2, MID: 2, FWD: 2 };
 
 // ---- who can be on a board ----------------------------------------------------------------------------------------------
 const universes = new WeakMap();
@@ -122,26 +129,12 @@ function beginMatch(state) {
   const forced = state.forcedCategories?.[state.match - 1];
   state.category = forced ?? stream(state, `attribute|${state.match}`).pick(left);
   state.used.push(state.category);
-  if (state.mode === 'eleven') {
-    // the formation is rolled at the start of every match, and the draft works through it: goalkeeper, defenders, midfielders, forwards
-    const roll = stream(state, `formation|${state.match}`);
-    state.formation = state.forcedFormation ? FORMATIONS.find((f) => f.name === state.forcedFormation) : roll.weighted(FORMATIONS.map((f) => [f, f.weight]));
-    if (!state.formation) throw new Error(`unknown formation '${state.forcedFormation}'`);
-    state.positions = formationPositions(state.formation);
-  } else {
-    // positions: weighted wheel, but never one position more than maxPerPosition times. An attribute that only some positions can earn
-    // (clean sheets: goalkeepers and defenders) needs enough of those slots, so the wheel is drawn again until it has them.
-    const rng = stream(state, `wheel|${state.match}`);
-    const needs = ATTRIBUTE[state.category].needs;
-    for (let attempt = 0; attempt < 200; attempt++) {
-      state.positions = [];
-      while (state.positions.length < rules.rounds) {
-        const pos = rng.weighted(Object.entries(WHEEL));
-        if (state.positions.filter((p) => p === pos).length < rules.maxPerPosition) state.positions.push(pos);
-      }
-      if (!needs || state.positions.filter((p) => needs.positions.includes(p)).length >= needs.min) break;
-    }
-  }
+  // the formation is rolled at the start of every match, and the draft works through it back to front: goalkeeper, defenders, midfielders, forwards
+  const list = formationsOf(state.mode);
+  const roll = stream(state, `formation|${state.match}`);
+  state.formation = state.forcedFormation ? list.find((f) => f.name === state.forcedFormation) : roll.weighted(list.map((f) => [f, f.weight]));
+  if (!state.formation) throw new Error(`unknown formation '${state.forcedFormation}'`);
+  state.positions = formationPositions(state.formation);
   dealBoard(state);
 }
 

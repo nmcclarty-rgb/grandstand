@@ -10,11 +10,11 @@ const play = (seed, policy = (s, who) => choose(s, who, 'medium'), opts = {}) =>
   return s;
 };
 
-test('11-a-side rules: £30, eleven rounds, and the five-a-side game is unchanged', () => {
+test('11-a-side rules: £30, eleven rounds; 5-a-side is £10, five rounds, and also rolls a formation', () => {
   assert.deepEqual([MODES.eleven.budget, MODES.eleven.rounds], [30, 11]);
   assert.deepEqual([MODES.five.budget, MODES.five.rounds], [10, 5]);
   const f = newMatch(pool, 'five'), e = newMatch(pool, 'eleven', { mode: 'eleven' });
-  assert.equal(f.mode, 'five'); assert.equal(f.formation, null); assert.equal(f.positions.length, 5);
+  assert.equal(f.mode, 'five'); assert.equal(f.formation.DEF + f.formation.MID + f.formation.FWD, 4); assert.equal(f.positions.length, 5);
   assert.equal(e.mode, 'eleven'); assert.equal(e.positions.length, 11);
   assert.equal(e.money.you, 30); assert.equal(f.money.you, 10);
   assert.equal(rulesOf(e).rounds, 11);

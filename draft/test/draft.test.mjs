@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { pool } from './helpers.mjs';
-import { RULES, TIER_SLOTS, PRICE_NOISE, newMatch, nextMatch, pick, free, canAfford, maxSpend, firstPicker, positionOf, showdown, seriesOf, universeOf, valueOf } from '../src/engine/draft.js';
+import { RULES, FIVE_A_SIDE_FORMATIONS, formationPositions, TIER_SLOTS, PRICE_NOISE, newMatch, nextMatch, pick, free, canAfford, maxSpend, firstPicker, positionOf, showdown, seriesOf, universeOf, valueOf } from '../src/engine/draft.js';
 import { choose, botMove, worth, LEVELS } from '../src/engine/bot.js';
 import { ATTRIBUTE_KEYS, recordOf } from '../src/engine/attributes.js';
 
@@ -28,16 +28,36 @@ test('the rules: £10, five rounds, a board of eight, a best of three', () => {
   assert.equal(TIER_SLOTS.filter((t) => t === 1).length, 3, 'three cheap players, so the second picker always has a legal pick');
 });
 
-test('the wheel gives five positions, never one position three times, and is the same for a seed', () => {
+test('5-a-side works like 11-a-side: one goalkeeper, then a rolled formation of four outfield players, worked through back to front', () => {
+  const seen = new Set();
   for (let i = 0; i < 300; i++) {
     const s = newMatch(pool, `w${i}`);
     assert.equal(s.positions.length, 5);
-    for (const pos of ['GK', 'DEF', 'MID', 'FWD']) assert.ok(s.positions.filter((p) => p === pos).length <= 2, `${s.positions}`);
+    assert.equal(s.positions.filter((p) => p === 'GK').length, 1, `exactly one goalkeeper: ${s.positions}`);
+    assert.equal(s.positions[0], 'GK', 'the goalkeeper comes first');
+    assert.deepEqual(s.positions, formationPositions(s.formation));
+    const order = ['GK', 'DEF', 'MID', 'FWD'];
+    assert.deepEqual(s.positions, [...s.positions].sort((a, b) => order.indexOf(a) - order.indexOf(b)), 'back to front');
+    assert.ok(FIVE_A_SIDE_FORMATIONS.some((f) => f.name === s.formation.name));
+    seen.add(s.formation.name);
   }
+  assert.deepEqual([...seen].sort(), FIVE_A_SIDE_FORMATIONS.map((f) => f.name).sort(), 'every formation comes up');
   assert.deepEqual(newMatch(pool, 'same').positions, newMatch(pool, 'same').positions);
-  const seen = new Set();
-  for (let i = 0; i < 100; i++) newMatch(pool, `v${i}`).positions.forEach((p) => seen.add(p));
-  assert.equal(seen.size, 4, 'every position comes up');
+  assert.equal(newMatch(pool, 'forced', { formation: '2-1-1' }).formation.name, '2-1-1');
+  assert.deepEqual(newMatch(pool, 'forced', { formation: '2-1-1' }).positions, ['GK', 'DEF', 'DEF', 'MID', 'FWD']);
+  assert.throws(() => newMatch(pool, 'bad', { formation: '4-4-2' }), /unknown formation/);
+});
+
+test('every 5-a-side formation is a goalkeeper and four outfield players with at least one defender, so a clean-sheets match always has a back line', () => {
+  for (const f of FIVE_A_SIDE_FORMATIONS) {
+    assert.equal(1 + f.DEF + f.MID + f.FWD, 5, f.name);
+    assert.ok(f.DEF >= 1, `${f.name} has a defender`);
+    assert.equal(f.name, f.FWD ? `${f.DEF}-${f.MID}-${f.FWD}` : `${f.DEF}-${f.MID}`);
+  }
+  for (let i = 0; i < 200; i++) {
+    const s = newMatch(pool, `cs${i}`, { categories: ['cleansheets'] });
+    assert.ok(s.positions.filter((p) => p === 'GK' || p === 'DEF').length >= 2, `${s.positions}`);
+  }
 });
 
 test('a board: eight different players of the round\'s position, with prices from £1 to £5', () => {
@@ -326,23 +346,6 @@ test('the levels are ordered over a series: hard beats medium beats easy', () =>
   assert.ok(win('medium', 'easy') > 0.5);
   assert.ok(win('hard', 'medium') > 0.55);
   assert.ok(win('easy', 'hard') < 0.4);
-});
-
-test('a clean-sheets match needs at least two goalkeeper or defender slots (5-a-side), and the draw is still reproducible', () => {
-  let n = 0;
-  for (let i = 0; i < 400; i++) {
-    const s = newMatch(pool, `cs${i}`, { categories: ['cleansheets'] });
-    const back = s.positions.filter((p) => p === 'GK' || p === 'DEF').length;
-    assert.ok(back >= 2, `${s.positions}`);
-    for (const pos of ['GK', 'DEF', 'MID', 'FWD']) assert.ok(s.positions.filter((p) => p === pos).length <= 2);
-    assert.deepEqual(newMatch(pool, `cs${i}`, { categories: ['cleansheets'] }).positions, s.positions);
-    n++;
-  }
-  // other attributes keep the plain wheel, and it can give just one back-line slot
-  let one = 0;
-  for (let i = 0; i < 400; i++) { const s = newMatch(pool, `plain${i}`, { categories: ['goals'] }); if (s.positions.filter((p) => p === 'GK' || p === 'DEF').length === 1) one++; }
-  assert.ok(one > 0, 'the plain wheel sometimes gives a single back-line slot');
-  assert.equal(n, 400);
 });
 
 test('told clean sheets, the bot spends on the back line and not on forwards', () => {

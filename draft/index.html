@@ -16,13 +16,13 @@
     <h1 id="t-h" tabindex="-1">Prem <em>Wheel</em></h1>
     <ol class="steps">
       <li><b>An attribute is drawn</b>: goals, assists, goal involvements, appearances or discipline. A series is a best of three, a different attribute each match.</li>
-      <li><b>Draft a fresh team for it</b> (five or eleven, from a rolled formation) from 34 seasons of Premier League players, on a budget. Each round eight players of one position go on the board with <b>a name and a price</b>: no stats, no club, nothing else. You and the bot take turns to pick one.</li>
+      <li><b>Draft a fresh team for it</b> (five or eleven, in a rolled formation) from 34 seasons of Premier League players, on a budget. Each round eight players of one position go on the board with <b>a name and a price</b>: no stats, no club, nothing else. You and the bot take turns to pick one.</li>
       <li><b>Add it up.</b> Each team's real career totals in the attribute; the bigger total wins the match. First to two wins.</li>
     </ol>
     <p class="lede">A price is a hint, not the truth. Know your football.</p>
     <fieldset class="levels" id="t-modes">
       <legend>Game</legend>
-      <label><input type="radio" name="mode" value="five" checked><span><b>5-a-side</b> £10, five rounds, a wheel names each position</span></label>
+      <label><input type="radio" name="mode" value="five" checked><span><b>5-a-side</b> £10, five rounds: a formation (1-2-1, 2-1-1, 1-1-2 or 2-2) is rolled at the start and you work through it</span></label>
       <label><input type="radio" name="mode" value="eleven"><span><b>11-a-side</b> £30, eleven rounds: a formation is rolled at the start and you work through it</span></label>
     </fieldset>
     <fieldset class="levels" id="t-levels">
@@ -60,12 +60,8 @@
     <p class="formation" id="d-formation" hidden>Formation <b id="d-formation-name">…</b></p>
     <div class="tiles" id="d-board" aria-label="The board"></div>
     <div class="pitches">
-      <div><h3>Your eleven</h3><div class="pitch" id="p-you"></div></div>
-      <div><h3>The bot's eleven</h3><div class="pitch" id="p-bot"></div></div>
-    </div>
-    <div class="teams">
-      <div><h3>Your five</h3><ol class="five" id="d-you"></ol></div>
-      <div><h3>The bot's five</h3><ol class="five" id="d-bot"></ol></div>
+      <div><h3>Your team</h3><div class="pitch" id="p-you"></div></div>
+      <div><h3>The bot's team</h3><div class="pitch" id="p-bot"></div></div>
     </div>
     <div class="actions"><button id="d-quit" class="ghost" type="button">Quit</button></div>
   </section>

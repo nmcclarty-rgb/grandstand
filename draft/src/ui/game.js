@@ -4,14 +4,13 @@ import { firstNameOf, surnameOf } from '../../../stickers/src/engine/cards.js';
 import { renderCard } from '../../../stickers/src/ui/card.js';
 import { initTooltips } from '../../../stickers/src/ui/tooltip.js';
 import { drawWheel } from './wheel.js';
-import { COMMON, MODES, FORMATIONS, WHEEL, newMatch, nextMatch, pick, positionOf, canAfford, maxSpend, showdown, seriesOf, rulesOf } from '../engine/draft.js';
+import { COMMON, MODES, formationsOf, newMatch, nextMatch, pick, positionOf, canAfford, maxSpend, showdown, seriesOf, rulesOf } from '../engine/draft.js';
 import { ATTRIBUTES, ATTRIBUTE, valueOf } from '../engine/attributes.js';
 import { botMove } from '../engine/bot.js';
 
 const $ = (id) => document.getElementById(id);
 const n = (x) => x.toLocaleString('en-GB');
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const LABEL = { GK: 'Goalkeepers', DEF: 'Defenders', MID: 'Midfielders', FWD: 'Forwards' };
 const ONE = { GK: 'Goalkeeper', DEF: 'Defender', MID: 'Midfielder', FWD: 'Forward' };
 const SHORT = { GK: 'GK', DEF: 'DEF', MID: 'MID', FWD: 'FWD' };
 const RECORD = 'blind-five:record:v1';
@@ -132,10 +131,11 @@ function spinAttribute(my) {
   const index = ATTRIBUTES.findIndex((a) => a.key === state.category);
   return wheelSpin(slices, index, state.match === 1 ? 'Which attribute?' : `Match ${state.match}: which attribute? (faded ones are used)`, attr(state.category).label, my, 3300);
 }
-// 11-a-side: this match's formation
-const spinFormation = (my) => wheelSpin(FORMATIONS.map((f) => ({ label: f.name, weight: f.weight })), FORMATIONS.findIndex((f) => f.name === state.formation.name), 'Which formation?', state.formation.name, my, 2700);
-// 5-a-side: each round's position, with the slices as big as their chances
-const spinPosition = (my) => wheelSpin(Object.entries(WHEEL).map(([k, w]) => ({ label: k, weight: w })), Object.keys(WHEEL).indexOf(positionOf(state)), `Round ${state.round} of ${rules().rounds}: which position?`, LABEL[positionOf(state)], my, 2200);
+// this match's formation, with each slice as big as its chances
+function spinFormation(my) {
+  const list = formationsOf(mode);
+  return wheelSpin(list.map((f) => ({ label: f.name, weight: f.weight })), list.findIndex((f) => f.name === state.formation.name), 'Which formation?', state.formation.name, my, 2700);
+}
 
 async function beginMatchPage(my) {
   busy = true;
@@ -144,8 +144,8 @@ async function beginMatchPage(my) {
   $('d-rounds').textContent = `/${rules().rounds}`;
   $('d-round').textContent = 1;
   $('d-attr').textContent = '?';
-  $('d-formation').hidden = mode !== 'eleven';
-  $('d-poslabel').textContent = mode === 'eleven' ? 'Now drafting' : 'The wheel says';
+  $('d-formation').hidden = false;
+  $('d-poslabel').textContent = 'Now drafting';
   $('d-pos').textContent = ' ';
   $('d-formation-name').textContent = '…';
   $('d-board').classList.add('waiting');
@@ -176,28 +176,21 @@ async function runRound(my) {
   renderMoney();
   $('d-board').classList.add('waiting');
   renderAll();
-  if (mode === 'eleven') {
-    if (state.round === 1) {
-      $('d-pos').textContent = ' ';
-      say('Spin the wheel for the formation.');
-      if (!(await spinFormation(my))) return;
-      $('d-formation-name').textContent = state.formation.name;
-      say(`<b>${state.formation.name}.</b> Both teams play it. You work through it from the goalkeeper to the forwards.`);
-      renderAll();
-      await sleep(600);
-    } else await sleep(350);
-    if (my !== token) return;
-    $('d-pos').textContent = slotLabel();
-  } else {
-    say(`Round ${state.round} of ${rules().rounds}: spin for the position.`);
+  if (state.round === 1) {
     $('d-pos').textContent = ' ';
-    if (!(await spinPosition(my))) return;
-    $('d-pos').textContent = LABEL[positionOf(state)];
-  }
+    say('Spin the wheel for the formation.');
+    if (!(await spinFormation(my))) return;
+    $('d-formation-name').textContent = state.formation.name;
+    say(`<b>${state.formation.name}.</b> Both teams play it. You work through it from the goalkeeper to the forwards.`);
+    renderAll();
+    await sleep(600);
+  } else await sleep(350);
+  if (my !== token) return;
+  $('d-pos').textContent = slotLabel();
   $('d-board').classList.remove('waiting');
   renderAll();
   const first = state.turn === 'you' ? 'You pick first.' : 'The bot picks first.';
-  say(`<b>${mode === 'eleven' ? slotLabel() : LABEL[positionOf(state)]}.</b> ${first}`);
+  say(`<b>${slotLabel()}.</b> ${first}`);
   if (state.turn === 'bot') { await sleep(800); await botTurn(my); } else { busy = false; say(`${$('d-say').innerHTML} <b>Your pick.</b>`); }
 }
 
@@ -258,22 +251,14 @@ function renderBoard() {
   }));
 }
 
-function renderTeams() {
-  if (mode === 'eleven') return renderPitches();
-  for (const who of ['you', 'bot']) {
-    $(`d-${who}`).replaceChildren(...Array.from({ length: rules().rounds }, (_, i) => {
-      const c = state.teams[who][i];
-      return c ? el('li', { class: `five-slot full ${who}` }, el('span', { class: 'p', text: SHORT[c.pos] }), el('span', { class: 'n', text: c.full }), el('span', { class: 'c', text: `£${state.paid[who][i]}` }))
-        : el('li', { class: `five-slot ${who}` }, el('span', { class: 'p' }), el('span', { class: 'n', text: '—' }), el('span', { class: 'c' }));
-    }));
-  }
-}
+function renderTeams() { renderPitches(); }
 
-// 11-a-side: each team on a pitch in the formation, goalkeeper at the bottom. Slot i is round i + 1.
+// each team on a pitch in the formation, goalkeeper at the bottom. Slot i is round i + 1.
 function renderPitches() {
   for (const who of ['you', 'bot']) {
     const pitch = $(`p-${who}`);
-    pitch.replaceChildren(...['FWD', 'MID', 'DEF', 'GK'].map((line) => el('div', { class: 'line' },
+    pitch.classList.toggle('small', state.positions.length <= 5);
+    pitch.replaceChildren(...['FWD', 'MID', 'DEF', 'GK'].filter((line) => state.positions.includes(line)).map((line) => el('div', { class: 'line' },
       state.positions.map((pos, i) => pos === line ? i : -1).filter((i) => i >= 0).map((i) => {
         const c = state.teams[who][i];
         const now = state.phase === 'draft' && i === state.round - 1 && !c;
@@ -421,7 +406,7 @@ function buildManual() {
     <h3>The draft</h3>
     <p>Each round a board of eight players of one position goes up with <b>a name and a price</b> of £1 to £5: no stats, no club. You and the bot take turns to pick <b>one</b> each; who picks first swaps every round. Once a player is taken he is gone, and you see what the bot takes as it takes it. You must keep <b>£${COMMON.minPrice} for every round still to come</b>, so you can never be locked out.</p>
     <ul>
-      <li><b>5-a-side</b>: ${five.rounds} rounds a match. A wheel names the position each round (never one position three times).</li>
+      <li><b>5-a-side</b>: ${five.rounds} rounds a match. A <b>formation</b> (1-2-1, 2-1-1, 1-1-2 or 2-2: one goalkeeper and four outfield players) is rolled at the start of each match and both teams play it.</li>
       <li><b>11-a-side</b>: ${eleven.rounds} rounds a match. A <b>formation</b> (4-4-2, 4-3-3, 4-5-1, 3-5-2, 3-4-3 or 5-3-2) is rolled at the start of each match and both teams play it. You work through it from the goalkeeper to the forwards, so you decide early how much of the money goes into defence and how much is kept for attack.</li>
     </ul>
     <h3>Estimates</h3>

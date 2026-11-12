@@ -122,9 +122,8 @@ h3 { font: 800 13px/1 system-ui; letter-spacing: .12em; text-transform: uppercas
 #s-say { min-height: 1.6em; }
 
 /* 11-a-side: the formation, and each team on a pitch */
-.pitches { display: none; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 6px; }
-body[data-mode=eleven] .pitches { display: grid; }
-body[data-mode=eleven] .teams { display: none; }
+.pitches { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 6px; }
+.pitch.small { min-height: 230px; }
 .formation { margin: 4px 0 0; font: 700 13px system-ui; letter-spacing: .08em; text-transform: uppercase; color: #b7cdbd; }
 .formation b { color: var(--gold); font: 900 18px Impact, sans-serif; letter-spacing: .05em; margin-left: 4px; }
 .pitch { display: flex; flex-direction: column; justify-content: space-around; gap: 8px; min-height: 330px; padding: 12px 6px; border-radius: 10px; border: 2px solid #ffffff55;
