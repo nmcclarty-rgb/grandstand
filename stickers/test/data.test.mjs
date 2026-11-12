@@ -339,3 +339,15 @@ test('position corrections: the midfielders FBref lists as "DF,MF" are midfielde
   for (const [id, pos] of Object.entries(POSITION_OVERRIDES)) if (pos === 'MID') assert.equal(cards.find((x) => x.id === id).cleanSheets, 0, id);
   assert.equal(get('Michael Essien').rating, Math.round(overallOf('MID', get('Michael Essien').rate)));
 });
+
+test('wingers and playmakers listed "FW,MF" are midfielders; strikers stay forwards', () => {
+  for (const n of ['Ryan Giggs', 'Cesc Fàbregas', 'David Silva', 'Raheem Sterling', 'Eden Hazard', 'Riyad Mahrez', 'Aaron Lennon', 'Stewart Downing', 'Sadio Mané', 'Gareth Bale', 'Bukayo Saka', 'Jack Grealish']) assert.equal(get(n).pos, 'MID', n);
+  for (const n of ['Wayne Rooney', 'Alan Shearer', 'Harry Kane', 'Thierry Henry', 'Mohamed Salah', 'Andy Cole', 'Danny Welbeck', 'Dwight Yorke', 'Carlos Tevez', 'Sergio Agüero', 'Pierre-Emerick Aubameyang']) assert.equal(get(n).pos, 'FWD', n);
+  const mids = Object.values(POSITION_OVERRIDES).filter((p) => p === 'MID').length;
+  assert.ok(mids >= 95, `${mids} corrections to midfielder`);
+  // the pots are sane: no position is nearly empty, and the forward pot is no longer full of wingers
+  const n = (p) => cards.filter((c) => c.pos === p).length;
+  assert.ok(n('GK') > 150 && n('DEF') > 900 && n('MID') > 900 && n('FWD') > 600, `${n('GK')} ${n('DEF')} ${n('MID')} ${n('FWD')}`);
+  // a corrected winger is rated as a midfielder: Giggs's assists record and 632 games make him the top overall
+  assert.equal(get('Ryan Giggs').rating, Math.round(overallOf('MID', get('Ryan Giggs').rate)));
+});

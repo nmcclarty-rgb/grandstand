@@ -161,12 +161,20 @@ More attributes (see "Attributes we have"), including wins (see above) · keepin
 
 ## Positions
 
-The pots are by position, so a wrong position puts a player in the wrong pot. FBref gives each player a position per season and, for many, two ("DF,MF") in an order that is not reliable: Michael Essien and
-Nicky Butt are "DF,MF" in every season they played, so taking the first listed position made them defenders. 116 players with 100+ appearances were defenders only because of a "DF,MF" row. A classifier on goals,
-assists, cards and minutes (85% accurate on players with an unambiguous position) found the candidates, and the clear midfielders were corrected by hand in `stickers/tools/positions.mjs`: 33 of them (defensive and
-central midfielders such as Essien, Butt, Gilberto Silva, Petit, Delph, Rodwell; wingers and wide midfielders such as Kanchelskis, Navas, Kilbane, Brunt, Richardson; and Milner). Full-backs and centre-backs
-who are listed "DF,MF" (Carragher, Walker, Coleman, Azpilicueta, Ledley King, Zabaleta...) stay defenders. The build refuses an override for a player who isn't in the pool or one that changes nothing. A player's
-overall (OVR, so his tier and price) is recalculated with his corrected position.
+The pots are by position, so a wrong position puts a player in the wrong pot. FBref gives each player a position per season and, for many, two ("DF,MF", "FW,MF") in an order that is not reliable: Michael Essien and
+Nicky Butt are "DF,MF" in every season they played, so taking the first listed position made them defenders. 116 players with 100+ appearances were defenders, and 122 were forwards, only because of such a row.
+A classifier on goals, assists, cards and minutes found the candidates (85% accurate for defender-or-midfielder and 94% for forward-or-midfielder on players with an unambiguous position), and the clear
+cases were moved by hand in `stickers/tools/positions.mjs`: **100 players to midfield**.
 
-**Not corrected, a known limit:** 122 players tagged forward from an "FW,MF" row, most of them wingers and attacking midfielders (Giggs, Fàbregas, David Silva, Hazard, Sterling, Lennon, Mahrez...). Whether a winger
-belongs in the forward pot or the midfield pot is a design choice rather than an error, so they are untouched.
+- **33 defenders to midfield**: defensive and central midfielders (Essien, Butt, Gilberto Silva, Petit, Delph, Rodwell) and wide midfielders (Kanchelskis, Navas, Kilbane, Brunt, Richardson), and Milner.
+  Full-backs and centre-backs who are listed "DF,MF" (Carragher, Walker, Coleman, Azpilicueta, Ledley King, Zabaleta...) stay defenders.
+- **67 forwards to midfield**: wingers, wide forwards and playmakers, as Fantasy Premier League does it (Giggs, Fàbregas, David Silva, Hazard, Sterling, Mahrez, Mané, Bale, Saka, Foden, Lennon, Downing,
+  Grealish...). Strikers and second strikers stay forwards (Rooney, Welbeck, Yorke, Tevez, Aubameyang). Salah and Kane, whom FBref lists as plain "FW", are untouched even though Fantasy Premier League has
+  Salah as a midfielder.
+- **The pots are now** GK 216, DEF 1,101, MID 1,111, FWD 734 (from 216 / 1,134 / 1,011 / 801 before either fix).
+- **Effects.** A player's overall (so his tier and price) is recalculated with his corrected position, and the midfielder weights favour assists and appearances, so wingers with long careers rise: **Giggs is now
+  the top overall (92, from 83)**, ahead of Rooney and Shearer (90). A corrected midfielder earns no clean sheets.
+- The build refuses an override for a player who isn't in the pool or one that changes nothing, and tests pin the famous cases both ways.
+
+**Judgement calls, not errors**: players who played both roles over their careers (Walcott, Sánchez, Ronaldo, Arnautović, Cahill, Dempsey, Ayew's role at different clubs) were left as FBref has them where the
+classifier was not clear. If you spot another, add the id to `positions.mjs`.
