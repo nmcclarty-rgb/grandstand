@@ -95,7 +95,8 @@ const other = (who) => (who === 'you' ? 'bot' : 'you');
 
 // ---- a series -------------------------------------------------------------------------------------------------------------
 // opts.mode: 'five' (default) or 'eleven'. opts.level: the bot's level, 'easy' | 'medium' | 'hard' (see bot.js). opts.first: who picks
-// first in round 1 of match 1. For tests: opts.categories forces the attributes (one per match), opts.formation forces an 11-a-side
+// first in round 1 of match 1. opts.matches: the length of the series (3 by default: first to two; a tournament round is 1). opts.budgets: { you, bot }, each
+// side's money in every match (the mode's budget for both by default): the tournament gives a bigger club a bigger budget. For tests: opts.categories forces the attributes (one per match), opts.formation forces an 11-a-side
 // formation by name (every match).
 export function newMatch(pool, seed = Date.now(), opts = {}) {
   const mode = opts.mode ?? 'five';
@@ -103,7 +104,7 @@ export function newMatch(pool, seed = Date.now(), opts = {}) {
   const state = {
     seed: String(seed), mode, level: opts.level ?? 'medium',
     phase: 'draft',               // 'draft' -> 'showdown' (teams picked) -> 'between' (next match to come) or 'over'
-    match: 1, results: [], used: [], forcedCategories: opts.categories ?? null, forcedFormation: opts.formation ?? null,
+    match: 1, total: opts.matches ?? COMMON.matches, budgets: opts.budgets ?? null, results: [], used: [], forcedCategories: opts.categories ?? null, forcedFormation: opts.formation ?? null,
     first1: opts.first ?? (makeRng(`${seed}|first`).int(2) ? 'bot' : 'you'),
     shown: [], log: [],           // players put on a board, and every pick, across the whole series
   };
@@ -119,7 +120,8 @@ function beginMatch(state) {
   state.round = 1;
   state.formation = null;
   state.positions = [];
-  state.money = { you: rules.budget, bot: rules.budget };
+  state.money = { you: state.budgets?.you ?? rules.budget, bot: state.budgets?.bot ?? rules.budget };
+  if (Math.min(state.money.you, state.money.bot) < rules.rounds * COMMON.minPrice) throw new Error('a budget must cover the minimum price for every round');
   state.teams = { you: [], bot: [] };
   state.paid = { you: [], bot: [] };
   state.board = [];
@@ -227,7 +229,8 @@ export function showdown(state) {
 export function seriesOf(state) {
   const wins = { you: 0, bot: 0 };
   for (const r of state.results) if (r.winner !== 'draw') wins[r.winner]++;
-  const over = wins.you >= 2 || wins.bot >= 2 || state.results.length >= COMMON.matches;
+  const need = Math.ceil(state.total / 2);   // first to two in a best of three; one match in a tournament round
+  const over = wins.you >= need || wins.bot >= need || state.results.length >= state.total;
   let winner = null, decidedBy = null;
   if (over) {
     if (wins.you !== wins.bot) { winner = wins.you > wins.bot ? 'you' : 'bot'; decidedBy = 'matches'; }

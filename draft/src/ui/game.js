@@ -4,6 +4,9 @@ import { firstNameOf, surnameOf } from '../../../stickers/src/engine/cards.js';
 import { renderCard } from '../../../stickers/src/ui/card.js';
 import { initTooltips } from '../../../stickers/src/ui/tooltip.js';
 import { drawWheel } from './wheel.js';
+import { badgeSvg } from './badge.js';
+import { CLUB_LABELS } from './clubs.js';
+import { newTournament, finishRound, roundsWon, currentRung, LADDER } from '../engine/tournament.js';
 import { COMMON, MODES, formationsOf, newMatch, nextMatch, pick, positionOf, canAfford, maxSpend, showdown, seriesOf, rulesOf } from '../engine/draft.js';
 import { ATTRIBUTES, ATTRIBUTE, valueOf } from '../engine/attributes.js';
 import { botMove } from '../engine/bot.js';
@@ -38,13 +41,15 @@ function remember(key, outcome) {
   try { const r = recall(); if (!r[key]) r[key] = { w: 0, l: 0, d: 0 }; r[key][outcome]++; localStorage.setItem(RECORD, JSON.stringify(r)); } catch { /* private window */ }
 }
 
-let pool, state, result, level = 'medium', mode = 'five', busy = false, token = 0;
+let pool, state, result, level = 'medium', mode = 'five', format = 'ladder', tournament = null, busy = false, token = 0;
+const LADDER_RECORD = 'prem-wheel:ladder:v1';
+const clubName = (code) => CLUB_LABELS[code] ?? code;
 const rules = () => rulesOf(state);
 const recordKey = () => `${mode}-${level}`;
 const attr = (k) => ATTRIBUTE[k];
 const params = new URLSearchParams(location.search);
 
-const SCREENS = ['loading', 'title', 'draft', 'show'];
+const SCREENS = ['loading', 'title', 'ladder', 'draft', 'show'];
 function show(id) {
   for (const s of SCREENS) $(s).hidden = s !== id;
   document.body.dataset.screen = id;
@@ -78,19 +83,100 @@ function showTitle() {
   const r = recall();
   const bits = Object.keys(MODES).flatMap((m) => ['easy', 'medium', 'hard'].map((l) => [`${MODES[m].label} ${l}`, r[`${m}-${l}`] ?? (m === 'five' ? r[l] : null)]))
     .filter(([, v]) => v).map(([k, v]) => `${k}: ${v.w} won, ${v.l} lost${v.d ? `, ${v.d} drawn` : ''}`);
-  $('t-record').textContent = bits.length ? `Your record. ${bits.join(' · ')}.` : '';
+  const lad = (() => { try { return JSON.parse(localStorage.getItem(LADDER_RECORD)); } catch { return null; } })();
+  const ladBit = lad ? `Ladder: best run ${lad.best} of ${LADDER.length} rounds, ${lad.champions} time${lad.champions === 1 ? '' : 's'} champions in ${lad.runs} run${lad.runs === 1 ? '' : 's'}` : '';
+  $('t-record').textContent = [ladBit, bits.length ? `Quick series: ${bits.join(' · ')}` : ''].filter(Boolean).join('. ') + (ladBit || bits.length ? '.' : '');
+  tournament = null;
   show('title');
 }
 
-// A series is three matches (the page stops at 2-0). Each match is a fresh draft for the attribute drawn at its start.
+// Two ways to play. The LADDER is a knockout of single matches against clubs with climbing budgets (tournament.js); the QUICK SERIES is a best of three against a
+// bot of the level you choose. Either way each match is a fresh draft for the attribute drawn at its start.
 function startMatch(seed) {
-  level = document.querySelector('input[name=level]:checked').value;
   mode = document.querySelector('input[name=mode]:checked').value;
-  state = newMatch(pool, seed || Date.now(), { level, mode });
+  format = document.querySelector('input[name=format]:checked').value;
   document.body.dataset.mode = mode;
+  document.body.dataset.format = format;
   result = null;
   const my = ++token;
+  if (format === 'ladder') {
+    tournament = newTournament(pool, seed || Date.now(), { mode });
+    state = tournament.tie;
+    level = tournament.level;
+    ladderIntro(my);
+  } else {
+    level = document.querySelector('input[name=level]:checked').value;
+    tournament = null;
+    state = newMatch(pool, seed || Date.now(), { level, mode });
+    beginMatchPage(my);
+  }
+}
+
+// ---- the ladder -------------------------------------------------------------------------------------------------------------------
+// the path as a list: won rounds ticked, the current one lit, the rest to come
+function renderPath(targetId) {
+  const t = tournament;
+  $(targetId).replaceChildren(...t.path.map((r, i) => {
+    const h = t.history[i];
+    const cls = h ? (h.winner === 'you' ? 'won' : 'lost') : i === t.round && t.status === 'playing' ? 'now' : 'todo';
+    return el('li', { class: `rung ${cls}` },
+      el('span', { class: 'rn', text: r.name }),
+      el('span', { class: 'rb', html: badgeSvg(r.club) }),
+      el('span', { class: 'rc', text: clubName(r.club) }),
+      el('span', { class: 'rm', text: `£${r.budget}` }),
+      el('span', { class: 'rr', text: h ? `${h.winner === 'you' ? 'W' : 'L'} ${n(h.you)}–${n(h.bot)}` : '' }));
+  }));
+}
+
+// the screen before a round: who you are playing and how much money they have against yours
+async function ladderIntro(my) {
+  const rung = currentRung(tournament);
+  show('ladder');
+  $('l-h').textContent = rung.name;
+  $('l-badge').innerHTML = badgeSvg(rung.club);
+  $('l-club').textContent = clubName(rung.club);
+  $('l-you').textContent = `£${state.money.you}`;
+  $('l-bot').textContent = `£${rung.budget}`;
+  const pct = Math.round((rung.mult - 1) * 100);
+  $('l-say').textContent = pct === 0 ? 'The same money as you.' : pct < 0 ? `${-pct}% less money than you.` : `${pct}% more money than you: an upset if you win.`;
+  renderPath('l-path');
+  await holdFor(4200);
+  if (my !== token) return;
   beginMatchPage(my);
+}
+
+// the end of a ladder round: through to the next, or out, or champions
+async function endRound(m, my) {
+  const r = finishRound(tournament);
+  const h = tournament.history.at(-1);
+  const club = clubName(h.club);
+  const margin = Math.abs(h.you - h.bot);
+  const how = r.decidedBy && r.decidedBy !== 'matches' && r.decidedBy !== 'share of the records' ? ` (level on the count: ${r.decidedBy})` : '';
+  const line = r.winner === 'you' ? `You beat ${club} by ${n(margin)}${how}.` : `${club} beat you by ${n(margin)}${how}.`;
+  $('s-path').hidden = false;
+  renderPath('s-path');
+  if (tournament.status === 'playing') {
+    const next = currentRung(tournament);
+    $('s-hint').hidden = false;
+    await countdown(5, (left) => { $('s-say').textContent = `${line} Through to the ${next.name}: ${clubName(next.club)}, £${next.budget}. Starting in ${left}…`; });
+    if (my !== token) return;
+    state = tournament.tie;
+    ladderIntro(++token);
+    return;
+  }
+  const champions = tournament.status === 'champions';
+  const won = roundsWon(tournament);
+  $('s-say').innerHTML = champions
+    ? `<span class="verdict won">Champions!</span> You won all ${LADDER.length} rounds. ${esc(line)} Code: ${esc(tournament.seed)}.`
+    : `<span class="verdict lost">Knocked out</span> in the ${esc(h.name)} by ${esc(club)}, after winning ${won} round${won === 1 ? '' : 's'}. ${esc(line)} Code: ${esc(tournament.seed)}.`;
+  try {
+    const old = JSON.parse(localStorage.getItem(LADDER_RECORD)) ?? { best: 0, champions: 0, runs: 0 };
+    old.runs++; old.best = Math.max(old.best, won); if (champions) old.champions++;
+    localStorage.setItem(LADDER_RECORD, JSON.stringify(old));
+  } catch { /* private window */ }
+  $('s-actions').replaceChildren(
+    el('button', { class: 'primary', type: 'button', text: 'Play again', onclick: () => startMatch('') }),
+    el('button', { class: 'ghost', type: 'button', text: 'Change mode', onclick: showTitle }));
 }
 
 // the pills: one per match. Played ones say who won and the totals; the current one shows its attribute; the rest are still ???
@@ -140,7 +226,10 @@ function spinFormation(my) {
 async function beginMatchPage(my) {
   busy = true;
   show('draft');
-  $('d-match').textContent = state.match;
+  const rung = tournament ? currentRung(tournament) : null;
+  $('d-matchlbl').textContent = tournament ? rung.name : `Match ${state.match}`;
+  $('d-botlbl').textContent = tournament ? `${clubName(rung.club)} has` : 'Bot has';
+  $('d-series').hidden = !!tournament;
   $('d-rounds').textContent = `/${rules().rounds}`;
   $('d-round').textContent = 1;
   $('d-attr').textContent = '?';
@@ -151,11 +240,11 @@ async function beginMatchPage(my) {
   $('d-board').classList.add('waiting');
   renderSeries('d-series', state.match - 1, false, true);   // the attribute is not shown until the wheel has landed
   renderAll();
-  say(state.match === 1 ? 'Spin the wheel for the first attribute.' : `Match ${state.match}: a fresh team and a fresh budget. Spin for the attribute.`);
+  say(tournament ? `${rung.name} against ${clubName(rung.club)}. Spin the wheel for the attribute.` : state.match === 1 ? 'Spin the wheel for the first attribute.' : `Match ${state.match}: a fresh team and a fresh budget. Spin for the attribute.`);
   if (!(await spinAttribute(my))) return;
   $('d-attr').textContent = attr(state.category).short;
   renderSeries('d-series', state.match - 1);
-  say(`Match ${state.match}: <b>${attr(state.category).label}</b>. ${attr(state.category).unit.replace(/^./, (c) => c.toUpperCase())}, added up. Build a team for it.`);
+  say(`${tournament ? currentRung(tournament).name : `Match ${state.match}`}: <b>${attr(state.category).label}</b>. ${attr(state.category).unit.replace(/^./, (c) => c.toUpperCase())}, added up. Build a team for it.`);
   await sleep(1000);
   if (my !== token) return;
   await runRound(my);
@@ -279,8 +368,10 @@ async function goShowdown() {
   $('s-tally').hidden = true;
   $('s-cards').hidden = true;
   $('s-you').replaceChildren(); $('s-bot').replaceChildren();
-  $('s-head').textContent = `Match ${state.match}: ${attr(state.category).label}`;
-  renderSeries('s-series', state.match - 1, true);
+  $('s-head').textContent = tournament ? `${currentRung(tournament).name}: ${clubName(currentRung(tournament).club)}` : `Match ${state.match}: ${attr(state.category).label}`;
+  $('s-series').hidden = !!tournament;
+  $('s-path').hidden = true;
+  if (!tournament) renderSeries('s-series', state.match - 1, true);
   $('s-say').textContent = `Both teams are in. ${attr(state.category).unit.replace(/^./, (c) => c.toUpperCase())}, added up.`;
   $('s-actions').replaceChildren();
   $('s-hint').hidden = false;
@@ -369,6 +460,7 @@ async function countMatch() {
   await sleep(500);
   if (my !== token) return;
   total.classList.add(m.winner === 'draw' ? 'draw' : `win-${m.winner}`);
+  if (tournament) return endRound(m, my);
   renderSeries('s-series', -1);
   const margin = Math.abs(m.you.total - m.bot.total);
   const line = m.winner === 'draw' ? 'Exactly level.' : `${m.winner === 'you' ? 'You win' : 'The bot wins'} match ${m.match} by ${n(margin)}.`;
@@ -396,8 +488,14 @@ function buildManual() {
   const list = ATTRIBUTES.map((a) => `<li><b>${a.label.toLowerCase()}</b>: ${a.unit}</li>`).join('');
   $('m-body').innerHTML = `
     <h2 id="m-h">How to play</h2>
-    <p><b>The aim.</b> Win two matches out of three against the bot, with teams you build knowing nothing about the players but their names and prices.</p>
-    <h3>A series is up to three matches</h3>
+    <h3>Two ways to play</h3>
+    <ul>
+      <li><b>Knockout ladder</b> (the main game): seven rounds, each a single match against a Premier League club. The opponent is always the same bot; what changes is its <b>money</b>. A small club has less than you, a big club has more: from 60% of your budget in Round 1 up to 120% in the Final. Win a round and you go through; <b>lose and you are out</b>. Win the Final and you are champions. If a round is level on the count, more appearances goes through, then a coin.</li>
+      <li><b>Quick series</b>: a best of three against a bot of the level you choose (easy, medium or hard).</li>
+    </ul>
+    <h3>A match</h3>
+    <p><b>The aim.</b> Beat the bot, with teams you build knowing nothing about the players but their names and prices.</p>
+    <h3>In a quick series: up to three matches</h3>
     <ol>
       <li><b>An attribute is drawn</b> at the start of each match (never the same one twice in a series). The attributes are:<ul>${list}</ul>Each is a player's <b>real Premier League career total</b>, 1992/93 to 2025/26.</li>
       <li><b>You draft a fresh team</b> for it, every match, on a fresh budget: <b>£${five.budget}</b> in 5-a-side, <b>£${eleven.budget}</b> in 11-a-side. You know the attribute while you pick, so you can tailor the team to it. Anyone who played in an earlier match is gone.</li>
@@ -429,10 +527,16 @@ function wire() {
   $('d-quit').addEventListener('click', () => { token++; skipSpin = null; $('d-wheelbox').hidden = true; showTitle(); });
   $('d-wheelbox').addEventListener('click', () => skipSpin?.());
   $('show').addEventListener('click', () => skipHold?.());
-  document.addEventListener('keydown', (e) => { if ((e.key === ' ' || e.key === 'Enter') && skipHold && !$('show').hidden && !(e.target instanceof HTMLButtonElement)) { e.preventDefault(); skipHold(); } });
+  $('ladder').addEventListener('click', () => skipHold?.());
+  const tf = () => { $('t-levels').hidden = document.querySelector('input[name=format]:checked').value === 'ladder'; };
+  document.querySelectorAll('input[name=format]').forEach((x) => x.addEventListener('change', tf));
+  tf();
+  document.addEventListener('keydown', (e) => { if ((e.key === ' ' || e.key === 'Enter') && skipHold && (!$('show').hidden || !$('ladder').hidden) && !(e.target instanceof HTMLButtonElement)) { e.preventDefault(); skipHold(); } });
+  const fm = params.get('format'); if (fm === 'ladder' || fm === 'series') document.querySelector(`input[name=format][value=${fm}]`).checked = true;
   const m = params.get('mode'); if (m && MODES[m]) document.querySelector(`input[name=mode][value=${m}]`).checked = true;
   const l = params.get('level'); if (['easy', 'medium', 'hard'].includes(l)) document.querySelector(`input[name=level][value=${l}]`).checked = true;
   if (params.get('seed')) $('t-seed').value = params.get('seed');
+  tf();
 }
 
 (async function boot() {

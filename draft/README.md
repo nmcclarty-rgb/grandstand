@@ -19,6 +19,43 @@ the formation, in both modes. Click it to skip. (`src/ui/wheel.js`: the geometry
 Nothing between the rounds needs a button: when a draft ends the page moves to the showdown, counts by itself after two seconds, and after a match it counts down five seconds (to read the
 result) and starts the next fresh draft. A tap, a click or Space on the showdown screen skips a wait. Only "Play again" and "Change opponent" at the very end are buttons.
 
+## The game loop: the knockout ladder
+
+The main game is a **knockout ladder** (`src/engine/tournament.js`): seven rounds, each a **single match** (one fresh draft for one attribute) against a Premier League club. **Lose and you are out; win the Final and you
+are champions.** The opponent is always the same bot, the **medium** bot (it knows the stats through a fog). What changes up the ladder is its **money**: a bigger club has a bigger budget, as a share of yours.
+
+| Round | Club (one picked from the seed) | Its budget, 5-a-side / 11-a-side |
+|---|---|---|
+| 1 | Luton, Sheffield Utd, Norwich, Watford, Huddersfield, Cardiff | 60% (£6 / £18) |
+| 2 | Bournemouth, Brentford, Fulham, Crystal Palace, Ipswich, Stoke | 70% (£7 / £21) |
+| 3 | Wolves, Southampton, Brighton, Leeds, Sunderland, West Brom | 80% (£8 / £24) |
+| 4 | Everton, West Ham, Leicester, Aston Villa | 90% (£9 / £27) |
+| Quarter-final | Newcastle, Spurs | 100% (£10 / £30) |
+| Semi-final | Arsenal, Chelsea | 110% (£11 / £33) |
+| Final | Man City, Liverpool, Man Utd | 120% (£12 / £36) |
+
+You always have the mode's base budget. A round that is level on the count is decided by more appearances, then a coin (a knockout needs a winner). The path is the same for a seed. The page shows the whole path before each
+round, with its badge and money, and everything flows by itself (a tap or Space skips a wait); a run is saved as "best run" and "times champions" in the browser. **Quick series** (a best of three against a bot of the level you
+pick) is still on the title screen.
+
+**Why money is the difficulty dial, not the bot** (`tools/budget-sim.mjs` in the notes below): for two bots of equal skill, giving one 25% more money turns a 47% coin flip into a 12% win for the other in 5-a-side (30% in 11-a-side,
+where the board caps the benefit), and it works as a handicap too: a price-only player beats a hard bot 1% of the time at equal money, 19% with 50% more and 61% with double. The effect is **steep** (each £1 in 5-a-side is 10%, so
+the ladder steps by 10%) and **saturates** (a pick costs at most £5, so money above about £25 in 5-a-side and £55 in 11-a-side buys nothing). One fixed bot also means the same opponent behaviour all the way up, which a human can learn.
+
+**How far does each kind of player get?** (`node tools/ladder-sim.mjs`, 300 tournaments each; the share who win at least n rounds)
+
+| 5-a-side | R1 | R2 | R3 | R4 | QF | SF | Final |
+|---|---|---|---|---|---|---|---|
+| random picker | 62% | 26% | 9% | 1% | 0% | 0% | 0% |
+| price-only (easy) | 62% | 29% | 10% | 3% | 0% | 0% | 0% |
+| equal to the bot (medium) | 97% | 90% | 68% | 46% | 21% | 7% | 2% |
+| knows the stats exactly (hard) | 100% | 98% | 89% | 76% | 56% | 33% | 16% |
+
+(11-a-side: medium 97 / 83 / 67 / 41 / 22 / 8 / 4%, hard 99 / 97 / 93 / 84 / 69 / 51 / 35%.) A player as good as the bot should usually win the first rounds, face a coin flip around Round 4 or the Quarter-final, and rarely win the Final.
+Nobody has played it yet: the multipliers (`LADDER` in `tournament.js`) are the first thing to tune from real runs.
+
+## The quick series
+
 A series is a **best of three matches**, and every match is a fresh draft:
 
 1. **An attribute is drawn** at the start of the match: goals, assists, goal involvements (goals plus assists), appearances, league titles, wins (est.), clean sheets (est.) or discipline (a yellow card is 1 point, a red card is 3). Never the same one twice in a series.
@@ -29,7 +66,7 @@ No hands, no multipliers, no ratings: none of Sticker Season's rules are used, o
 
 ```bash
 cd draft
-npm test             # 49 tests: boards, prices, budget rules, turn order, every draft finishes, the attributes, fresh teams, the series, formations, the bot levels
+npm test             # 57 tests: boards, prices, budget rules, turn order, every draft finishes, the attributes, fresh teams, the series, formations, the bot levels
 npm run simulate     # the levels play each other; prints win rates and the hands that come up
 npm start            # then open http://localhost:8779/draft/ and play (?mode=eleven&level=hard&seed=abc for a link)
 ```
@@ -159,7 +196,8 @@ Best of three, fresh teams, 11-a-side (£30), 200 series per pairing:
 
 ## Not built
 
-More attributes (see "Attributes we have"), including wins (see above) · keeping a player you like across matches (a rule for a different game) · a human-tested medium level · a formation you choose rather than roll · substitutes · the same match from the other seat · a streak or ladder · sound.
+A **league** after the ladder: a mini-league against clubs, single matches, with a table whose other fixtures are played by the same engine bot against bot, and promotion to a division with bigger budgets · a cup of best-of-3 ties ·
+the budget in finer steps (£m, so a rung can be 5%) · more attributes (minutes, penalties scored, nationality) · a human-tested ladder: the multipliers and the Round 1 gift are guesses from the simulator · sound.
 
 ## Positions
 

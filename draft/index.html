@@ -15,11 +15,16 @@
   <section class="screen" id="title" hidden aria-labelledby="t-h">
     <h1 id="t-h" tabindex="-1">Prem <em>Wheel</em></h1>
     <ol class="steps">
-      <li><b>An attribute is drawn</b>: goals, assists, goal involvements, appearances or discipline. A series is a best of three, a different attribute each match.</li>
+      <li><b>A wheel picks the attribute</b> for the match: goals, assists, goal involvements, appearances, league titles, wins, clean sheets or discipline.</li>
       <li><b>Draft a fresh team for it</b> (five or eleven, in a rolled formation) from 34 seasons of Premier League players, on a budget. Each round eight players of one position go on the board with <b>a name and a price</b>: no stats, no club, nothing else. You and the bot take turns to pick one.</li>
-      <li><b>Add it up.</b> Each team's real career totals in the attribute; the bigger total wins the match. First to two wins.</li>
+      <li><b>Add it up.</b> Each team's real career totals in the attribute; the bigger total wins the match.</li>
     </ol>
     <p class="lede">A price is a hint, not the truth. Know your football.</p>
+    <fieldset class="levels" id="t-format">
+      <legend>How to play</legend>
+      <label><input type="radio" name="format" value="ladder" checked><span><b>Knockout ladder</b> seven rounds against Premier League clubs, one match each. Bigger clubs have bigger budgets. Lose and you are out</span></label>
+      <label><input type="radio" name="format" value="series"><span><b>Quick series</b> a best of three against a bot of the level you choose</span></label>
+    </fieldset>
     <fieldset class="levels" id="t-modes">
       <legend>Game</legend>
       <label><input type="radio" name="mode" value="five" checked><span><b>5-a-side</b> £10, five rounds: a formation (1-2-1, 2-1-1, 1-1-2 or 2-2) is rolled at the start and you work through it</span></label>
@@ -43,13 +48,25 @@
     <p class="fine">Built on the <a href="../stickers/">Sticker Season</a> career cards. Player figures are FBref/Opta, 1992/93 to 2025/26.</p>
   </section>
 
+  <section class="screen" id="ladder" hidden aria-labelledby="l-h">
+    <h2 id="l-h" tabindex="-1" class="bigh">Round 1</h2>
+    <div class="laddervs">
+      <div class="lv you"><small>You</small><b id="l-you">£10</b></div>
+      <div class="lv vsword">vs</div>
+      <div class="lv bot"><span class="lbadge" id="l-badge"></span><b id="l-club">Club</b><span class="lmoney" id="l-bot">£7</span></div>
+    </div>
+    <p class="say" id="l-say"></p>
+    <ol class="path" id="l-path" aria-label="The path to the final"></ol>
+    <p class="fine">Tap anywhere (or press Space) to start now.</p>
+  </section>
+
   <section class="screen" id="draft" hidden aria-labelledby="d-h">
     <header class="dhud">
       <div class="dstat attr"><small>Counting</small><b id="d-attr">…</b></div>
-      <div class="dstat"><small>Match <span id="d-match">1</span> · Round</small><b id="d-round">1</b><i id="d-rounds">/5</i></div>
+      <div class="dstat"><small><span id="d-matchlbl">Match 1</span> · Round</small><b id="d-round">1</b><i id="d-rounds">/5</i></div>
       <div class="dpos"><small id="d-poslabel">The wheel says</small><h2 id="d-h" tabindex="-1"><span id="d-pos">&nbsp;</span></h2></div>
       <div class="dstat money"><small>You have</small><b id="d-money">£10</b></div>
-      <div class="dstat money bot"><small>Bot has</small><b id="d-botmoney">£10</b></div>
+      <div class="dstat money bot"><small id="d-botlbl">Bot has</small><b id="d-botmoney">£10</b></div>
     </header>
     <div class="series" id="d-series" aria-label="The series"></div>
     <div class="wheelbox" id="d-wheelbox" hidden title="Click to skip the spin">
@@ -72,6 +89,7 @@
     <div class="series" id="s-series" aria-label="The series"></div>
     <div class="actions" id="s-actions"></div>
     <p class="fine" id="s-hint" hidden>Tap anywhere (or press Space) to skip the wait.</p>
+    <ol class="path" id="s-path" hidden aria-label="Your run"></ol>
     <div class="tally" id="s-tally" hidden></div>
     <div id="s-cards" hidden>
       <h3>Your team</h3>
