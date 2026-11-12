@@ -13,7 +13,7 @@ Two games, one engine (pick on the title screen):
 
 A series is a **best of three matches**, and every match is a fresh draft:
 
-1. **An attribute is drawn** at the start of the match: goals, assists, goal involvements (goals plus assists), appearances or discipline (a yellow card is 1 point, a red card is 3). Never the same one twice in a series.
+1. **An attribute is drawn** at the start of the match: goals, assists, goal involvements (goals plus assists), appearances, league titles or discipline (a yellow card is 1 point, a red card is 3). Never the same one twice in a series.
 2. **You draft a fresh team for it** on a fresh budget, tailored to the attribute you know is being counted. Each round a board of eight players of one position goes up with **a name and a price only**: no stats, no club. You alternate picks (who goes first swaps every round, and the side that picked first last round of a match goes second in the next) and you can see what the bot takes. Anyone used in an earlier match of the series is gone.
 3. **Add it up.** Each team's **real Premier League career totals** in the attribute; the bigger total wins the match. **First to two matches wins the series.**
 
@@ -21,7 +21,7 @@ No hands, no multipliers, no ratings: none of Sticker Season's rules are used, o
 
 ```bash
 cd draft
-npm test             # 42 tests: boards, prices, budget rules, turn order, every draft finishes, the attributes, fresh teams, the series, formations, the bot levels
+npm test             # 43 tests: boards, prices, budget rules, turn order, every draft finishes, the attributes, fresh teams, the series, formations, the bot levels
 npm run simulate     # the levels play each other; prints win rates and the hands that come up
 npm start            # then open http://localhost:8779/draft/ and play (?mode=eleven&level=hard&seed=abc for a link)
 ```
@@ -55,7 +55,7 @@ tools/simulate.mjs    bots against bots
 - **Price** is the true tier, nudged one step with probability 0.3 for tiers 2-4 (a **bargain** if down, a **trap** if up);
   a star can only be a £4 bargain. After the draft each player's caption says what he cost and whether he was a bargain or a trap.
 - **Wheel** GK 1 : DEF 2 : MID 2 : FWD 2, never one position more than twice in a match.
-- **Attributes** one per match, drawn at the start of the match from the five that have not been used yet in the series, from the seed (so it never depends on who you buy). Goals, assists, appearances are career totals; goal involvements are goals + assists; discipline is yellow cards + 3 × red cards. The list is in `src/engine/attributes.js`: **adding an attribute is one entry there** and the draw, the bot, the tally and the page pick it up.
+- **Attributes** one per match, drawn at the start of the match from those not yet used in the series, from the seed (so it never depends on who you buy). Goals, assists, appearances are career totals; goal involvements are goals + assists; discipline is yellow cards + 3 × red cards. The list is in `src/engine/attributes.js`: **adding an attribute is one entry there** and the draw, the bot, the tally and the page pick it up.
 - **Fresh teams** every match: a fresh budget, a fresh team, a fresh formation (11-a-side). A player who was on any board earlier in the series is not on a later one, so nobody can be used twice (if a tier runs out, the board takes the nearest tier that has someone left: there are only five star goalkeepers).
 - **Showdown** the sum of each team's players' totals in the match's attribute; the bigger total wins the match, equal totals are a draw. First to two matches wins (the series stops at 2-0). If a three-match series is level (a drawn match), the larger share of each attribute's all-time record wins; otherwise a draw.
 
@@ -64,7 +64,7 @@ tools/simulate.mjs    bots against bots
 Everything below is in the FBref Standard Stats exports for **all 34 seasons** (1992/93 to 2025/26), checked column by column. It is more than
 the four in the game: the Sticker Season cards were built to use only appearances, goals, assists and cards, so these are not on the cards yet.
 
-**In the game now**: appearances, goals, assists, goal involvements (goals + assists), discipline (yellows + 3 × reds).
+**In the game now**: appearances, goals, assists, goal involvements (goals + assists), league titles, discipline (yellows + 3 × reds).
 
 **Complete in every season but not used yet**
 - **Starts** (so substitute appearances = appearances - starts), **minutes** and **90s played**.
@@ -75,19 +75,28 @@ the four in the game: the Sticker Season cards were built to use only appearance
 
 **Derived from those, no new data needed**: goals or assists per game or per 90 minutes (with a minimum-minutes rule), starts as a share of appearances ("a regular"), career length in seasons, number of clubs, a one-club career, debut season, goals from the bench.
 
-**Not available for 34 seasons**: tackles, interceptions, saves, clean sheets, shots, xG, passes, fouls, offsides, trophies, transfer fees, minutes by position, results, anything per match. (Rule 2: a stat with gaps is not used.)
+**Not available for 34 seasons**: match wins, tackles, interceptions, saves, clean sheets, shots, xG, passes, fouls, offsides, trophies, transfer fees, minutes by position, results, anything per match. (Rule 2: a stat with gaps is not used.)
 
 Next, in my order of preference: **minutes** (like appearances but it rewards starters), **penalties scored** (a lucky, funny one), **nationality** (a team of eleven from
 eleven countries, or "most English players"), **seasons played / career length**, **non-penalty goals**.
 
-## Premier League wins: not available
+## League titles, not wins
 
-A player's wins are not in the exports: Standard Stats has no match results, and no per-match lineups to work them out from. What could be built is
-an **estimate** from public club results: for each club-season a player was on the books, the club's league wins times his share of its games
-(his appearances / 38, or 42 in the first three seasons), summed over his career. That is a lot less accurate than a counted stat: a player's
-appearances are not wins in which he played (a season-long sub gets the same share as a sub who played the won games), so it would be shown as
-**wins (est.)**. It also needs a new data source (about 700 club-season results, which can be checked: wins - losses must cancel across a season).
-Not built: it needs your say-so on the estimate.
+Match wins are not in the exports (no results, no per-match lineups), but **league titles** are easy and exact: who won the Premier League each
+season is public record, so a player gets a title for every season he made **5 or more league appearances for the champions** (the line the
+Premier League uses for a winners' medal). The 34 champions are in `stickers/tools/champions.mjs` (Man Utd 13, Man City 8, Chelsea 5, Arsenal 4,
+Liverpool 2, Blackburn 1, Leicester 1; 2025/26 is Arsenal, checked against several published final tables, and the exports have a complete 38 games
+for every club that season). It is attached to every card as `titles` by `build-cards.mjs`.
+
+Checked against careers everyone knows: Giggs 13, Scholes 11, Neville 8, Keane 7, Rooney 5, Terry 5, Cantona 4, Kompany 4, Lampard 3 (not the one
+at Man City when Chelsea won), Henry 2, Salah 2 (two league games for Chelsea in 2014/15 don't count), Shearer 1, Kane 0, Gerrard 0. 334 of the
+3,162 players have at least one. It is an attribute a person can really *know from a name*, and it is a club's achievement: a squad player at a title-winning club
+beats a star at one that never won it. It is the one attribute where the bots' idea of value (a share of the record, 13) is nearly worthless to a
+price-only reader, which makes it a good one for a knowledgeable human.
+
+A match on titles is drawn about 5% of the time against a bot that knows the stats (up to about 11% for two hard bots in 5-a-side, rarer in
+11-a-side), because totals are small (a mean of 6.5 titles per team in 5-a-side, 18 in 11-a-side). A drawn match just doesn't count; the series
+then goes to the third match, and a level three-match series is settled by the larger share of the records.
 
 ## What the simulator found (win % over a whole series; draws count half; rows are "you")
 

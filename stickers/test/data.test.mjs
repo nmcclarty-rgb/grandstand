@@ -24,10 +24,11 @@ test('every card is a well-formed career, and there is only one of each player',
     assert.ok(POSITIONS.includes(c.pos), `${c.id}: position ${c.pos}`);
     assert.ok(c.rating >= 1 && c.rating <= 99, `${c.id}: overall ${c.rating}`);
     for (const k of ['games', 'goals', 'assists', 'yellow', 'red']) assert.ok(Number.isInteger(c[k]) && c[k] >= 0, `${c.id}: ${k}=${c[k]}`);
+    assert.ok(Number.isInteger(c.titles) && c.titles >= 0 && c.titles <= c.stints.length, `${c.id}: titles=${c.titles}`);
     // RULE: a card carries only stats that exist for every season. Partial stats (clean sheets, saves, bonus points,
     // price) would be missing for most seasons, so they must not be on a card.
     assert.deepEqual(Object.keys(c).sort(),
-      ['assists', 'club', 'clubs', 'first', 'full', 'games', 'goals', 'id', 'last', 'name', 'pos', 'rate', 'rating', 'red', 'stints', 'yellow'], `${c.id}: unexpected fields`);
+      ['assists', 'club', 'clubs', 'first', 'full', 'games', 'goals', 'id', 'last', 'name', 'pos', 'rate', 'rating', 'red', 'stints', 'titles', 'yellow'], `${c.id}: unexpected fields`);
     assert.deepEqual(Object.keys(c.rate).sort(), [...CATEGORY_KEYS].sort(), `${c.id}: a rating for every category`);
     for (const k of CATEGORY_KEYS) assert.ok(Number.isInteger(c.rate[k]) && c.rate[k] >= 1 && c.rate[k] <= 99, `${c.id}: ${k} rating ${c.rate[k]}`);
   }
@@ -253,4 +254,44 @@ test('a duplicate upgrades the copy you own: one edition above the better of the
   assert.equal(upgradedEdition('base', 'gold'), 'gold');
   assert.equal(upgradedEdition('gold', 'base'), 'gold');
   assert.equal(upgradedEdition('holo', 'holo'), 'gold');
+});
+
+// ---- league titles -----------------------------------------------------------------------------------------------------------
+import { CHAMPIONS, TITLE_APPS } from '../tools/champions.mjs';
+
+test('a champion for every season, 34 of them, and the club counts are the real ones', () => {
+  assert.deepEqual(Object.keys(CHAMPIONS), meta.seasons);
+  const by = {};
+  for (const c of Object.values(CHAMPIONS)) by[c] = (by[c] ?? 0) + 1;
+  assert.deepEqual(by, { MUN: 13, MCI: 8, CHE: 5, ARS: 4, LIV: 2, BLA: 1, LEI: 1 });
+  assert.equal(TITLE_APPS, 5);
+  for (const club of new Set(Object.values(CHAMPIONS))) assert.ok(meta.clubs[club], `${club} is a club in the data`);
+});
+
+test('titles: a season at the champions with 5+ league appearances, checked against the careers everyone knows', () => {
+  const t = (name) => get(name).titles;
+  assert.equal(t('Ryan Giggs'), 13);
+  assert.equal(t('Paul Scholes'), 11);
+  assert.equal(t('Gary Neville'), 8);
+  assert.equal(t('Wayne Rooney'), 5);
+  assert.equal(t('John Terry'), 5);
+  assert.equal(t('Frank Lampard'), 3, 'his season on loan at Man City, the year Chelsea won, is not a title');
+  assert.equal(t('Thierry Henry'), 2);
+  assert.equal(t('Alan Shearer'), 1);
+  assert.equal(t('Eric Cantona'), 4);
+  assert.equal(t('Vincent Kompany'), 4);
+  assert.equal(t('Harry Kane'), 0);
+  assert.equal(t('Steven Gerrard'), 0);
+  assert.equal(t('Mohamed Salah'), 2, 'two with Liverpool; two league games for Chelsea in 2014/15 do not count');
+  assert.equal(Math.max(...cards.map((c) => c.titles)), 13);
+});
+
+test('a title needs the stint at the champions: nobody has more titles than seasons at title-winning clubs', () => {
+  for (const c of cards) {
+    const possible = c.stints.filter((s) => CHAMPIONS[s.split('|')[1]] === s.split('|')[0]).length;
+    assert.ok(c.titles <= possible, `${c.id}: ${c.titles} titles from ${possible} champion seasons`);
+  }
+  // and a player who only cameoed for the champions does not get one
+  const cameo = cards.find((c) => c.stints.some((s) => CHAMPIONS[s.split('|')[1]] === s.split('|')[0]) && c.titles === 0);
+  assert.ok(cameo, 'some players were at a title-winning club without winning a title');
 });

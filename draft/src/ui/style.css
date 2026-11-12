@@ -150,3 +150,7 @@ body[data-mode=eleven] .teams { display: none; }
 .series .pill.next { border-color: var(--gold); }
 .series .pill.landed b { color: var(--gold); }
 .series .pill.w { background: #58d68d33; border-color: #58d68d; } .series .pill.l { background: #ff6b6b33; border-color: #ff6b6b; } .series .pill.d { background: #ffffff22; }
+
+/* a league-title tag on the card art, lit up when titles are what is being counted */
+.ttag { position: absolute; left: 4px; bottom: 4px; font: 900 8px/1 system-ui; letter-spacing: .08em; padding: 3px 5px; border-radius: 3px; background: #000a; color: var(--gold); z-index: 2; }
+.ttag.on { background: var(--gold); color: #261c00; box-shadow: 0 0 8px #f5c54299; }

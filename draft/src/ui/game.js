@@ -16,7 +16,7 @@ const SHORT = { GK: 'GK', DEF: 'DEF', MID: 'MID', FWD: 'FWD' };
 const RECORD = 'blind-five:record:v1';
 // the four rows on a Sticker Season card, in order, and which of them an attribute counts
 const ROWS = ['goals', 'assists', 'games', 'discipline'];
-const HIGHLIGHT = { goals: ['goals'], assists: ['assists'], involvements: ['goals', 'assists'], games: ['games'], discipline: ['discipline'] };
+const HIGHLIGHT = { goals: ['goals'], assists: ['assists'], involvements: ['goals', 'assists'], games: ['games'], discipline: ['discipline'], titles: [] };
 
 function el(tag, props = {}, ...kids) {
   const e = document.createElement(tag);
@@ -304,6 +304,8 @@ function playerCard(c, category) {
   node.querySelector('.rating')?.remove();
   const pos = node.querySelector('.pos');
   if (pos) pos.textContent = c.pos;
+  // league titles aren't a row on a Sticker Season card: a gold tag, lit up when titles are what is being counted
+  if (c.titles) node.querySelector('.art').append(el('div', { class: `ttag${category === 'titles' ? ' on' : ''}`, text: `${c.titles}× TITLE${c.titles > 1 ? 'S' : ''}`, 'data-tip': `${c.titles} Premier League title${c.titles > 1 ? 's' : ''}: seasons with the champions, 5+ league appearances` }));
   return node;
 }
 
@@ -389,7 +391,7 @@ function buildManual() {
     <p>A £5 is usually a star of his position and a £1 a squad man, but about one player in three in the middle prices is a <b>bargain</b> (cheaper than he is) or a <b>trap</b> (dearer). Prices are by position: the best goalkeeper in the league is a £5 goalkeeper, but he will score no goals. Everyone on a board has made at least ${COMMON.minGames} Premier League appearances.</p>
     <h3>Tips</h3>
     <ul>
-      <li>Tailor each team to its attribute. <b>Goals</b>: forwards, and never pay for a goalkeeper. <b>Assists</b>: midfielders and wingers. <b>Goal involvements</b>: goals plus assists, so attacking midfielders are as good as strikers. <b>Appearances</b>: a long-serving defender or keeper is worth as much as a star. <b>Discipline</b>: find the hard men.</li>
+      <li>Tailor each team to its attribute. <b>League titles</b>: think of the champions (Man Utd in the 90s and 00s, Chelsea, Man City now, Arsenal, Liverpool): a squad player at a club that won it beats a star at one that never did. <b>Goals</b>: forwards, and never pay for a goalkeeper. <b>Assists</b>: midfielders and wingers. <b>Goal involvements</b>: goals plus assists, so attacking midfielders are as good as strikers. <b>Appearances</b>: a long-serving defender or keeper is worth as much as a star. <b>Discipline</b>: find the hard men.</li>
       <li>Money left at the end is wasted. Spend it, but not on the wrong name.</li>
       <li>A career total rewards a long career: someone who played 15 years beats a brilliant two-season wonder.</li>
       <li>You can only use a player once in a series, so a bargain you spend in match 1 is not there in match 3.</li>

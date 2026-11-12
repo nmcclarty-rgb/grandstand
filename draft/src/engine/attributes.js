@@ -10,6 +10,7 @@ export const ATTRIBUTES = [
   { key: 'assists',      label: 'ASSISTS',           short: 'ASSISTS',    unit: 'assists',                                        value: (c) => c.assists },
   { key: 'involvements', label: 'GOAL INVOLVEMENTS', short: 'G+A',        unit: 'goal involvements (goals plus assists)',          value: (c) => c.goals + c.assists },
   { key: 'games',        label: 'APPEARANCES',       short: 'APPS',       unit: 'appearances',                                    value: (c) => c.games },
+  { key: 'titles',       label: 'LEAGUE TITLES',     short: 'TITLES',     unit: 'Premier League titles (a season with the champions, 5+ league appearances)', value: (c) => c.titles },
   { key: 'discipline',   label: 'DISCIPLINE',        short: 'DISCIPLINE', unit: 'discipline points (a yellow card is 1, a red 3)', value: (c) => statOf(c, 'discipline') },
 ];
 export const ATTRIBUTE_KEYS = ATTRIBUTES.map((a) => a.key);

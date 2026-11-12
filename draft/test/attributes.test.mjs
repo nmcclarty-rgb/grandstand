@@ -5,8 +5,8 @@ import { ATTRIBUTES, ATTRIBUTE_KEYS, ATTRIBUTE, valueOf, recordOf } from '../src
 
 const get = (full) => pool.cards.find((c) => c.full === full);
 
-test('five attributes, each with a label, a short label and a unit', () => {
-  assert.deepEqual(ATTRIBUTE_KEYS, ['goals', 'assists', 'involvements', 'games', 'discipline']);
+test('six attributes, each with a label, a short label and a unit', () => {
+  assert.deepEqual(ATTRIBUTE_KEYS, ['goals', 'assists', 'involvements', 'games', 'titles', 'discipline']);
   for (const a of ATTRIBUTES) { assert.ok(a.label && a.short && a.unit, a.key); assert.equal(typeof a.value, 'function'); }
   assert.equal(new Set(ATTRIBUTE_KEYS).size, ATTRIBUTE_KEYS.length);
   assert.throws(() => valueOf({}, 'wins'), /unknown attribute/);
@@ -23,6 +23,15 @@ test('goal involvements are goals plus assists, from the real career totals', ()
 test('the other attributes are the career totals, and discipline is a yellow card as 1 and a red card as 3', () => {
   const c = { goals: 7, assists: 3, games: 120, yellow: 5, red: 1 };
   assert.deepEqual(['goals', 'assists', 'games', 'discipline', 'involvements'].map((k) => valueOf(c, k)), [7, 3, 120, 8, 10]);
+});
+
+test('league titles are the player\'s real count: Giggs 13, Scholes 11, and a record of 13', () => {
+  assert.equal(valueOf(get('Ryan Giggs'), 'titles'), 13);
+  assert.equal(valueOf(get('Paul Scholes'), 'titles'), 11);
+  assert.equal(valueOf(get('Harry Kane'), 'titles'), 0);
+  assert.equal(recordOf(pool, 'titles'), 13);
+  // a title is a club's, so a whole team can win it: most players have none
+  assert.ok(pool.cards.filter((c) => c.titles > 0).length / pool.cards.length < 0.15);
 });
 
 test('records: the best in the pool, and who holds them', () => {

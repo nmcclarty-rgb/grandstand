@@ -12,12 +12,14 @@
 //
 // POOL: players with at least MIN_APPS Premier League appearances.
 //
-// RULE: only stats that exist for every season: appearances, goals, assists, yellow cards, red cards.
+// RULE: only stats that exist for every season: appearances, goals, assists, yellow cards, red cards, and league titles (the champions of
+// each season, tools/champions.mjs, attached to the players who made 5+ league appearances for them).
 import { writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadFbrefSeasons, fbrefNumbers } from './fbref.mjs';
 import { CLUB_NAMES, FBREF_CLUBS } from './clubs.mjs';
+import { CHAMPIONS, TITLE_APPS } from './champions.mjs';
 import { CATEGORY_KEYS, DISCIPLINE_POINTS, RATING_TO_CHIPS, RATING_EXPONENT, ratingFor, overallOf } from '../src/engine/cards.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -51,6 +53,7 @@ export function displayName(full) {
 const fbref = await loadFbrefSeasons(join(ROOT, 'data', 'fbref'));
 const seasons = [...fbref.keys()].sort();
 if (!seasons.length) throw new Error('no FBref exports in data/fbref/');
+for (const season of seasons) if (!CHAMPIONS[season]) throw new Error(`${season}: no champion in tools/champions.mjs`);
 
 // ---- 1. every row of every season, summed per player ---------------------------------------------------------------
 const players = new Map();
@@ -64,11 +67,13 @@ for (const season of seasons) {
     const pid = `${slug(row.player)}:${row.birth_year}`;
     let p = players.get(pid);
     if (!p) {
-      p = { id: pid, full: row.player, apps: 0, goals: 0, assists: 0, yellow: 0, red: 0, clubApps: new Map(), stints: new Set(), posApps: new Map(), first: season, last: season, latest: season };
+      p = { id: pid, full: row.player, titles: 0, apps: 0, goals: 0, assists: 0, yellow: 0, red: 0, clubApps: new Map(), stints: new Set(), posApps: new Map(), first: season, last: season, latest: season };
       players.set(pid, p);
     }
     p.apps += n.games; p.goals += n.goals; p.assists += n.assists; p.yellow += n.yellow; p.red += n.red;
     p.clubApps.set(club, (p.clubApps.get(club) ?? 0) + n.games);
+    // a title: a season at the champions with 5+ league appearances for them (a mid-season mover counts for the club he won it with)
+    if (CHAMPIONS[season] === club && n.games >= TITLE_APPS) p.titles++;
     p.stints.add(`${club}|${season}`);
     const pos = FBREF_POS[row.position.split(',')[0]];
     if (pos) p.posApps.set(pos, (p.posApps.get(pos) ?? 0) + Math.max(n.games, 0.01));
@@ -110,7 +115,7 @@ const cards = pool.map((p) => ({
   clubs: p.clubs.map(([c, a]) => [c, a]),
   stints: [...p.stints].sort((a, b) => a.split('|')[1].localeCompare(b.split('|')[1]) || a.localeCompare(b)),
   first: p.first, last: p.last,
-  games: p.apps, goals: p.goals, assists: p.assists, yellow: p.yellow, red: p.red,
+  games: p.apps, goals: p.goals, assists: p.assists, yellow: p.yellow, red: p.red, titles: p.titles,
   rate: p.rate, rating: p.rating,
 })).sort((a, b) => b.rating - a.rating || b.games - a.games || a.id.localeCompare(b.id));
 
