@@ -312,7 +312,7 @@ test('clean sheets are credited to goalkeepers and defenders only, season by sea
   assert.equal(share('GK'), 1); assert.equal(share('DEF'), 1);
   assert.ok(share('MID') < 0.06, `${share('MID')} of midfielders have some (seasons listed as a defender)`);
   assert.ok(share('FWD') < 0.01);
-  assert.ok(get('James Milner').cleanSheets > 0 && get('James Milner').cleanSheets < get('James Milner').games * 0.2, 'Milner only earns them in the seasons he is listed as a defender');
+  assert.equal(get('James Milner').cleanSheets, 0, 'Milner is a midfielder (positions.mjs), so earns none');
   // the defenders everyone would name
   const top = [...cards].sort((a, b) => b.cleanSheets - a.cleanSheets).slice(0, 6).map((c) => c.full);
   for (const n of ['John Terry', 'Petr Čech', 'Rio Ferdinand', 'Jamie Carragher']) assert.ok(top.includes(n), `${n} in the top six: ${top}`);
@@ -325,4 +325,17 @@ test('wins (est.) are credited to everyone, from the minutes he was on the pitch
   assert.ok(get('Ryan Giggs').wins > get('Harry Kane').wins);
   // wins while on the pitch are a share of his appearances, between a third and four fifths for anyone who played at the top
   assert.ok(get('Ryan Giggs').wins / get('Ryan Giggs').games > 0.4);
+});
+
+// ---- positions -----------------------------------------------------------------------------------------------------------------------
+import { POSITION_OVERRIDES } from '../tools/positions.mjs';
+
+test('position corrections: the midfielders FBref lists as "DF,MF" are midfielders, and the full-backs and centre-backs stay defenders', () => {
+  for (const n of ['Michael Essien', 'Nicky Butt', 'James Milner', 'Gilberto Silva', 'Emmanuel Petit', 'Jack Rodwell', 'Fabian Delph', 'Kevin Kilbane', 'Matthew Taylor', 'Jesús Navas']) assert.equal(get(n).pos, 'MID', n);
+  for (const n of ['Jamie Carragher', 'Kyle Walker', 'Séamus Coleman', 'César Azpilicueta', 'Ledley King', 'Pablo Zabaleta', 'Martin Keown', 'Phil Neville', 'Danny Rose', 'Reece James']) assert.equal(get(n).pos, 'DEF', n);
+  for (const [id, pos] of Object.entries(POSITION_OVERRIDES)) { const c = cards.find((x) => x.id === id); assert.ok(c, `${id} is in the pool`); assert.equal(c.pos, pos, id); }
+  assert.ok(Object.keys(POSITION_OVERRIDES).length >= 30);
+  // a corrected midfielder earns no clean sheets, and his overall is a midfielder's
+  for (const [id, pos] of Object.entries(POSITION_OVERRIDES)) if (pos === 'MID') assert.equal(cards.find((x) => x.id === id).cleanSheets, 0, id);
+  assert.equal(get('Michael Essien').rating, Math.round(overallOf('MID', get('Michael Essien').rate)));
 });

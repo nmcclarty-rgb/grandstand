@@ -110,8 +110,8 @@ cleanSheets   += the club's clean sheets x share                   (only if the 
 - **Checked against published goalkeeper totals**: Čech 199 (published 202), James 169 (169), de Gea 152 (147). Within about 3%.
 - **Wins are minutes-weighted**, not "appearances in a win": a winger who is substituted at 70 minutes gets 78% of the win. So Giggs is 333, not the 400-odd his appearances in wins would give.
   The label says (est.). It is credited to every position.
-- **Clean sheets go to goalkeepers and defenders only, season by season**, as the official stat does. Milner earns them only in the seasons FBref lists him as a defender
-  (104, from 658 appearances), and a striker earns none. If credited to everyone, clean sheets would correlate 0.89 with appearances and Lampard (235) and Giggs (227) would top
+- **Clean sheets go to goalkeepers and defenders only, season by season**, as the official stat does. A striker earns none, and neither does a midfielder (including the 33 corrected ones below:
+  Milner, Essien, Butt...). If credited to everyone, clean sheets would correlate 0.89 with appearances and Lampard (235) and Giggs (227) would top
   the list: a team-success stat, not a defensive one. The back-line version is what gives a reason to spend on keepers and defenders: the top six are Terry 215, Čech 199, Ferdinand 195,
   Carragher 194, James 169, Phil Neville 164. Goalkeepers average 33.7 and defenders 28.4 a player against 0.3 for midfielders and 0.0 for forwards.
 - **Why both?** Wins (est.) is the one where every one of the eleven slots counts and price does the sorting (it correlates 0.86 with appearances, so a long career matters most, with a
@@ -158,3 +158,15 @@ Best of three, fresh teams, 11-a-side (£30), 200 series per pairing:
 ## Not built
 
 More attributes (see "Attributes we have"), including wins (see above) · keeping a player you like across matches (a rule for a different game) · a human-tested medium level · a formation you choose rather than roll · substitutes · the same match from the other seat · a streak or ladder · sound.
+
+## Positions
+
+The pots are by position, so a wrong position puts a player in the wrong pot. FBref gives each player a position per season and, for many, two ("DF,MF") in an order that is not reliable: Michael Essien and
+Nicky Butt are "DF,MF" in every season they played, so taking the first listed position made them defenders. 116 players with 100+ appearances were defenders only because of a "DF,MF" row. A classifier on goals,
+assists, cards and minutes (85% accurate on players with an unambiguous position) found the candidates, and the clear midfielders were corrected by hand in `stickers/tools/positions.mjs`: 33 of them (defensive and
+central midfielders such as Essien, Butt, Gilberto Silva, Petit, Delph, Rodwell; wingers and wide midfielders such as Kanchelskis, Navas, Kilbane, Brunt, Richardson; and Milner). Full-backs and centre-backs
+who are listed "DF,MF" (Carragher, Walker, Coleman, Azpilicueta, Ledley King, Zabaleta...) stay defenders. The build refuses an override for a player who isn't in the pool or one that changes nothing. A player's
+overall (OVR, so his tier and price) is recalculated with his corrected position.
+
+**Not corrected, a known limit:** 122 players tagged forward from an "FW,MF" row, most of them wingers and attacking midfielders (Giggs, Fàbregas, David Silva, Hazard, Sterling, Lennon, Mahrez...). Whether a winger
+belongs in the forward pot or the midfield pot is a design choice rather than an error, so they are untouched.

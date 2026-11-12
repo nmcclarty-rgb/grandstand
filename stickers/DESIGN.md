@@ -227,7 +227,7 @@ A card keeps: id, display name, full name, position, club (most appearances), cl
   appearances split by club. Cameos count towards the 20 appearances, so a player with a handful of games for each of
   three clubs can qualify.
 - **Position** is where he played most (by appearances). **Club** is where he made most appearances. Wing-backs and
-  full-backs are FBref defenders, which is why Milner is a defender here.
+  full-backs are FBref defenders. FBref's "DF,MF" rows are unreliable (Essien, Butt and Milner were defenders): see `tools/positions.mjs`, 33 hand corrections to midfielder, and "Positions" in `draft/README.md`.
 - **Display names** come from the full name by a heuristic (last word, plus particles like van/del/Dalla/Boa, minus
   Jr./Sr., surname-first East Asian names like "Son Heung-min" read right), a table of 12 compound surnames the
   heuristic gets wrong, and a first initial for a surname shared by four or more players ("I.Wright", "A.Smith").

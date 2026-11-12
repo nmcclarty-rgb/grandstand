@@ -21,6 +21,7 @@ import { loadFbrefSeasons, fbrefNumbers } from './fbref.mjs';
 import { CLUB_NAMES, FBREF_CLUBS } from './clubs.mjs';
 import { CHAMPIONS, TITLE_APPS } from './champions.mjs';
 import { tableOf } from './results.mjs';
+import { POSITION_OVERRIDES } from './positions.mjs';
 import { CATEGORY_KEYS, DISCIPLINE_POINTS, RATING_TO_CHIPS, RATING_EXPONENT, ratingFor, overallOf } from '../src/engine/cards.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -92,7 +93,9 @@ for (const season of seasons) {
     p.wins += tab.W * share;
     const first = row.position.split(',')[0];
     if (first === 'GK') gkShare[key] = (gkShare[key] ?? 0) + share;
-    if (first === 'GK' || first === 'DF') p.cleanSheets += tab.CS * share;
+    // a hand-corrected position (positions.mjs) overrides the row's: Essien and Butt are listed "DF,MF" but are midfielders, so earn no clean sheets
+    const back = POSITION_OVERRIDES[pid] ? ['GK', 'DEF'].includes(POSITION_OVERRIDES[pid]) : first === 'GK' || first === 'DF';
+    if (back) p.cleanSheets += tab.CS * share;
     // a title: a season at the champions with 5+ league appearances for them (a mid-season mover counts for the club he won it with)
     if (CHAMPIONS[season] === club && n.games >= TITLE_APPS) p.titles++;
     p.stints.add(`${club}|${season}`);
@@ -116,10 +119,18 @@ const pool = [...players.values()].filter((p) => p.apps >= MIN_APPS);
 for (const p of pool) {
   if (!p.posApps.size) throw new Error(`${p.full}: no position in any row (${p.apps} apps)`);
   p.pos = [...p.posApps].sort((a, b) => b[1] - a[1])[0][0];                       // where he played most
+  const override = POSITION_OVERRIDES[p.id];
+  if (override) {
+    if (override === p.pos) throw new Error(`positions.mjs: ${p.full} is already ${p.pos}; remove the override`);
+    p.posFrom = p.pos; p.pos = override;
+  }
   p.clubs = [...p.clubApps].sort((a, b) => b[1] - a[1] || b[0].localeCompare(a[0]));
   p.club = p.clubs[0][0];                                                          // his club: most appearances
   p.discipline = p.yellow * DISCIPLINE_POINTS.yellow + p.red * DISCIPLINE_POINTS.red;
 }
+
+for (const id of Object.keys(POSITION_OVERRIDES)) if (!pool.some((p) => p.id === id)) throw new Error(`positions.mjs: '${id}' is not a player in the pool`);
+console.log(`${Object.keys(POSITION_OVERRIDES).length} position overrides applied`);
 
 // ---- 3. ratings: each stat against the record, 1-99 -----------------------------------------------------------------
 const STAT = { goals: (p) => p.goals, assists: (p) => p.assists, games: (p) => p.apps, discipline: (p) => p.discipline };
