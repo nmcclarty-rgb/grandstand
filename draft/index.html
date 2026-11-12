@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>FPL Battler</title>
+  <title>Prem Wheel</title>
   <meta name="description" content="A blind budget draft against a bot, on 34 seasons of Premier League careers: names and prices only, then a best of three on real career totals.">
   <link rel="stylesheet" href="../stickers/src/ui/style.css">
   <link rel="stylesheet" href="src/ui/style.css">
@@ -13,7 +13,7 @@
   <section class="screen" id="loading"><p class="lede" id="l-msg">Loading the players…</p></section>
 
   <section class="screen" id="title" hidden aria-labelledby="t-h">
-    <h1 id="t-h" tabindex="-1">FPL <em>Battler</em></h1>
+    <h1 id="t-h" tabindex="-1">Prem <em>Wheel</em></h1>
     <ol class="steps">
       <li><b>An attribute is drawn</b>: goals, assists, goal involvements, appearances or discipline. A series is a best of three, a different attribute each match.</li>
       <li><b>Draft a fresh team for it</b> (five or eleven, from a rolled formation) from 34 seasons of Premier League players, on a budget. Each round eight players of one position go on the board with <b>a name and a price</b>: no stats, no club, nothing else. You and the bot take turns to pick one.</li>
@@ -52,6 +52,10 @@
       <div class="dstat money bot"><small>Bot has</small><b id="d-botmoney">£10</b></div>
     </header>
     <div class="series" id="d-series" aria-label="The series"></div>
+    <div class="wheelbox" id="d-wheelbox" hidden title="Click to skip the spin">
+      <svg id="d-wheel"></svg>
+      <p class="wheelcap" id="d-wheelcap" aria-live="polite"></p>
+    </div>
     <p class="say" id="d-say" role="status" aria-live="polite"></p>
     <p class="formation" id="d-formation" hidden>Formation <b id="d-formation-name">…</b></p>
     <div class="tiles" id="d-board" aria-label="The board"></div>

@@ -1,4 +1,4 @@
-// FPL BATTLER: a budget draft against a bot, on the Sticker Season career cards. A BEST OF THREE, a fresh team each time.
+// PREM WHEEL: a budget draft against a bot, on the Sticker Season career cards. A BEST OF THREE, a fresh team each time.
 //
 // A series is three matches. Each match:
 //   1. An attribute is drawn at the start (goals, assists, goal involvements, appearances, discipline: three different ones in a series).
@@ -59,7 +59,8 @@ const TIER_SHARE = [[5, 0.05], [4, 0.10], [3, 0.20], [2, 0.30], [1, 0.35]];
 // can only be a bargain at £4. Tier 1 is always £1.
 export const PRICE_NOISE = 0.3;
 
-const WHEEL = { GK: 1, DEF: 2, MID: 2, FWD: 2 };
+// how likely each position is to come up on the 5-a-side wheel (the page draws the slices in these proportions)
+export const WHEEL = { GK: 1, DEF: 2, MID: 2, FWD: 2 };
 
 // ---- who can be on a board ----------------------------------------------------------------------------------------------
 const universes = new WeakMap();

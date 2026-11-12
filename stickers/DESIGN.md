@@ -206,7 +206,7 @@ fails by name. Every row of every export is summed per player: 5,113 players, 3,
 (the pool, `MIN_APPS` in `build-cards.mjs`), 51 clubs. `cards.json` is about 1.2 MB.
 
 A card keeps: id, display name, full name, position, club (most appearances), clubs `[[club, apps]...]`, stints
-(club-seasons), first and last season, the real totals (games, goals, assists, yellow, red), league `titles`, `wins` and `cleanSheets` (see `draft/README.md`: titles are seasons with the champions at 5+ league appearances; wins and clean sheets are estimated from the club's real match results, `data/results.json`, and his share of its minutes; the Sticker Season game does not use them, FPL Battler does), the four ratings and the overall. Nothing else; a test whitelists the fields and checks that a career adds up (his clubs sum to his appearances).
+(club-seasons), first and last season, the real totals (games, goals, assists, yellow, red), league `titles`, `wins` and `cleanSheets` (see `draft/README.md`: titles are seasons with the champions at 5+ league appearances; wins and clean sheets are estimated from the club's real match results, `data/results.json`, and his share of its minutes; the Sticker Season game does not use them, Prem Wheel does), the four ratings and the overall. Nothing else; a test whitelists the fields and checks that a career adds up (his clubs sum to his appearances).
 
 - **FBref was not scrapeable.** It sits behind a Cloudflare challenge, which I did not try to defeat.
   The exports are saved by a person in a browser. FBref truncates an export at 499 rows (a season has ~560

@@ -1,5 +1,5 @@
-// Stage FPL Battler for publishing as a flat site, laid out exactly like Sticker Season's page (src/engine, src/ui, src/data, and
-// at most one "../" in any import). In the repo, FPL Battler imports the Sticker Season engine from "../../../stickers/...", which
+// Stage Prem Wheel for publishing as a flat site, laid out exactly like Sticker Season's page (src/engine, src/ui, src/data, and
+// at most one "../" in any import). In the repo, Prem Wheel imports the Sticker Season engine from "../../../stickers/...", which
 // the Claude artifact viewer will not load, so for publishing the files are copied into one tree and the import paths rewritten.
 //
 //   node tools/stage.mjs [outDir]        default: ../.stage/blind-five
@@ -20,7 +20,7 @@ for (const f of ['badge', 'card', 'clubs', 'tips', 'tooltip']) copyIn(`stickers/
 copyIn('stickers/src/data/cards.json', 'src/data/cards.json');
 function copyIn(from, to) { mkdirSync(dirname(join(out, to)), { recursive: true }); copyFileSync(join(REPO, from), join(out, to)); }
 
-// FPL Battler's files, with the imports rewritten
+// Prem Wheel's files, with the imports rewritten
 const fix = (s) => s
   .replace(/'\.\.\/\.\.\/\.\.\/stickers\/src\/engine\/([a-z]+\.js)'/g, "'../engine/$1'")
   .replace(/'\.\.\/\.\.\/\.\.\/stickers\/src\/ui\/([a-z]+\.js)'/g, "'./$1'")
@@ -28,6 +28,7 @@ const fix = (s) => s
 put('src/draft/draft.js', fix(read('draft/src/engine/draft.js')));
 put('src/draft/bot.js', fix(read('draft/src/engine/bot.js')));
 put('src/draft/attributes.js', fix(read('draft/src/engine/attributes.js')));
+put('src/ui/wheel.js', read('draft/src/ui/wheel.js'));
 put('src/ui/blind.js', fix(read('draft/src/ui/game.js')).replace("'../engine/draft.js'", "'../draft/draft.js'").replace("'../engine/bot.js'", "'../draft/bot.js'").replace("'../engine/attributes.js'", "'../draft/attributes.js'"));
 
 // the page: both stylesheets inlined, as Sticker Season's page is

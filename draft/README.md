@@ -1,6 +1,6 @@
-# FPL BATTLER (working title)
+# PREM WHEEL (working title)
 
-(The folder is still called `draft/`, and earlier versions were called Blind Five and then Draft Battles.)
+(The folder is still called `draft/`, and earlier versions were called Blind Five and FPL Battler.)
 
 A **blind budget draft against a bot**, on the [Sticker Season](../stickers/) career cards (every Premier League player with
 100+ appearances, 1992/93 to 2025/26). Inspired by the "you have £10, pick your front three" quiz.
@@ -13,6 +13,10 @@ Two games, one engine (pick on the title screen):
 | Rounds | 5 | 11 |
 | Which position | a wheel names it each round (never one position three times) | a **formation** is rolled at the start of every match (4-4-2, 4-3-3, 4-5-1, 3-5-2, 3-4-3, 5-3-2) and both teams work through it, goalkeeper first, then defenders, midfielders, forwards |
 
+Every draw is a **wheel you can see**: a spinning SVG wheel with a pointer, sized by the real odds (the 5-a-side position wheel's goalkeeper slice is half the size of the others, because the
+wheel gives goalkeepers half as often), that lands on the slice the engine has already drawn. It spins for the attribute (faded slices are ones already used in the series), the formation
+(11-a-side) and each round's position (5-a-side). Click it to skip. (`src/ui/wheel.js`: the geometry is tested to land every slice under the pointer, away from the edges.)
+
 A series is a **best of three matches**, and every match is a fresh draft:
 
 1. **An attribute is drawn** at the start of the match: goals, assists, goal involvements (goals plus assists), appearances, league titles, wins (est.), clean sheets (est.) or discipline (a yellow card is 1 point, a red card is 3). Never the same one twice in a series.
@@ -23,7 +27,7 @@ No hands, no multipliers, no ratings: none of Sticker Season's rules are used, o
 
 ```bash
 cd draft
-npm test             # 46 tests: boards, prices, budget rules, turn order, every draft finishes, the attributes, fresh teams, the series, formations, the bot levels
+npm test             # 49 tests: boards, prices, budget rules, turn order, every draft finishes, the attributes, fresh teams, the series, formations, the bot levels
 npm run simulate     # the levels play each other; prints win rates and the hands that come up
 npm start            # then open http://localhost:8779/draft/ and play (?mode=eleven&level=hard&seed=abc for a link)
 ```
@@ -32,7 +36,7 @@ Same stack as Sticker Season: plain ES modules, no build step. It imports the en
 
 ## Publishing
 
-The Claude artifact viewer does not load scripts that climb several folders (`../../../stickers/...`), which is how FPL Battler reaches
+The Claude artifact viewer does not load scripts that climb several folders (`../../../stickers/...`), which is how Prem Wheel reaches
 Sticker Season's engine in this repo. (It shows "This browser isn't supported", on a phone that is fine in every other way.) So for
 publishing, `tools/stage.mjs` copies everything into one flat tree laid out like Sticker Season's page (`src/engine`, `src/ui`, `src/draft`,
 `src/data`, never more than one `../`) and rewrites the imports; it fails if any import would not resolve. Publish `.stage/blind-five/index.html`

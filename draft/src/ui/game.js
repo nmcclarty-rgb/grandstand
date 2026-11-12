@@ -1,9 +1,10 @@
-// The FPL Battler page. All the rules live in the engine (draft.js, bot.js); this file draws screens and calls it.
+// The Prem Wheel page. All the rules live in the engine (draft.js, bot.js); this file draws screens and calls it.
 import { makePool } from '../../../stickers/src/engine/deck.js';
 import { firstNameOf, surnameOf } from '../../../stickers/src/engine/cards.js';
 import { renderCard } from '../../../stickers/src/ui/card.js';
 import { initTooltips } from '../../../stickers/src/ui/tooltip.js';
-import { COMMON, MODES, newMatch, nextMatch, pick, positionOf, canAfford, maxSpend, showdown, seriesOf, rulesOf } from '../engine/draft.js';
+import { drawWheel } from './wheel.js';
+import { COMMON, MODES, FORMATIONS, WHEEL, newMatch, nextMatch, pick, positionOf, canAfford, maxSpend, showdown, seriesOf, rulesOf } from '../engine/draft.js';
 import { ATTRIBUTES, ATTRIBUTE, valueOf } from '../engine/attributes.js';
 import { botMove } from '../engine/bot.js';
 
@@ -78,24 +79,47 @@ function startMatch(seed) {
 }
 
 // the pills: one per match. Played ones say who won and the totals; the current one shows its attribute; the rest are still ???
-function renderSeries(targetId, current, hideLast = false) {
+function renderSeries(targetId, current, hideLast = false, hideCurrent = false) {
   const target = $(targetId);
   const done = hideLast ? state.results.slice(0, -1) : state.results;   // at the showdown, this match's result is not shown until it is counted
   target.replaceChildren(...Array.from({ length: COMMON.matches }, (_, i) => {
     const r = done[i];
     const cls = r ? (r.winner === 'you' ? 'w' : r.winner === 'bot' ? 'l' : 'd') : (i === current ? 'next' : '');
-    const label = r ? attr(r.category).short : i === current ? attr(state.category).short : '???';
+    const label = r ? attr(r.category).short : i === current && !hideCurrent ? attr(state.category).short : '???';
     return el('div', { class: `pill ${cls}` }, el('small', { text: `Match ${i + 1}` }), el('b', { text: label }), r ? el('span', { text: `${n(r.you.total)}–${n(r.bot.total)}` }) : null);
   }));
 }
 
-// the draw: the attribute for this match is drawn at the start, so you can tailor the team to it
-async function rollAttribute(my) {
-  const h = $('d-attr');
-  if (!reduceMotion) for (let i = 0; i < 14; i++) { h.textContent = ATTRIBUTES[i % ATTRIBUTES.length].short; await sleep(50 + i * 14); if (my !== token) return false; }
-  h.textContent = attr(state.category).short;
-  return true;
+// ---- the wheel -------------------------------------------------------------------------------------------------------------------
+// The engine has already drawn the result; the wheel only shows it, landing on the slice the engine picked. Click the wheel to skip.
+let skipSpin = null;
+async function wheelSpin(slices, index, caption, landed, my, duration) {
+  const box = $('d-wheelbox');
+  box.hidden = false;
+  $('d-wheelcap').textContent = caption;
+  const w = drawWheel($('d-wheel'), slices);
+  const s = w.spin(index, { duration, jitter: Math.random() * 2 - 1, turns: 3 + Math.floor(Math.random() * 2), reduce: reduceMotion });
+  skipSpin = s.skip;
+  await s.done;
+  skipSpin = null;
+  if (my !== token) return false;
+  $('d-wheelcap').textContent = landed;
+  await sleep(850);
+  box.hidden = true;
+  return my === token;
 }
+
+// the attribute for this match, drawn at the start from the ones not yet used in the series
+function spinAttribute(my) {
+  const usedBefore = state.used.slice(0, -1);
+  const slices = ATTRIBUTES.map((a) => ({ label: a.short, dim: usedBefore.includes(a.key) }));
+  const index = ATTRIBUTES.findIndex((a) => a.key === state.category);
+  return wheelSpin(slices, index, state.match === 1 ? 'Which attribute?' : `Match ${state.match}: which attribute? (faded ones are used)`, attr(state.category).label, my, 3300);
+}
+// 11-a-side: this match's formation
+const spinFormation = (my) => wheelSpin(FORMATIONS.map((f) => ({ label: f.name, weight: f.weight })), FORMATIONS.findIndex((f) => f.name === state.formation.name), 'Which formation?', state.formation.name, my, 2700);
+// 5-a-side: each round's position, with the slices as big as their chances
+const spinPosition = (my) => wheelSpin(Object.entries(WHEEL).map(([k, w]) => ({ label: k, weight: w })), Object.keys(WHEEL).indexOf(positionOf(state)), `Round ${state.round} of ${rules().rounds}: which position?`, LABEL[positionOf(state)], my, 2200);
 
 async function beginMatchPage(my) {
   busy = true;
@@ -103,16 +127,16 @@ async function beginMatchPage(my) {
   $('d-match').textContent = state.match;
   $('d-rounds').textContent = `/${rules().rounds}`;
   $('d-round').textContent = 1;
-  $('d-attr').textContent = '…';
+  $('d-attr').textContent = '?';
   $('d-formation').hidden = mode !== 'eleven';
   $('d-poslabel').textContent = mode === 'eleven' ? 'Now drafting' : 'The wheel says';
   $('d-pos').textContent = ' ';
   $('d-formation-name').textContent = '…';
   $('d-board').classList.add('waiting');
-  renderSeries('d-series', state.match - 1);
+  renderSeries('d-series', state.match - 1, false, true);   // the attribute is not shown until the wheel has landed
   renderAll();
-  say(state.match === 1 ? 'Drawing the first attribute…' : `Match ${state.match}: a fresh team, a fresh budget. Drawing the attribute…`);
-  if (!(await rollAttribute(my))) return;
+  say(state.match === 1 ? 'Spin the wheel for the first attribute.' : `Match ${state.match}: a fresh team and a fresh budget. Spin for the attribute.`);
+  if (!(await spinAttribute(my))) return;
   $('d-attr').textContent = attr(state.category).short;
   renderSeries('d-series', state.match - 1);
   say(`Match ${state.match}: <b>${attr(state.category).label}</b>. ${attr(state.category).unit.replace(/^./, (c) => c.toUpperCase())}, added up. Build a team for it.`);
@@ -122,26 +146,6 @@ async function beginMatchPage(my) {
 }
 
 // ---- the draft --------------------------------------------------------------------------------------------------------------------
-async function spin(final) {
-  const h = $('d-pos');
-  h.parentElement.classList.add('spinning');
-  const order = Object.keys(LABEL);
-  if (!reduceMotion) for (let i = 0; i < 14; i++) { h.textContent = LABEL[order[(i + 1) % 4]]; await sleep(55 + i * 16); }
-  h.textContent = LABEL[final];
-  h.parentElement.classList.remove('spinning');
-}
-
-// 11-a-side: the formation is rolled once, at the start, and the draft then works through it
-async function rollFormation() {
-  const names = ['4-4-2', '4-3-3', '4-5-1', '3-5-2', '3-4-3', '5-3-2'];
-  const h = $('d-pos');
-  h.parentElement.classList.add('spinning');
-  if (!reduceMotion) for (let i = 0; i < 16; i++) { h.textContent = names[i % names.length]; await sleep(55 + i * 16); }
-  h.textContent = state.formation.name;
-  $('d-formation-name').textContent = state.formation.name;
-  h.parentElement.classList.remove('spinning');
-}
-
 // "Defender 2 of 4" for the slot being drafted
 function slotLabel() {
   const pos = positionOf(state);
@@ -159,19 +163,20 @@ async function runRound(my) {
   if (mode === 'eleven') {
     if (state.round === 1) {
       $('d-pos').textContent = ' ';
-      say('Rolling the formation…');
-      await rollFormation();
-      if (my !== token) return;
+      say('Spin the wheel for the formation.');
+      if (!(await spinFormation(my))) return;
+      $('d-formation-name').textContent = state.formation.name;
       say(`<b>${state.formation.name}.</b> Both teams play it. You work through it from the goalkeeper to the forwards.`);
       renderAll();
-      await sleep(1200);
+      await sleep(600);
     } else await sleep(350);
     if (my !== token) return;
     $('d-pos').textContent = slotLabel();
   } else {
-    say(`Round ${state.round} of ${rules().rounds}: the wheel is spinning…`);
-    await spin(positionOf(state));
-    if (my !== token) return;
+    say(`Round ${state.round} of ${rules().rounds}: spin for the position.`);
+    $('d-pos').textContent = ' ';
+    if (!(await spinPosition(my))) return;
+    $('d-pos').textContent = LABEL[positionOf(state)];
   }
   $('d-board').classList.remove('waiting');
   renderAll();
@@ -286,7 +291,7 @@ function captionFor(who, c) {
   return el('div', { class: `cap ${tag}`, text: `£${e.price}${tag ? ` · ${tag}` : ''}` });
 }
 
-// The Sticker Season card, turned into a FPL Battler card: here the REAL career totals are what counts, so each row shows the
+// The Sticker Season card, turned into a Prem Wheel card: here the REAL career totals are what counts, so each row shows the
 // total (not the 1-99 rating), the rows being counted are highlighted, and the overall plate is hidden.
 function playerCard(c, category) {
   const node = renderCard(c, {});
@@ -410,7 +415,8 @@ function buildManual() {
 function wire() {
   $('t-new').addEventListener('click', () => startMatch($('t-seed').value.trim()));
   $('t-help').addEventListener('click', () => $('manual').showModal?.());
-  $('d-quit').addEventListener('click', showTitle);
+  $('d-quit').addEventListener('click', () => { token++; skipSpin = null; $('d-wheelbox').hidden = true; showTitle(); });
+  $('d-wheelbox').addEventListener('click', () => skipSpin?.());
   const m = params.get('mode'); if (m && MODES[m]) document.querySelector(`input[name=mode][value=${m}]`).checked = true;
   const l = params.get('level'); if (['easy', 'medium', 'hard'].includes(l)) document.querySelector(`input[name=level][value=${l}]`).checked = true;
   if (params.get('seed')) $('t-seed').value = params.get('seed');
