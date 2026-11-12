@@ -1,9 +1,10 @@
 // BLIND FIVE: a budget draft against a bot, on the Sticker Season career cards.
 //
-//   1. Pick a five-a-side team. £10 each, five rounds; each round the wheel names a position and a board of eight players of that
-//      position is shown with NAMES AND PRICES ONLY: no stats, no club, no overall. You and the bot take turns to pick one.
-//   2. Roll which attribute is being counted: goals, assists, appearances or discipline. NOT KNOWN until the teams are picked.
-//   3. Add up each team's REAL career totals in that attribute. The biggest total wins.
+//   1. Pick a team. A budget each; each round a board of eight players of one position is shown with NAMES AND PRICES ONLY: no stats, no
+//      club, no overall. You and the bot take turns to pick one.
+//   2. Three attributes are drawn from goals, assists, appearances and discipline: a BEST OF THREE. They are called out IN ADVANCE (you
+//      know them while you pick) or rolled AFTER the draft (you buy blind), whichever the match is set to.
+//   3. For each, add up each team's REAL career totals. The bigger total wins the match; two matches win the series.
 //
 // No hands, no multipliers, no ratings: a team is worth the sum of what its players really did. The skill is football knowledge:
 // who scored the goals, who played the games, who got booked. A price is a hint, not the truth (see PRICE_NOISE): there are
@@ -24,6 +25,7 @@ export const COMMON = {
   boardSize: 8,
   minGames: 100,       // only players with 100+ Premier League appearances are on a board: you should have heard of them
   minPrice: 1, maxPrice: 5,
+  matches: 3,          // the showdown is a best of three attributes
 };
 export const MODES = {
   five:   { id: 'five',   label: '5-a-side',  budget: 10, rounds: 5,  maxPerPosition: 2 },   // the wheel never gives one position three times
@@ -81,7 +83,8 @@ const stream = (state, label) => makeRng(`${state.seed}|${label}`);
 const other = (who) => (who === 'you' ? 'bot' : 'you');
 
 // ---- a match -------------------------------------------------------------------------------------------------------------
-// opts.mode: 'five' (default) or 'eleven'. opts.level: the bot's level, 'easy' | 'medium' | 'hard' (see bot.js).
+// opts.mode: 'five' (default) or 'eleven'. opts.reveal: 'before' (default: the three attributes are known from the start) or 'after'
+// (rolled once the teams are picked). opts.categories forces the three (tests). opts.level: the bot's level, 'easy' | 'medium' | 'hard' (see bot.js).
 // opts.first: who picks first in round 1. opts.formation: force an 11-a-side formation by name (tests).
 export function newMatch(pool, seed = Date.now(), opts = {}) {
   const mode = opts.mode ?? 'five';
@@ -89,8 +92,8 @@ export function newMatch(pool, seed = Date.now(), opts = {}) {
   const rules = { ...COMMON, ...MODES[mode] };
   const state = {
     seed: String(seed), mode, level: opts.level ?? 'medium', phase: 'draft', round: 1, formation: null,
-    // the attribute being counted: null until the draft is over, then rolled (opts.category forces it, for tests)
-    category: null, forcedCategory: opts.category ?? null,
+    // the three attributes: known from the start in 'before' mode, null until the draft is over in 'after' mode
+    reveal: opts.reveal ?? 'before', categories: null, forcedCategories: opts.categories ?? null,
     positions: [], first1: opts.first ?? (makeRng(`${seed}|first`).int(2) ? 'bot' : 'you'),
     money: { you: rules.budget, bot: rules.budget }, teams: { you: [], bot: [] }, paid: { you: [], bot: [] },
     board: [], shown: [], turn: null, log: [],
@@ -110,6 +113,8 @@ export function newMatch(pool, seed = Date.now(), opts = {}) {
       if (state.positions.filter((p) => p === pos).length < rules.maxPerPosition) state.positions.push(pos);
     }
   }
+  if (state.reveal !== 'before' && state.reveal !== 'after') throw new Error(`unknown reveal '${state.reveal}'`);
+  if (state.reveal === 'before') state.categories = drawCategories(state);
   dealBoard(state);
   return state;
 }
@@ -170,21 +175,38 @@ export const free = (state) => state.board.filter((b) => !b.takenBy);
 // A player's REAL career total in the attribute: goals, assists, appearances, or discipline points (a yellow card is 1, a red 3).
 export const valueOf = (card, category) => statOf(card, category);
 
-// The roll, once the teams are picked: which attribute is counted.
-export function rollAttribute(state) {
-  if (state.phase !== 'showdown' && state.phase !== 'over') throw new Error('the teams are not picked yet');
-  if (state.category == null) state.category = state.forcedCategory ?? stream(state, 'category').pick(CATEGORY_KEYS);
-  return state.category;
+// Three different attributes, from the four
+function drawCategories(state) {
+  return state.forcedCategories ?? stream(state, 'categories').shuffle([...CATEGORY_KEYS]).slice(0, COMMON.matches);
 }
 
-// Roll the attribute, add each team up. The biggest total wins; equal totals are a draw.
+// The three attributes. In 'before' mode they were fixed at the start; in 'after' mode this is the roll, once the teams are picked.
+export function rollAttributes(state) {
+  if (state.categories == null) {
+    if (state.phase !== 'showdown' && state.phase !== 'over') throw new Error('the teams are not picked yet');
+    state.categories = drawCategories(state);
+  }
+  return state.categories;
+}
+
+// Play the series. For each attribute, add each team up: the bigger total wins the match (equal totals are a draw). Most matches wins;
+// if level, the team with the larger total as a share of each attribute's record; if still level, a draw. The UI plays the matches one
+// at a time and stops when one side has two.
 export function showdown(state) {
-  const category = rollAttribute(state);
-  const side = (who) => {
+  if (state.phase !== 'showdown' && state.phase !== 'over') throw new Error('the teams are not picked yet');
+  const categories = rollAttributes(state);
+  const side = (who, category) => {
     const players = state.teams[who].map((card, i) => ({ card, value: valueOf(card, category), paid: state.paid[who][i] }));
     return { players, total: players.reduce((sum, p) => sum + p.value, 0) };
   };
-  const you = side('you'), bot = side('bot');
+  const matches = categories.map((category) => {
+    const you = side('you', category), bot = side('bot', category);
+    return { category, you, bot, winner: you.total > bot.total ? 'you' : bot.total > you.total ? 'bot' : 'draw' };
+  });
+  const wins = { you: matches.filter((m) => m.winner === 'you').length, bot: matches.filter((m) => m.winner === 'bot').length };
+  const share = (who) => matches.reduce((sum, m) => sum + m[who].total / state.pool.meta.records[m.category].total, 0);
+  const sy = share('you'), sb = share('bot');
+  const winner = wins.you !== wins.bot ? (wins.you > wins.bot ? 'you' : 'bot') : sy !== sb ? (sy > sb ? 'you' : 'bot') : 'draw';
   state.phase = 'over';
-  return { category, you, bot, winner: you.total > bot.total ? 'you' : bot.total > you.total ? 'bot' : 'draw' };
+  return { categories, matches, wins, winner, decidedBy: wins.you !== wins.bot ? 'matches' : winner === 'draw' ? 'nothing' : 'share of the records' };
 }

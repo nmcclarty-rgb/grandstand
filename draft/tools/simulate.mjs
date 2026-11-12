@@ -11,6 +11,7 @@ import { makeRng } from '../../stickers/src/engine/rng.js';
 
 const arg = (name, dflt) => { const i = process.argv.indexOf(`--${name}`); return i > -1 ? Number(process.argv[i + 1]) : dflt; };
 const RUNS = arg('runs', 1000);
+const REVEAL = process.argv.includes('--reveal') ? process.argv[process.argv.indexOf('--reveal') + 1] : 'before';
 const MODE = process.argv.includes('--mode') ? process.argv[process.argv.indexOf('--mode') + 1] : 'five';
 if (process.argv.includes('--budget')) H.MODES[MODE].budget = arg('budget', H.MODES[MODE].budget);
 const pool = makePool(JSON.parse(readFileSync(new URL('../../stickers/src/data/cards.json', import.meta.url), 'utf8')));
@@ -19,7 +20,7 @@ const pool = makePool(JSON.parse(readFileSync(new URL('../../stickers/src/data/c
 
 // policy: 'random' or a bot level
 function play(seed, youPolicy, botPolicy) {
-  const s = newMatch(pool, seed, { level: botPolicy, mode: MODE });
+  const s = newMatch(pool, seed, { level: botPolicy, mode: MODE, reveal: REVEAL });
   const rng = makeRng(`${seed}|rand`);
   while (s.phase === 'draft') {
     const who = s.turn, policy = who === 'you' ? youPolicy : botPolicy;
@@ -33,7 +34,7 @@ function play(seed, youPolicy, botPolicy) {
 }
 
 const policies = ['random', ...LEVELS];
-console.log(`\n${MODE}, budget £${H.MODES[MODE].budget}, ${RUNS} matches per pairing. Rows are "you", columns are the opponent. Win % (draws count half).\n`);
+console.log(`\n${MODE}, budget £${H.MODES[MODE].budget}, attributes ${REVEAL === 'before' ? 'called in advance' : 'rolled after the draft'}, best of three, ${RUNS} matches per pairing. Rows are "you", columns are the opponent. Win % (draws count half).\n`);
 console.log(''.padEnd(10) + policies.map((p) => p.padStart(9)).join(''));
 const stats = {};
 for (const a of policies) {
@@ -57,13 +58,13 @@ for (const a of policies) {
   console.log(`${a.padEnd(8)} £${(left / n).toFixed(1)} left`);
 }
 {
-  const by = { goals: [0, 0], assists: [0, 0], games: [0, 0], discipline: [0, 0] }; let close = 0, draws = 0, n = 0;
+  // how the best of three is decided, and how close the matches are
+  let twoNil = 0, close = 0, nm = 0, draws = 0, n = 0;
   for (let i = 0; i < 600; i++) {
     const { r } = play(`h-${i}`, 'hard', 'medium');
-    const hi = Math.max(r.you.total, r.bot.total), lo = Math.min(r.you.total, r.bot.total);
-    by[r.category][0]++; by[r.category][1] += (r.winner === 'you');
-    if (hi && (hi - lo) / hi < 0.1) close++; if (r.winner === 'draw') draws++; n++;
+    if (r.matches[0].winner !== 'draw' && r.matches[0].winner === r.matches[1].winner) twoNil++;
+    for (const m of r.matches) { const hi = Math.max(m.you.total, m.bot.total), lo = Math.min(m.you.total, m.bot.total); if (hi && (hi - lo) / hi < 0.1) close++; nm++; }
+    if (r.winner === 'draw') draws++; n++;
   }
-  console.log(`\nhard vs medium by attribute (matches, hard's win %): ${Object.entries(by).map(([k, [m, w]]) => `${k} ${m} / ${(100 * w / m).toFixed(0)}%`).join(', ')}`);
-  console.log(`decided by under 10%: ${(100 * close / n).toFixed(0)}%, draws: ${draws}`);
+  console.log(`\nhard vs medium: ${(100 * twoNil / n).toFixed(0)}% of series are over after two matches (2-0); ${(100 * close / nm).toFixed(0)}% of matches are within 10%; ${draws} drawn series`);
 }

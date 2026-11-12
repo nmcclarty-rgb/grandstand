@@ -1,5 +1,5 @@
-// The bot. Three levels, same rules as you: the same board, the same budget, one pick a round, and like you it does not know which
-// attribute will be counted until the teams are in, so it values a player across all four.
+// The bot. Three levels, same rules as you: the same board, the same budget, one pick a round, and like you it knows the three attributes only
+// if they were called in advance (otherwise it values a player across all four).
 //
 //   easy    a fan who goes on names: picks the dearest player it can afford, with a little randomness. Price is its only
 //           information, so it falls for every trap and walks past every bargain.
@@ -14,10 +14,12 @@ const FOG = { medium: 22, hard: 0 };   // how far off, in points of the record, 
 export const VALUE_PER_POUND = 6;      // points of the record a pound of budget is worth to the bot while there are rounds to come
 
 // what a player is worth in an attribute, as a share of the all-time record (0 to 100), so the four attributes are on one scale.
-// With no attribute (during the draft) it is his average share across all four.
-export const worth = (card, category, pool) => {
+// `categories` is what is being counted: the three attributes when they were called in advance, or nothing (null) when they will be rolled
+// after the draft, in which case it is his average standing across all four.
+export const worth = (card, categories, pool) => {
   const one = (k) => (100 * valueOf(card, k)) / pool.meta.records[k].total;
-  return category ? one(category) : CATEGORY_KEYS.reduce((sum, k) => sum + one(k), 0) / CATEGORY_KEYS.length;
+  const ks = categories?.length ? categories : CATEGORY_KEYS;
+  return ks.reduce((sum, k) => sum + one(k), 0) / ks.length;
 };
 
 // -> the board id the bot picks
@@ -33,7 +35,7 @@ export function choose(state, who = 'bot', level = state.level) {
   let best = null;
   for (const b of options) {
     const fog = FOG[level] ? (rng.next() * 2 - 1) * FOG[level] : 0;
-    const value = worth(b.card, state.category, state.pool) + fog - perPound * b.price;
+    const value = worth(b.card, state.categories, state.pool) + fog - perPound * b.price;
     if (!best || value > best.value) best = { value, id: b.card.id };
   }
   return best.id;

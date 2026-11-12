@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { pool } from './helpers.mjs';
-import { RULES, TIER_SLOTS, PRICE_NOISE, newMatch, pick, free, canAfford, maxSpend, firstPicker, positionOf, showdown, rollAttribute, universeOf, valueOf } from '../src/engine/draft.js';
+import { RULES, TIER_SLOTS, PRICE_NOISE, newMatch, pick, free, canAfford, maxSpend, firstPicker, positionOf, showdown, rollAttributes, universeOf, valueOf } from '../src/engine/draft.js';
 import { choose, botMove, worth, LEVELS } from '../src/engine/bot.js';
 import { CATEGORY_KEYS, statOf } from '../../stickers/src/engine/cards.js';
 
@@ -128,47 +128,82 @@ test('RULE: every draft always finishes: both teams get five players and nobody 
   }
 });
 
-test('the attribute is NOT known during the draft: it is rolled once the teams are picked, all four come up, and it is the same for a seed', () => {
-  const s = newMatch(pool, 'blind');
-  assert.equal(s.category, null);
-  assert.throws(() => rollAttribute(s), /not picked yet/);
-  while (s.phase === 'draft') { assert.equal(s.category, null, 'still unknown mid-draft'); const who = s.turn; pick(s, who, choose(s, who, 'easy')); }
-  assert.equal(s.category, null, 'unknown the moment the draft ends');
-  const cat = rollAttribute(s);
-  assert.ok(CATEGORY_KEYS.includes(cat));
-  assert.equal(rollAttribute(s), cat, 'rolling again does not change it');
-  assert.equal(showdown(s).category, cat);
+test('best of three: three different attributes from the four', () => {
   const seen = new Set();
-  for (let i = 0; i < 200; i++) { const m = draft(`c${i}`); seen.add(rollAttribute(m)); }
-  assert.deepEqual([...seen].sort(), [...CATEGORY_KEYS].sort());
-  assert.equal(rollAttribute(draft('same')), rollAttribute(draft('same')));
-  assert.equal(rollAttribute(Object.assign(draft('forced'), {})), rollAttribute(draft('forced')));
+  for (let i = 0; i < 200; i++) {
+    const cats = newMatch(pool, `c${i}`).categories;
+    assert.equal(cats.length, 3);
+    assert.equal(new Set(cats).size, 3);
+    for (const c of cats) { assert.ok(CATEGORY_KEYS.includes(c)); seen.add(c); }
+  }
+  assert.deepEqual([...seen].sort(), [...CATEGORY_KEYS].sort(), 'all four come up across matches');
+  assert.equal(RULES.matches, 3);
 });
 
-test('the roll does not depend on what was picked: the same seed rolls the same attribute whoever you buy', () => {
-  const a = draft('indep', (s, who) => choose(s, who, 'easy')), b = draft('indep', (s, who) => choose(s, who, 'hard'));
-  assert.equal(rollAttribute(a), rollAttribute(b));
+test('called in advance (the default): the attributes are known from the first pick, are the same for a seed, and do not depend on who you buy', () => {
+  const s = newMatch(pool, 'adv');
+  assert.equal(s.reveal, 'before');
+  const cats = [...s.categories];
+  while (s.phase === 'draft') { assert.deepEqual(s.categories, cats, 'they do not change mid-draft'); const who = s.turn; pick(s, who, choose(s, who, 'easy')); }
+  assert.deepEqual(rollAttributes(s), cats);
+  assert.deepEqual(newMatch(pool, 'adv').categories, cats);
+  assert.deepEqual(draft('indep', (st, who) => choose(st, who, 'easy')).categories, draft('indep', (st, who) => choose(st, who, 'hard')).categories);
 });
 
-test('the showdown is just addition: each team\'s real career totals in the attribute, biggest wins', () => {
+test('rolled after the draft: unknown while you pick, rolled once the teams are in, the same for a seed, and independent of the picks', () => {
+  const s = newMatch(pool, 'blind', { reveal: 'after' });
+  assert.equal(s.categories, null);
+  assert.throws(() => rollAttributes(s), /not picked yet/);
+  while (s.phase === 'draft') { assert.equal(s.categories, null, 'still unknown mid-draft'); const who = s.turn; pick(s, who, choose(s, who, 'easy')); }
+  assert.equal(s.categories, null, 'unknown the moment the draft ends');
+  const cats = rollAttributes(s);
+  assert.equal(cats.length, 3);
+  assert.deepEqual(rollAttributes(s), cats, 'rolling again does not change it');
+  assert.deepEqual(showdown(s).categories, cats);
+  const roll = (policy) => { const m = newMatch(pool, 'same', { reveal: 'after' }); while (m.phase === 'draft') { const who = m.turn; pick(m, who, choose(m, who, policy)); } return rollAttributes(m); };
+  assert.deepEqual(roll('easy'), roll('hard'));
+  // the same three as when they are called in advance: the draw is the same, only when it is revealed differs
+  assert.deepEqual(roll('easy'), newMatch(pool, 'same').categories);
+  assert.throws(() => newMatch(pool, 'x', { reveal: 'sometimes' }), /unknown reveal/);
+});
+
+test('the showdown is addition, three times: each team\'s real career totals in each attribute, bigger total wins the match', () => {
   const tally = (s, who, cat) => s.teams[who].reduce((sum, c) => sum + (cat === 'discipline' ? c.yellow + 3 * c.red : c[cat]), 0);
   let you = 0, bot = 0, draws = 0;
-  for (let i = 0; i < 400; i++) {
+  for (let i = 0; i < 300; i++) {
     const s = draft(`sd${i}`);
     const r = showdown(s);
-    const cat = s.category;
-    assert.equal(r.category, cat);
-    assert.equal(r.you.total, tally(s, 'you', cat));
-    assert.equal(r.bot.total, tally(s, 'bot', cat));
-    assert.equal(r.you.players.length, 5);
-    assert.deepEqual(r.you.players.map((p) => p.value), s.teams.you.map((c) => statOf(c, cat)));
-    assert.deepEqual(r.you.players.map((p) => p.paid), s.paid.you);
-    assert.equal(r.winner, r.you.total > r.bot.total ? 'you' : r.bot.total > r.you.total ? 'bot' : 'draw');
+    assert.equal(r.matches.length, 3);
+    assert.deepEqual(r.matches.map((m) => m.category), s.categories);
+    for (const m of r.matches) {
+      assert.equal(m.you.total, tally(s, 'you', m.category));
+      assert.equal(m.bot.total, tally(s, 'bot', m.category));
+      assert.equal(m.you.players.length, 5);
+      assert.deepEqual(m.you.players.map((p) => p.value), s.teams.you.map((c) => statOf(c, m.category)));
+      assert.deepEqual(m.you.players.map((p) => p.paid), s.paid.you);
+      assert.equal(m.winner, m.you.total > m.bot.total ? 'you' : m.bot.total > m.you.total ? 'bot' : 'draw');
+    }
     assert.equal(s.phase, 'over');
     if (r.winner === 'you') you++; else if (r.winner === 'bot') bot++; else draws++;
   }
   assert.ok(you > 50 && bot > 50, 'both sides win some');
   assert.throws(() => showdown(newMatch(pool, 'early')), /not picked yet/);
+});
+
+test('the series: most matches wins; level on matches, the larger share of the records; otherwise a draw', () => {
+  let byMatches = 0, byShare = 0;
+  for (let i = 0; i < 400; i++) {
+    const s = draft(`ser${i}`);
+    const r = showdown(s);
+    assert.equal(r.wins.you + r.wins.bot + r.matches.filter((m) => m.winner === 'draw').length, 3);
+    if (r.wins.you !== r.wins.bot) { byMatches++; assert.equal(r.winner, r.wins.you > r.wins.bot ? 'you' : 'bot'); assert.equal(r.decidedBy, 'matches'); }
+    else {
+      byShare++;
+      const share = (who) => r.matches.reduce((sum, m) => sum + m[who].total / pool.meta.records[m.category].total, 0);
+      assert.equal(r.winner, share('you') > share('bot') ? 'you' : share('bot') > share('you') ? 'bot' : 'draw');
+    }
+  }
+  assert.ok(byMatches > 300, `${byMatches} series were decided on matches, ${byShare} on share`);
 });
 
 test('discipline counts a yellow card as 1 and a red card as 3; goals, assists and appearances are the career totals', () => {
@@ -202,16 +237,17 @@ test('the hard bot looks for value: it is not simply buying the dearest, and in 
   while (s.round < 5) { const who = s.turn; pick(s, who, choose(s, who, 'easy')); }
   const id = choose(s, s.turn, 'hard');
   const options = free(s).filter((b) => canAfford(s, s.turn, b.price));
-  assert.equal(id, options.sort((a, b) => worth(b.card, s.category, pool) - worth(a.card, s.category, pool))[0].card.id, 'the best player it can afford for the attribute');
+  assert.equal(id, options.sort((a, b) => worth(b.card, s.categories, pool) - worth(a.card, s.categories, pool))[0].card.id, 'the best player it can afford for the attribute');
 });
 
-test('worth is a share of the record, so all four attributes are on one 0-100 scale; with no attribute it is the average of the four', () => {
+test('worth is a share of the record, so all attributes are on one 0-100 scale; of several, their average; with none, the average of the four', () => {
   for (const cat of CATEGORY_KEYS) {
-    const best = Math.max(...pool.cards.map((c) => worth(c, cat, pool)));
+    const best = Math.max(...pool.cards.map((c) => worth(c, [cat], pool)));
     assert.ok(Math.abs(best - 100) < 1e-9, `${cat}: ${best}`);
   }
   const c = pool.cards[0];
-  assert.ok(Math.abs(worth(c, null, pool) - CATEGORY_KEYS.reduce((s, k) => s + worth(c, k, pool), 0) / 4) < 1e-9);
+  assert.ok(Math.abs(worth(c, null, pool) - CATEGORY_KEYS.reduce((s, k) => s + worth(c, [k], pool), 0) / 4) < 1e-9);
+  assert.ok(Math.abs(worth(c, ['goals', 'assists'], pool) - (worth(c, ['goals'], pool) + worth(c, ['assists'], pool)) / 2) < 1e-9);
 });
 
 test('botMove plays the bot\'s turn, and the bot never makes an illegal pick at any level', () => {

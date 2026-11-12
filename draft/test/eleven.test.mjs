@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { pool } from './helpers.mjs';
-import { MODES, FORMATIONS, formationPositions, newMatch, pick, free, canAfford, positionOf, showdown, rollAttribute, rulesOf } from '../src/engine/draft.js';
+import { MODES, FORMATIONS, formationPositions, newMatch, pick, free, canAfford, positionOf, showdown, rollAttributes, rulesOf } from '../src/engine/draft.js';
 import { choose, botMove } from '../src/engine/bot.js';
 
 const play = (seed, policy = (s, who) => choose(s, who, 'medium'), opts = {}) => {
@@ -90,16 +90,18 @@ test('RULE: every 11-a-side draft finishes, whatever the policy: eleven players 
   }
 });
 
-test('the showdown adds up eleven players\' real totals in a rolled attribute', () => {
-  for (let i = 0; i < 100; i++) {
+test('the showdown adds up eleven players\' real totals, in three attributes', () => {
+  for (let i = 0; i < 60; i++) {
     const s = play(`sd${i}`);
-    assert.equal(s.category, null);
     const r = showdown(s);
-    assert.equal(r.you.players.length, 11);
-    const tally = (who) => s.teams[who].reduce((sum, c) => sum + (r.category === 'discipline' ? c.yellow + 3 * c.red : c[r.category]), 0);
-    assert.equal(r.you.total, tally('you'));
-    assert.equal(r.bot.total, tally('bot'));
-    assert.equal(rollAttribute(s), r.category);
+    assert.equal(r.matches.length, 3);
+    for (const m of r.matches) {
+      assert.equal(m.you.players.length, 11);
+      const tally = (who) => s.teams[who].reduce((sum, c) => sum + (m.category === 'discipline' ? c.yellow + 3 * c.red : c[m.category]), 0);
+      assert.equal(m.you.total, tally('you'));
+      assert.equal(m.bot.total, tally('bot'));
+    }
+    assert.deepEqual(rollAttributes(s), r.matches.map((m) => m.category));
   }
 });
 

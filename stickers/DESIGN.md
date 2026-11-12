@@ -68,7 +68,7 @@ right: Rooney and Shearer 90, Lampard 89, Salah 86, Milner 85, Cole 84, Giggs an
 Milner is fifth because he holds the appearances record and 56 goals and plenty of assists: a stalwart, which is all a
 defender's numbers can say. (The first weights, 60% appearances for a defender, put him fourth and Ashley Young tenth.)
 
-**The limits are in the data, not a judgement.** We have no tackles, saves, clean sheets or minutes for 34 seasons, so a
+**The limits are in the data, not a judgement.** We have no tackles, saves, clean sheets or shots for 34 seasons (the exports do have minutes, starts and penalties for every season, which the cards do not use: see "Attributes we have" in `draft/README.md`), so a
 defender's OVR is mostly how long he lasted plus a few goals, and a keeper's is how much he played (his weight is
 discounted 20%, or keepers, who play every week, would fill the top of the list). Ledley King and Joe Hart are accurate
 about what we know of them, which is not much. Adding a stat that has gaps would break rule 2.

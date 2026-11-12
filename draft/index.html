@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Blind Five</title>
-  <meta name="description" content="A blind budget draft against a bot, on 34 seasons of Premier League careers. £10, five rounds, names and prices only.">
+  <meta name="description" content="A blind budget draft against a bot, on 34 seasons of Premier League careers: names and prices only, then a best of three on real career totals.">
   <link rel="stylesheet" href="../stickers/src/ui/style.css">
   <link rel="stylesheet" href="src/ui/style.css">
 </head>
@@ -16,14 +16,19 @@
     <h1 id="t-h" tabindex="-1">Blind <em>Five</em></h1>
     <ol class="steps">
       <li><b>Pick a team</b> of five (or eleven, from a rolled formation) from 34 seasons of Premier League players, on a budget. Each round eight players of one position go on the board with <b>a name and a price</b>: no stats, no club, nothing else. You and the bot take turns to pick one.</li>
-      <li><b>Roll which attribute</b> is being counted: goals, assists, appearances or discipline. Not until the teams are in.</li>
-      <li><b>Add it up.</b> Each team's real career totals in that attribute. The biggest total wins.</li>
+      <li><b>Three attributes</b> are drawn from goals, assists, appearances and discipline: a <b>best of three</b>.</li>
+      <li><b>Add it up</b> for each. Each team's real career totals; the bigger total wins the match. First to two wins.</li>
     </ol>
     <p class="lede">A price is a hint, not the truth. Know your football.</p>
     <fieldset class="levels" id="t-modes">
       <legend>Game</legend>
       <label><input type="radio" name="mode" value="five" checked><span><b>5-a-side</b> £10, five rounds, a wheel names each position</span></label>
       <label><input type="radio" name="mode" value="eleven"><span><b>11-a-side</b> £30, eleven rounds: a formation is rolled at the start and you work through it</span></label>
+    </fieldset>
+    <fieldset class="levels" id="t-reveal">
+      <legend>The three attributes</legend>
+      <label><input type="radio" name="reveal" value="before" checked><span><b>Called in advance</b> you know what is coming while you pick</span></label>
+      <label><input type="radio" name="reveal" value="after"><span><b>Rolled after the draft</b> you buy blind</span></label>
     </fieldset>
     <fieldset class="levels" id="t-levels">
       <legend>Opponent</legend>
@@ -68,12 +73,13 @@
   <section class="screen" id="show" hidden aria-labelledby="s-h">
     <h2 id="s-h" tabindex="-1" class="bigh">Showdown</h2>
     <p class="say" id="s-say" role="status" aria-live="polite"></p>
+    <div class="series" id="s-series" aria-label="The three matches"></div>
     <div class="actions" id="s-actions"></div>
     <div class="tally" id="s-tally" hidden></div>
     <div id="s-cards" hidden>
-      <h3>Your five</h3>
+      <h3>Your team</h3>
       <div class="gallery" id="s-you"></div>
-      <h3>The bot's five</h3>
+      <h3>The bot's team</h3>
       <div class="gallery" id="s-bot"></div>
     </div>
   </section>
