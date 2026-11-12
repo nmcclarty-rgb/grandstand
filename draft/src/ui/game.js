@@ -4,8 +4,10 @@ import { firstNameOf, surnameOf } from '../../../stickers/src/engine/cards.js';
 import { renderCard } from '../../../stickers/src/ui/card.js';
 import { initTooltips } from '../../../stickers/src/ui/tooltip.js';
 import { drawWheel } from './wheel.js';
+import { shirtSvg } from './shirt.js';
 import { badgeSvg } from './badge.js';
 import { CLUB_LABELS } from './clubs.js';
+import { KITS, PATTERNS, codeFor, cleanKit } from '../engine/pyramid.js';
 import { newTournament, finishRound, roundsWon, revealOpponent, bracketView, opponent, me, champion, ROUNDS } from '../engine/tournament.js';
 import { COMMON, MODES, formationsOf, newMatch, nextMatch, pick, positionOf, canAfford, maxSpend, showdown, seriesOf, rulesOf } from '../engine/draft.js';
 import { ATTRIBUTES, ATTRIBUTE, valueOf } from '../engine/attributes.js';
@@ -44,6 +46,7 @@ function remember(key, outcome) {
 let pool, state, result, level = 'medium', mode = 'five', format = 'cup', tournament = null, busy = false, token = 0;
 const CUP_RECORD = 'prem-wheel:cup:v1';
 const CLUB_KEY = 'prem-wheel:club:v1';
+const KIT_KEY = 'prem-wheel:kit:v1';
 const DEFAULT_CLUB = 'Grandstand Town';
 const ROUND_SHORT = ['R64', 'R32', 'R16', 'QF', 'SF', 'Final'];
 const clubName = (code) => CLUB_LABELS[code] ?? code;
@@ -106,8 +109,8 @@ function startMatch(seed) {
   const my = ++token;
   if (format === 'cup') {
     const name = $('t-name').value.trim() || DEFAULT_CLUB;
-    try { localStorage.setItem(CLUB_KEY, name); } catch { /* private window */ }
-    tournament = newTournament(pool, seed || Date.now(), { mode, name });
+    saveClub(name);
+    tournament = newTournament(pool, seed || Date.now(), { mode, name, kit: currentKit() });
     state = tournament.tie;
     level = tournament.level;
     cupIntro(my);
@@ -117,6 +120,43 @@ function startMatch(seed) {
     state = newMatch(pool, seed || Date.now(), { level, mode });
     beginMatchPage(my);
   }
+}
+
+// ---- your club (the title screen) -------------------------------------------------------------------------------------------------
+const PLACES = ['Grandstand', 'Sunday', 'Dockside', 'Riverside', 'Hilltop', 'Orchard', 'Foundry', 'Harbour', 'Moorland', 'Millbrook', 'Ashgrove', 'Kingsway', 'Brickworks', 'Lakeside', 'Northgate', 'Parkhead'];
+const SUFFIXES = ['Town', 'Rovers', 'United', 'Athletic', 'Wanderers', 'City', 'Albion', 'Rangers', 'Borough', 'Argyle', 'Villa', 'County'];
+const pickOf = (list) => list[Math.floor(Math.random() * list.length)];
+const kit = { colour: 0, pattern: 'stripes' };
+const currentKit = () => cleanKit({ colours: [KITS[kit.colour][1], KITS[kit.colour][2]], pattern: kit.pattern }, $('t-name').value || DEFAULT_CLUB);
+function saveClub(name) {
+  try { localStorage.setItem(CLUB_KEY, name); localStorage.setItem(KIT_KEY, JSON.stringify(kit)); } catch { /* private window */ }
+}
+function drawClub() {
+  const name = $('t-name').value.trim();
+  $('t-shirt').innerHTML = shirtSvg(currentKit(), codeFor(name || DEFAULT_CLUB));
+  $('t-clubsub').textContent = name ? `${name} · League Two` : 'League Two';
+  document.querySelectorAll('#t-colours button').forEach((b, i) => b.setAttribute('aria-pressed', String(i === kit.colour)));
+  document.querySelectorAll('#t-designs button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pattern === kit.pattern)));
+}
+function buildClubPicker() {
+  $('t-colours').replaceChildren(...KITS.map(([label, c1, c2], i) => el('button', { type: 'button', class: 'swatch', title: label, 'aria-label': label, style: `background:linear-gradient(135deg, ${c1} 0 50%, ${c2} 50% 100%)`, onclick: () => { kit.colour = i; drawClub(); } })));
+  $('t-designs').replaceChildren(...PATTERNS.map(([key, label]) => el('button', { type: 'button', class: 'design', 'data-pattern': key, text: label, onclick: () => { kit.pattern = key; drawClub(); } })));
+  try {
+    const saved = JSON.parse(localStorage.getItem(KIT_KEY));
+    if (saved && Number.isInteger(saved.colour) && KITS[saved.colour] && PATTERNS.some(([k]) => k === saved.pattern)) { kit.colour = saved.colour; kit.pattern = saved.pattern; }
+    else { kit.colour = Math.floor(Math.random() * KITS.length); kit.pattern = PATTERNS[1 + Math.floor(Math.random() * (PATTERNS.length - 1))][0]; }
+  } catch { /* private window */ }
+  $('t-name').addEventListener('input', drawClub);
+  $('t-dice').addEventListener('click', () => { $('t-name').value = `${pickOf(PLACES)} ${pickOf(SUFFIXES)}`; drawClub(); });
+  drawClub();
+}
+// "The Cup · 11-a-side · £30" under the Kick off button, so the defaults are visible and the other modes are one click away
+function drawSummary() {
+  const cup = document.querySelector('input[name=format]:checked').value === 'cup';
+  const m = document.querySelector('input[name=mode]:checked').value;
+  const lv = document.querySelector('input[name=level]:checked').value;
+  $('t-summary').textContent = `${cup ? 'The Cup' : `Quick series vs ${lv} bot`} · ${MODES[m].label} · £${MODES[m].budget}`;
+  $('t-club').hidden = !cup;
 }
 
 // ---- the cup ----------------------------------------------------------------------------------------------------------------------
@@ -593,8 +633,10 @@ function wire() {
   $('d-wheelbox').addEventListener('click', () => skipSpin?.());
   $('show').addEventListener('click', () => skipHold?.());
   $('ladder').addEventListener('click', (e) => { if (!e.target.closest('.bracket')) skipHold?.(); });
-  const tf = () => { const cup = document.querySelector('input[name=format]:checked').value === 'cup'; $('t-levels').hidden = cup; $('t-clubbox').hidden = !cup; };
-  document.querySelectorAll('input[name=format]').forEach((x) => x.addEventListener('change', tf));
+  const tf = () => { const cup = document.querySelector('input[name=format]:checked').value === 'cup'; $('t-levels').hidden = cup; drawSummary(); };
+  document.querySelectorAll('input[name=format], input[name=mode], input[name=level]').forEach((x) => x.addEventListener('change', tf));
+  $('t-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('t-new').click(); } });
+  $('t-more').addEventListener('click', () => { const open = $('t-other').hidden; $('t-other').hidden = !open; $('t-more').setAttribute('aria-expanded', String(open)); $('t-more').textContent = open ? 'Hide other modes' : 'Other game modes'; });
   tf();
   document.addEventListener('keydown', (e) => { if ((e.key === ' ' || e.key === 'Enter') && skipHold && (!$('show').hidden || !$('ladder').hidden) && !(e.target instanceof HTMLButtonElement)) { e.preventDefault(); skipHold(); } });
   let fm = params.get('format'); if (fm === 'ladder') fm = 'cup';
@@ -602,7 +644,10 @@ function wire() {
   const m = params.get('mode'); if (m && MODES[m]) document.querySelector(`input[name=mode][value=${m}]`).checked = true;
   const l = params.get('level'); if (['easy', 'medium', 'hard'].includes(l)) document.querySelector(`input[name=level][value=${l}]`).checked = true;
   if (params.get('seed')) $('t-seed').value = params.get('seed');
-  try { $('t-name').value = params.get('club') ?? localStorage.getItem(CLUB_KEY) ?? ''; } catch { $('t-name').value = params.get('club') ?? ''; }
+  let saved = null; try { saved = localStorage.getItem(CLUB_KEY); } catch { /* private window */ }
+  $('t-name').value = params.get('club') ?? saved ?? `${pickOf(PLACES)} ${pickOf(SUFFIXES)}`;
+  buildClubPicker();
+  if (params.get('format') || params.get('mode') || params.get('level') || params.get('seed')) { $('t-other').hidden = false; $('t-more').setAttribute('aria-expanded', 'true'); $('t-more').textContent = 'Hide other modes'; }
   tf();
 }
 

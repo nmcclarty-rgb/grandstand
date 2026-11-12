@@ -17,7 +17,7 @@
 import { makeRng } from '../../../stickers/src/engine/rng.js';
 import { newMatch, pick, showdown, MODES } from './draft.js';
 import { choose } from './bot.js';
-import { opponents, YOUR_TIER, YOUR_MULT, TIERS, kitFor, codeFor } from './pyramid.js';
+import { opponents, YOUR_TIER, YOUR_MULT, TIERS, cleanKit, codeFor } from './pyramid.js';
 
 export const ROUNDS = ['Round of 64', 'Round of 32', 'Round of 16', 'Quarter-final', 'Semi-final', 'Final'];
 export const BOT_LEVEL = 'medium';
@@ -27,27 +27,28 @@ export const SAFE_SLOTS = 7;
 
 export const budgetFor = (mode, mult) => Math.round(MODES[mode].budget * mult);
 
-// your team, from the name you gave it
-export function youTeam(mode, name = 'Your Club') {
+// your team, from the name and kit you gave it ({ colours: [primary, secondary], pattern })
+export function youTeam(mode, name = 'Your Club', kit) {
   const clean = String(name).trim().slice(0, 24) || 'Your Club';
-  return { code: codeFor(clean), name: clean, colours: kitFor(clean), pattern: 'solid', tier: YOUR_TIER, tierName: TIERS[YOUR_TIER].name, mult: YOUR_MULT, budget: budgetFor(mode, YOUR_MULT), you: true };
+  const { colours, pattern } = cleanKit(kit, clean);
+  return { code: codeFor(clean), name: clean, colours, pattern, tier: YOUR_TIER, tierName: TIERS[YOUR_TIER].name, mult: YOUR_MULT, budget: budgetFor(mode, YOUR_MULT), you: true };
 }
 
 // the draw: 64 slots, slot 0 is you. Slots 1 to SAFE_SLOTS get League One / League Two clubs; the rest is a shuffle of everyone else.
-export function drawFor(seed, mode, name) {
+export function drawFor(seed, mode, name, kit) {
   const rng = makeRng(`${seed}|draw`);
   const clubs = opponents().map((c) => ({ ...c, budget: budgetFor(mode, c.mult) }));
   const small = rng.shuffle(clubs.filter((c) => c.tier === 3));
   const early = small.slice(0, SAFE_SLOTS);
   const rest = rng.shuffle([...small.slice(SAFE_SLOTS), ...clubs.filter((c) => c.tier < 3)]);
-  return [youTeam(mode, name), ...early, ...rest];
+  return [youTeam(mode, name, kit), ...early, ...rest];
 }
 
-// opts.mode 'five' | 'eleven'; opts.name your club's name; opts.level overrides the bot (tests); opts.teams overrides the draw (tests)
+// opts.mode 'five' | 'eleven'; opts.name your club's name; opts.kit its colours and shirt design; opts.level overrides the bot (tests); opts.teams overrides the draw (tests)
 export function newTournament(pool, seed = Date.now(), opts = {}) {
   const mode = opts.mode ?? 'five';
   if (!MODES[mode]) throw new Error(`unknown mode '${mode}'`);
-  const teams = opts.teams ?? drawFor(seed, mode, opts.name);
+  const teams = opts.teams ?? drawFor(seed, mode, opts.name, opts.kit);
   if (teams.length !== SIZE) throw new Error(`the cup needs ${SIZE} teams`);
   const t = {
     seed: String(seed), mode, level: opts.level ?? BOT_LEVEL, teams,

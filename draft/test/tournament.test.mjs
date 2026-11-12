@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { pool } from './helpers.mjs';
 import { ROUNDS, SIZE, SAFE_SLOTS, BOT_LEVEL, budgetFor, drawFor, youTeam, newTournament, opponent, me, finishRound, playRound, roundsWon, revealOpponent, bracketView, champion } from '../src/engine/tournament.js';
-import { opponents, FIELD, TIERS, YOUR_TIER, kitFor, codeFor } from '../src/engine/pyramid.js';
+import { opponents, FIELD, TIERS, YOUR_TIER, kitFor, codeFor, cleanKit, KITS, PATTERNS } from '../src/engine/pyramid.js';
 import { newMatch, nextMatch, pick, showdown, seriesOf, canAfford, MODES } from '../src/engine/draft.js';
 import { choose } from '../src/engine/bot.js';
 
@@ -184,4 +184,17 @@ test('the cup is a real climb: a medium-skill player is an underdog, and winning
   assert.ok(atLeast(1) > atLeast(3) && atLeast(3) > atLeast(5), 'each stage is rarer than the one before');
   assert.ok(atLeast(6) < 0.15, `winning the cup is rare (${atLeast(6)})`);
   assert.equal(SIZE, 64); assert.equal(MODES.five.budget, 10);
+});
+
+test('you choose your club\'s colours and shirt design, and only valid ones get through', () => {
+  const t = newTournament(pool, 'kit', { name: 'Sunday Rovers', kit: { colours: ['#112233', '#ffffff'], pattern: 'hoops' } });
+  assert.deepEqual(me(t).colours, ['#112233', '#ffffff']); assert.equal(me(t).pattern, 'hoops');
+  assert.deepEqual(bracketView(t).rounds[0][0].colours, ['#112233', '#ffffff']);
+  const bad = youTeam('five', 'Sunday Rovers', { colours: ['red', 'url(x)'], pattern: '<script>' });
+  assert.deepEqual(bad.colours, kitFor('Sunday Rovers')); assert.equal(bad.pattern, 'solid');
+  assert.deepEqual(cleanKit(undefined, 'x').colours, kitFor('x'));
+  assert.ok(KITS.every(([, a, b]) => /^#[0-9A-F]{6}$/i.test(a) && /^#[0-9A-F]{6}$/i.test(b)));
+  assert.deepEqual(PATTERNS.map(([k]) => k), ['solid', 'stripes', 'hoops', 'halves', 'sash']);
+  // the same draw whatever your kit: it only changes how you look
+  assert.deepEqual(drawFor('kit', 'five', 'A', { colours: ['#000000', '#ffffff'], pattern: 'sash' }).slice(1).map((x) => x.code), drawFor('kit', 'five', 'A').slice(1).map((x) => x.code));
 });

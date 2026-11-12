@@ -211,3 +211,65 @@ h3 { font: 800 13px/1 system-ui; letter-spacing: .12em; text-transform: uppercas
 .bslot.lost { opacity: .6; }
 .bslot.you.lost { background: #ff6b6b33; opacity: 1; outline-color: #ff6b6b; }
 @media (max-width: 700px) { .laddervs { padding: 12px 8px; gap: 6px; } .lmoney { font-size: 32px; } .lv .lname { font-size: 17px; }  }
+
+
+/* ---- the title screen: a poster, not a settings menu ---- */
+#title { max-width: 760px; margin: 0 auto; overflow-x: clip; }
+.hero { position: relative; text-align: center; padding: 30px 0 6px; isolation: isolate; }
+.hero::before { content: ""; position: absolute; z-index: -1; left: 50%; top: -90px; width: 460px; height: 460px; margin-left: -230px; border-radius: 50%;
+  background: conic-gradient(#f5c54233 0 12.5%, #ffffff0a 0 25%, #f5c54233 0 37.5%, #ffffff0a 0 50%, #f5c54233 0 62.5%, #ffffff0a 0 75%, #f5c54233 0 87.5%, #ffffff0a 0);
+  -webkit-mask: radial-gradient(circle, transparent 0 26%, #000 27% 100%); mask: radial-gradient(circle, transparent 0 26%, #000 27% 100%);
+  animation: spin 60s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .hero::before { animation: none; } }
+.kicker { margin: 0 0 4px; font: 800 12px system-ui; letter-spacing: .32em; text-transform: uppercase; color: var(--gold); }
+#title .hero h1 { font-size: clamp(54px, 13vw, 104px); line-height: .9; margin: 0; letter-spacing: .02em; text-shadow: 0 4px 0 #0007, 0 10px 30px #0009; }
+.blurb { max-width: 54ch; margin: 16px auto 0; font: 400 17px/1.5 system-ui, sans-serif; color: #e4efe7; }
+.blurb b { color: #fff; }
+
+.hooks { list-style: none; margin: 22px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.hooks li { display: flex; flex-direction: column; gap: 4px; padding: 14px; border-radius: 12px; background: #0006; border: 1px solid #ffffff1a; font: 400 13px/1.4 system-ui; color: #cfe0d4; }
+.hooks b { font: 900 17px/1.1 Impact, "Arial Narrow Bold", sans-serif; letter-spacing: .05em; text-transform: uppercase; color: #fff; }
+.hooks .hi { font-size: 26px; line-height: 1; }
+
+.clubcard { display: grid; grid-template-columns: 190px 1fr; gap: 22px; align-items: center; margin: 22px 0 0; padding: 22px; border-radius: 16px; background: linear-gradient(160deg, #0a2417, #06150d); border: 2px solid #f5c54255; box-shadow: 0 14px 40px #0008, inset 0 0 0 1px #ffffff10; }
+.clubcard[hidden] { display: none; }
+.shirt svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 8px 14px #000a); }
+.clubname { display: block; font: 800 12px system-ui; letter-spacing: .28em; text-transform: uppercase; color: var(--gold); margin: 0 0 6px; }
+.namerow { display: flex; gap: 8px; }
+.clubform { min-width: 0; }
+.namerow input { flex: 1; min-width: 0; width: 100%; box-sizing: border-box; font: 900 clamp(22px, 5.5vw, 32px)/1.1 Impact, "Arial Narrow Bold", sans-serif; letter-spacing: .03em; text-transform: uppercase; padding: 8px 12px; color: #fff; background: #ffffff10; border: 2px solid #ffffff33; border-radius: 10px; }
+.namerow input:focus { outline: none; border-color: var(--gold); background: #ffffff18; }
+.namerow input::placeholder { color: #ffffff55; }
+.namerow button { font-size: 22px; padding: 0 14px; border-radius: 10px; }
+.clubsub { margin: 6px 0 12px; font: 700 13px system-ui; letter-spacing: .08em; text-transform: uppercase; color: #9fb7a6; }
+.pickrow { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
+.pickrow .pl { flex: 0 0 62px; font: 800 11px system-ui; letter-spacing: .14em; text-transform: uppercase; color: #b7cdbd; }
+.swatches, .designs { display: flex; flex-wrap: wrap; gap: 8px; }
+.swatch { width: 28px; height: 28px; flex: none; padding: 0; border-radius: 50%; border: 2px solid #ffffff55; cursor: pointer; }
+.swatch[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 3px #f5c54266; transform: scale(1.12); }
+.design { padding: 6px 12px; font: 800 12px system-ui; letter-spacing: .06em; border-radius: 999px; background: #ffffff1c; color: #fff; border: 1px solid #ffffff2a; }
+.design[aria-pressed="true"] { background: var(--gold); color: #261c00; border-color: var(--gold); }
+
+.cta { text-align: center; margin: 22px 0 6px; }
+button.kickoff { font: 900 26px/1 Impact, "Arial Narrow Bold", sans-serif; letter-spacing: .1em; text-transform: uppercase; padding: 18px 56px; border-radius: 14px; box-shadow: 0 6px 0 #a67d12, 0 14px 30px #0009; transition: transform .1s, box-shadow .1s; }
+button.kickoff:hover { transform: translateY(-2px); box-shadow: 0 8px 0 #a67d12, 0 18px 34px #000a; }
+button.kickoff:active { transform: translateY(4px); box-shadow: 0 2px 0 #a67d12, 0 6px 12px #0009; }
+.runline { margin: 14px 0 6px; font: 700 13px system-ui; letter-spacing: .12em; text-transform: uppercase; color: #b7cdbd; }
+.links { display: flex; justify-content: center; gap: 22px; }
+button.linkbtn { background: none; color: #d9e7dd; font: 700 14px system-ui; text-decoration: underline; text-underline-offset: 4px; padding: 6px 4px; letter-spacing: .02em; }
+button.linkbtn:hover { color: var(--gold); }
+.other { margin: 14px auto 0; max-width: 560px; padding: 14px; border-radius: 12px; background: #0005; border: 1px solid #ffffff1a; }
+.other .levels { max-width: none; }
+#title > .fine { text-align: center; }
+@media (max-width: 640px) {
+  .hooks { grid-template-columns: 1fr; }
+  .hooks li { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+  .hooks li span:last-child { flex-basis: 100%; }
+  .clubcard { grid-template-columns: 1fr; padding: 16px; justify-items: center; }
+  .clubcard .shirt { width: 150px; }
+  .clubform { width: 100%; }
+  .pickrow .pl { flex-basis: 52px; }
+  .namerow input { font-size: 20px; padding: 10px; }
+  button.kickoff { width: 100%; padding: 18px 20px; }
+}

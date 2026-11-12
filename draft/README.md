@@ -19,6 +19,12 @@ the formation, in both modes. Click it to skip. (`src/ui/wheel.js`: the geometry
 Nothing between the rounds needs a button: when a draft ends the page moves to the showdown, counts by itself after two seconds, and after a match it counts down five seconds (to read the
 result) and starts the next fresh draft. A tap, a click or Space on the showdown screen skips a wait. Only "Play again" and "Change opponent" at the very end are buttons.
 
+## The title screen
+
+A poster, not a settings menu: the name, a one-paragraph sell, three hooks, and **your club** front and centre: a live shirt preview, a big club-name box (with a dice for a random name), ten colourways and five shirt
+designs (plain, stripes, hoops, halves, sash). The kit is validated by the engine (`cleanKit`) and carried into the badge, the intro, the road and the bracket. **Kick off** starts **the Cup in 11-a-side** by default;
+the summary under the button says so, and **Other game modes** opens the rest (5-a-side, the quick series and its bot level, a match code). Your club name and kit are remembered in the browser.
+
 ## The game loop: the Cup
 
 The main game is a **knockout cup** (`src/engine/tournament.js`, clubs in `src/engine/pyramid.js`): **64 clubs from the English pyramid** (16 each from the Premier League, the Championship and League One, and 15 from League Two

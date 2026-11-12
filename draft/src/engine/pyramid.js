@@ -67,3 +67,18 @@ export function kitFor(name) {
 
 // the three letters on a badge: the first three letters of the name
 export const codeFor = (name) => (name.replace(/[^A-Za-z]/g, '').slice(0, 3) || 'YOU').toUpperCase();
+
+// What you can choose for your own club: a colourway (primary, secondary) and a shirt design. The designs are the badge patterns.
+export const PATTERNS = [['solid', 'Plain'], ['stripes', 'Stripes'], ['hoops', 'Hoops'], ['halves', 'Halves'], ['sash', 'Sash']];
+export const KITS = [
+  ['Red & white', '#D81920', '#FFFFFF'], ['Blue & white', '#1F4E9C', '#FFFFFF'], ['Claret & blue', '#7A263A', '#7EC0EE'], ['Green & gold', '#0B7A3B', '#F4D200'],
+  ['Black & white', '#1A1A1A', '#FFFFFF'], ['Yellow & black', '#F4D200', '#1A1A1A'], ['Sky & white', '#6CABDD', '#FFFFFF'], ['Orange & black', '#F26B1D', '#1A1A1A'],
+  ['Purple & gold', '#5B2A86', '#F2C230'], ['White & navy', '#F4F4F4', '#14224F'],
+];
+const HEX = /^#[0-9a-fA-F]{6}$/;
+// whatever the page sends, only a valid pair of colours and a known design get through
+export function cleanKit(kit, fallbackName = 'x') {
+  const colours = Array.isArray(kit?.colours) && kit.colours.length === 2 && kit.colours.every((c) => HEX.test(c)) ? kit.colours : kitFor(fallbackName);
+  const pattern = PATTERNS.some(([k]) => k === kit?.pattern) ? kit.pattern : 'solid';
+  return { colours, pattern };
+}

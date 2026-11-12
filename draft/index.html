@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Prem Wheel</title>
-  <meta name="description" content="A blind budget draft against a bot, on 34 seasons of Premier League careers: names and prices only, then a best of three on real career totals.">
+  <meta name="description" content="Spin the wheel, draft blind and take a League Two nobody to the Cup. Names and prices only, 34 seasons of Premier League careers.">
   <link rel="stylesheet" href="../stickers/src/ui/style.css">
   <link rel="stylesheet" href="src/ui/style.css">
 </head>
@@ -13,42 +13,66 @@
   <section class="screen" id="loading"><p class="lede" id="l-msg">Loading the players…</p></section>
 
   <section class="screen" id="title" hidden aria-labelledby="t-h">
-    <h1 id="t-h" tabindex="-1">Prem <em>Wheel</em></h1>
-    <ol class="steps">
-      <li><b>A wheel picks the attribute</b> for the match: goals, assists, goal involvements, appearances, league titles, wins, clean sheets or discipline.</li>
-      <li><b>Draft a fresh team for it</b> (five or eleven, in a rolled formation) from 34 seasons of Premier League players, on a budget. Each round eight players of one position go on the board with <b>a name and a price</b>: no stats, no club, nothing else. You and the bot take turns to pick one.</li>
-      <li><b>Add it up.</b> Each team's real career totals in the attribute; the bigger total wins the match.</li>
-    </ol>
-    <p class="lede">A price is a hint, not the truth. Know your football.</p>
-    <fieldset class="levels" id="t-format">
-      <legend>How to play</legend>
-      <label><input type="radio" name="format" value="cup" checked><span><b>The Cup</b> 64 clubs from the English pyramid, and you are a League Two side with the smallest budget. The draw is made at the start and you see all 64. Six knockout rounds, one match each, and big clubs cannot reach you before about the quarter-final. Lose and you are out</span></label>
-      <label><input type="radio" name="format" value="series"><span><b>Quick series</b> a best of three against a bot of the level you choose</span></label>
-    </fieldset>
-    <fieldset class="levels" id="t-modes">
-      <legend>Game</legend>
-      <label><input type="radio" name="mode" value="five" checked><span><b>5-a-side</b> £10, five rounds: a formation (1-2-1, 2-1-1, 1-1-2 or 2-2) is rolled at the start and you work through it</span></label>
-      <label><input type="radio" name="mode" value="eleven"><span><b>11-a-side</b> £30, eleven rounds: a formation is rolled at the start and you work through it</span></label>
-    </fieldset>
-    <fieldset class="levels" id="t-levels">
-      <legend>Opponent</legend>
-      <label><input type="radio" name="level" value="easy"><span><b>Easy</b> goes on names: buys the dearest player it can</span></label>
-      <label><input type="radio" name="level" value="medium" checked><span><b>Medium</b> knows the stats, through a fog</span></label>
-      <label><input type="radio" name="level" value="hard"><span><b>Hard</b> knows every stat exactly and hunts for value</span></label>
-    </fieldset>
-    <label class="clubbox" id="t-clubbox">Your club
-      <input id="t-name" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Grandstand Town">
-    </label>
-    <div class="title-actions">
-      <button id="t-new" class="primary" type="button">Kick off</button>
-      <button id="t-help" class="ghost" type="button">How to play</button>
+    <div class="hero">
+      <p class="kicker">The football draft game</p>
+      <h1 id="t-h" tabindex="-1">Prem <em>Wheel</em></h1>
+      <p class="blurb">Every great manager is a gambler. You have a shoestring budget, a bracket full of giants and a board of players with <b>nothing but a name and a price tag</b>. Spin the wheel, back your hunches, and drag a League Two nobody all the way to the Cup.</p>
+    </div>
+
+    <ul class="hooks">
+      <li><span class="hi" aria-hidden="true">🎡</span><b>Spin the wheel</b><span>Goals. Titles. Clean sheets. Red cards. The wheel decides what wins the match.</span></li>
+      <li><span class="hi" aria-hidden="true">🕵️</span><b>Draft blind</b><span>A name and a price, nothing else. Bargain or trap? Trust your football brain.</span></li>
+      <li><span class="hi" aria-hidden="true">🏆</span><b>Slay the giants</b><span>64 clubs, six rounds, one trophy. You start in League Two with the smallest wallet in the cup.</span></li>
+    </ul>
+
+    <div class="clubcard" id="t-club">
+      <div class="shirt" id="t-shirt" aria-hidden="true"></div>
+      <div class="clubform">
+        <label class="clubname" for="t-name">Your club</label>
+        <div class="namerow">
+          <input id="t-name" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Name your club">
+          <button id="t-dice" class="ghost" type="button" title="A random name" aria-label="A random club name">🎲</button>
+        </div>
+        <p class="clubsub" id="t-clubsub">League Two</p>
+        <div class="pickrow" role="group" aria-label="Colours"><span class="pl">Colours</span><div class="swatches" id="t-colours"></div></div>
+        <div class="pickrow" role="group" aria-label="Shirt design"><span class="pl">Shirt</span><div class="designs" id="t-designs"></div></div>
+      </div>
+    </div>
+
+    <div class="cta">
+      <button id="t-new" class="primary kickoff" type="button">Kick off</button>
+      <p class="runline" id="t-summary">The Cup · 11-a-side</p>
+      <div class="links">
+        <button id="t-more" class="linkbtn" type="button" aria-expanded="false" aria-controls="t-other">Other game modes</button>
+        <button id="t-help" class="linkbtn" type="button">How to play</button>
+      </div>
+    </div>
+
+    <div class="other" id="t-other" hidden>
+      <fieldset class="levels" id="t-format">
+        <legend>How to play</legend>
+        <label><input type="radio" name="format" value="cup" checked><span><b>The Cup</b> 64 clubs from the English pyramid, you a League Two side with the smallest budget. Six knockout rounds, one match each. Lose and you are out</span></label>
+        <label><input type="radio" name="format" value="series"><span><b>Quick series</b> a best of three against a bot of the level you choose</span></label>
+      </fieldset>
+      <fieldset class="levels" id="t-modes">
+        <legend>Game</legend>
+        <label><input type="radio" name="mode" value="eleven" checked><span><b>11-a-side</b> £30, eleven rounds: a formation is rolled at the start and you work through it</span></label>
+        <label><input type="radio" name="mode" value="five"><span><b>5-a-side</b> £10, five rounds: a quick one, in a rolled formation</span></label>
+      </fieldset>
+      <fieldset class="levels" id="t-levels">
+        <legend>Opponent</legend>
+        <label><input type="radio" name="level" value="easy"><span><b>Easy</b> goes on names: buys the dearest player it can</span></label>
+        <label><input type="radio" name="level" value="medium" checked><span><b>Medium</b> knows the stats, through a fog</span></label>
+        <label><input type="radio" name="level" value="hard"><span><b>Hard</b> knows every stat exactly and hunts for value</span></label>
+      </fieldset>
       <label class="seedbox">Match code (optional)
         <input id="t-seed" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="random">
       </label>
+      <p class="fine seedhelp">Leave it blank for a random match. The same code gives the same draw, wheel and boards, so you and a friend can play the same match and compare.</p>
     </div>
-    <p class="fine seedhelp">Leave it blank for a random match. The same code gives the same wheel and the same boards, so you and a friend can play the same match and compare.</p>
+
     <p class="fine" id="t-record"></p>
-    <p class="fine">Built on the <a href="../stickers/">Sticker Season</a> career cards. Player figures are FBref/Opta, 1992/93 to 2025/26.</p>
+    <p class="fine">Built on the Sticker Season career cards. Player figures are FBref/Opta, 1992/93 to 2025/26. Badges and shirts are generated, not real crests.</p>
   </section>
 
   <section class="screen" id="ladder" hidden aria-labelledby="l-h">
