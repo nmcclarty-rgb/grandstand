@@ -7,10 +7,10 @@ import { CLUB_COLOURS, CLUB_PATTERNS, inkOn } from './clubs.js';
 const SHIELD = 'M8 6 H92 V60 C92 88 72 106 50 114 C28 106 8 88 8 60 Z';
 let uid = 0;
 
-// -> an SVG string, 100 x 120 viewBox
-export function badgeSvg(club) {
-  const [c1, c2] = CLUB_COLOURS[club] ?? ['#444444', '#ffffff'];
-  const pattern = CLUB_PATTERNS[club] ?? 'solid';
+// -> an SVG string, 100 x 120 viewBox. `look` ({ colours: [primary, secondary], pattern }) overrides the lookup, for clubs that are not on the cards.
+export function badgeSvg(club, look) {
+  const [c1, c2] = look?.colours ?? CLUB_COLOURS[club] ?? ['#444444', '#ffffff'];
+  const pattern = look?.pattern ?? CLUB_PATTERNS[club] ?? 'solid';
   const id = `bd${++uid}`; // a clip path per badge: ids must be unique on the page
   let over = '';
   if (pattern === 'stripes') over = [1, 3, 5].map((i) => `<rect x="${8 + i * 14}" y="0" width="14" height="120" fill="${c2}"/>`).join('');

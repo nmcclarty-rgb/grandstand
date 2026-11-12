@@ -19,40 +19,47 @@ the formation, in both modes. Click it to skip. (`src/ui/wheel.js`: the geometry
 Nothing between the rounds needs a button: when a draft ends the page moves to the showdown, counts by itself after two seconds, and after a match it counts down five seconds (to read the
 result) and starts the next fresh draft. A tap, a click or Space on the showdown screen skips a wait. Only "Play again" and "Change opponent" at the very end are buttons.
 
-## The game loop: the knockout ladder
+## The game loop: the Cup
 
-The main game is a **knockout ladder** (`src/engine/tournament.js`): seven rounds, each a **single match** (one fresh draft for one attribute) against a Premier League club. **Lose and you are out; win the Final and you
-are champions.** The opponent is always the same bot, the **medium** bot (it knows the stats through a fog). What changes up the ladder is its **money**: a bigger club has a bigger budget, as a share of yours.
+The main game is a **knockout cup** (`src/engine/tournament.js`, clubs in `src/engine/pyramid.js`): **64 clubs from the English pyramid** (16 each from the Premier League, the Championship and League One, and 15 from League Two
+plus **you**, a League Two club you name on the title screen). Six rounds (Round of 64, Round of 32, Round of 16, Quarter-final, Semi-final, Final), each a **single match** (one fresh draft for one attribute). **Lose and you
+are out; win the Final and you are champions.** The opponent is always the same bot, the **medium** bot. What changes is its **money**, which follows the division, as a share of yours (you are the yardstick: £10 in 5-a-side, £30 in 11-a-side):
 
-| Round | Club (one picked from the seed) | Its budget, 5-a-side / 11-a-side |
+| Division | Budget share, strongest to weakest club | 5-a-side |
 |---|---|---|
-| 1 | Luton, Sheffield Utd, Norwich, Watford, Huddersfield, Cardiff | 60% (£6 / £18) |
-| 2 | Bournemouth, Brentford, Fulham, Crystal Palace, Ipswich, Stoke | 70% (£7 / £21) |
-| 3 | Wolves, Southampton, Brighton, Leeds, Sunderland, West Brom | 80% (£8 / £24) |
-| 4 | Everton, West Ham, Leicester, Aston Villa | 90% (£9 / £27) |
-| Quarter-final | Newcastle, Spurs | 100% (£10 / £30) |
-| Semi-final | Arsenal, Chelsea | 110% (£11 / £33) |
-| Final | Man City, Liverpool, Man Utd | 120% (£12 / £36) |
+| Premier League | 140% down to 115% | £14 to £12 |
+| Championship | 120% down to 105% | £12 to £11 |
+| League One | 110% down to 95% | £11 to £10 |
+| League Two | 100% down to 80% | £10 to £8 |
 
-You always have the mode's base budget. A round that is level on the count is decided by more appearances, then a coin (a knockout needs a winner). The path is the same for a seed. The page shows the whole path before each
-round, with its badge and money, and everything flows by itself (a tap or Space skips a wait); a run is saved as "best run" and "times champions" in the browser. **Quick series** (a best of three against a bot of the level you
-pick) is still on the title screen.
+So most of the pyramid is richer than you, which is why you are the underdog. **The draw** (seeded) puts the weakest clubs nearest your slot and the strongest in the far half of the bracket, with some noise (a big club can be
+drawn early), so the road gets harder as you go.
 
-**Why money is the difficulty dial, not the bot** (`tools/budget-sim.mjs` in the notes below): for two bots of equal skill, giving one 25% more money turns a 47% coin flip into a 12% win for the other in 5-a-side (30% in 11-a-side,
-where the board caps the benefit), and it works as a handicap too: a price-only player beats a hard bot 1% of the time at equal money, 19% with 50% more and 61% with double. The effect is **steep** (each £1 in 5-a-side is 10%, so
-the ladder steps by 10%) and **saturates** (a pick costs at most £5, so money above about £25 in 5-a-side and £55 in 11-a-side buys nothing). One fixed bot also means the same opponent behaviour all the way up, which a human can learn.
+**What you see.** You do not know who you play until the round starts, and you see nothing of the road ahead either. At the start the bracket shows only you. When a round starts, the club you are about to play is revealed
+(badge, division, money) together with the part of the bracket that produced it (the clubs it had to beat); the rest of the field stays a "?" until you reach it. A road of six stops with your crest moving along it, and the
+bracket filling in behind you, show you travelling through the tournament. When you are knocked out or win, the whole bracket is revealed. `bracketView(t)` is the only thing the page draws from, and the tests check that it
+carries nothing the player should not know yet.
 
-**How far does each kind of player get?** (`node tools/ladder-sim.mjs`, 300 tournaments each; the share who win at least n rounds)
+**The other ties** are played by the engine: the medium bot against the medium bot, each with its club's money, one draft each, so the bracket fills in with believable results (big clubs usually win). A round that is level on
+the count is decided by more appearances, then a coin (a knockout needs a winner). The draw and every tie are the same for a seed. Everything flows by itself (a tap or Space skips a wait); a run is saved as "best run" and
+"times champions" in the browser. **Quick series** (a best of three against a bot of the level you pick) is still on the title screen.
 
-| 5-a-side | R1 | R2 | R3 | R4 | QF | SF | Final |
-|---|---|---|---|---|---|---|---|
-| random picker | 62% | 26% | 9% | 1% | 0% | 0% | 0% |
-| price-only (easy) | 62% | 29% | 10% | 3% | 0% | 0% | 0% |
-| equal to the bot (medium) | 97% | 90% | 68% | 46% | 21% | 7% | 2% |
-| knows the stats exactly (hard) | 100% | 98% | 89% | 76% | 56% | 33% | 16% |
+**Why money is the difficulty dial, not the bot** (`tools/budget-sim.mjs`): for two bots of equal skill, giving one 25% more money turns a 47% coin flip into a 12% win for the other in 5-a-side (30% in 11-a-side, where the board caps
+the benefit), and it works as a handicap too: a price-only player beats a hard bot 1% of the time at equal money, 19% with 50% more and 61% with double. The effect is **steep** (each £1 in 5-a-side is 10%) and **saturates** (a pick costs
+at most £5, so money above about £25 in 5-a-side and £55 in 11-a-side buys nothing). One fixed bot also means the same opponent behaviour all the way up, which a human can learn.
 
-(11-a-side: medium 97 / 83 / 67 / 41 / 22 / 8 / 4%, hard 99 / 97 / 93 / 84 / 69 / 51 / 35%.) A player as good as the bot should usually win the first rounds, face a coin flip around Round 4 or the Quarter-final, and rarely win the Final.
-Nobody has played it yet: the multipliers (`LADDER` in `tournament.js`) are the first thing to tune from real runs.
+**How far does each kind of player get?** (`node tools/cup-sim.mjs`, 200 cups each; the share who win at least n rounds)
+
+| 5-a-side | R64 | R32 | R16 | QF | SF | Final |
+|---|---|---|---|---|---|---|
+| random picker | 30% | 6% | 2% | 1% | 0% | 0% |
+| price-only (easy) | 34% | 8% | 1% | 0% | 0% | 0% |
+| equal to the bot (medium) | 75% | 51% | 32% | 20% | 9% | 2% |
+| knows the stats exactly (hard) | 89% | 77% | 60% | 49% | 37% | 14% |
+
+(11-a-side: medium 72 / 48 / 32 / 18 / 10 / 4%, hard 90 / 82 / 72 / 59 / 47 / 34%.) A player as good as the bot is an underdog from the start: about a one in three chance of the last 16, one in ten of the final. A player who knows
+football better than the bot's fog should go further. Nobody has played it yet: the strengths (`TIERS` in `pyramid.js`) and the draw noise (`DRAW_NOISE`) are the first things to tune from real runs. The divisions are as they
+were at about the time of writing (the pool of clubs is not kept up to date), and the badges are generated, not real crests.
 
 ## The quick series
 
@@ -196,8 +203,8 @@ Best of three, fresh teams, 11-a-side (£30), 200 series per pairing:
 
 ## Not built
 
-A **league** after the ladder: a mini-league against clubs, single matches, with a table whose other fixtures are played by the same engine bot against bot, and promotion to a division with bigger budgets · a cup of best-of-3 ties ·
-the budget in finer steps (£m, so a rung can be 5%) · more attributes (minutes, penalties scored, nationality) · a human-tested ladder: the multipliers and the Round 1 gift are guesses from the simulator · sound.
+A **league** after the cup: a mini-league against clubs, single matches, with a table whose other fixtures are played by the same engine bot against bot, and promotion to a division with bigger budgets · cup ties of best-of-3 ·
+the budget in finer steps (£m, so a rung can be 5%) · more attributes (minutes, penalties scored, nationality) · a human-tested cup: the division budgets and the draw are guesses from the simulator · sound.
 
 ## Positions
 

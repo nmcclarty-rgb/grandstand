@@ -22,7 +22,7 @@
     <p class="lede">A price is a hint, not the truth. Know your football.</p>
     <fieldset class="levels" id="t-format">
       <legend>How to play</legend>
-      <label><input type="radio" name="format" value="ladder" checked><span><b>Knockout ladder</b> seven rounds against Premier League clubs, one match each. Bigger clubs have bigger budgets. Lose and you are out</span></label>
+      <label><input type="radio" name="format" value="cup" checked><span><b>The Cup</b> 64 clubs from the English pyramid, and you are a League Two side with the smallest budget. Six knockout rounds, one match each. You will not know who you play until the round starts. Lose and you are out</span></label>
       <label><input type="radio" name="format" value="series"><span><b>Quick series</b> a best of three against a bot of the level you choose</span></label>
     </fieldset>
     <fieldset class="levels" id="t-modes">
@@ -36,6 +36,9 @@
       <label><input type="radio" name="level" value="medium" checked><span><b>Medium</b> knows the stats, through a fog</span></label>
       <label><input type="radio" name="level" value="hard"><span><b>Hard</b> knows every stat exactly and hunts for value</span></label>
     </fieldset>
+    <label class="clubbox" id="t-clubbox">Your club
+      <input id="t-name" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Grandstand Town">
+    </label>
     <div class="title-actions">
       <button id="t-new" class="primary" type="button">Kick off</button>
       <button id="t-help" class="ghost" type="button">How to play</button>
@@ -49,15 +52,16 @@
   </section>
 
   <section class="screen" id="ladder" hidden aria-labelledby="l-h">
-    <h2 id="l-h" tabindex="-1" class="bigh">Round 1</h2>
+    <h2 id="l-h" tabindex="-1" class="bigh">Round of 64</h2>
     <div class="laddervs">
-      <div class="lv you"><small>You</small><b id="l-you">£10</b></div>
+      <div class="lv you"><span class="lbadge" id="l-you-badge"></span><b class="lname" id="l-you-name">You</b><small id="l-you-div">League Two</small><span class="lmoney gold" id="l-you">£10</span></div>
       <div class="lv vsword">vs</div>
-      <div class="lv bot"><span class="lbadge" id="l-badge"></span><b id="l-club">Club</b><span class="lmoney" id="l-bot">£7</span></div>
+      <div class="lv bot"><span class="lbadge" id="l-badge"></span><b class="lname" id="l-club">Club</b><small id="l-div">&nbsp;</small><span class="lmoney" id="l-bot">£7</span></div>
     </div>
     <p class="say" id="l-say"></p>
-    <ol class="path" id="l-path" aria-label="The path to the final"></ol>
-    <p class="fine">Tap anywhere (or press Space) to start now.</p>
+    <ol class="road" id="l-path" aria-label="Your road to the final"></ol>
+    <div class="bracket" id="l-bracket" aria-label="The bracket"></div>
+    <p class="fine">Tap anywhere (or press Space) to start now. Scroll the bracket to look around.</p>
   </section>
 
   <section class="screen" id="draft" hidden aria-labelledby="d-h">
@@ -77,8 +81,8 @@
     <p class="formation" id="d-formation" hidden>Formation <b id="d-formation-name">…</b></p>
     <div class="tiles" id="d-board" aria-label="The board"></div>
     <div class="pitches">
-      <div><h3>Your team</h3><div class="pitch" id="p-you"></div></div>
-      <div><h3>The bot's team</h3><div class="pitch" id="p-bot"></div></div>
+      <div><h3 id="p-you-h">Your team</h3><div class="pitch" id="p-you"></div></div>
+      <div><h3 id="p-bot-h">The bot's team</h3><div class="pitch" id="p-bot"></div></div>
     </div>
     <div class="actions"><button id="d-quit" class="ghost" type="button">Quit</button></div>
   </section>
@@ -89,12 +93,13 @@
     <div class="series" id="s-series" aria-label="The series"></div>
     <div class="actions" id="s-actions"></div>
     <p class="fine" id="s-hint" hidden>Tap anywhere (or press Space) to skip the wait.</p>
-    <ol class="path" id="s-path" hidden aria-label="Your run"></ol>
+    <ol class="road" id="s-path" hidden aria-label="Your run"></ol>
+    <div class="bracket" id="s-bracket" hidden aria-label="The bracket"></div>
     <div class="tally" id="s-tally" hidden></div>
     <div id="s-cards" hidden>
-      <h3>Your team</h3>
+      <h3 id="s-you-h">Your team</h3>
       <div class="gallery" id="s-you"></div>
-      <h3>The bot's team</h3>
+      <h3 id="s-bot-h">The bot's team</h3>
       <div class="gallery" id="s-bot"></div>
     </div>
   </section>

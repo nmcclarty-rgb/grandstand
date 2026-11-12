@@ -6,7 +6,7 @@ import { initTooltips } from '../../../stickers/src/ui/tooltip.js';
 import { drawWheel } from './wheel.js';
 import { badgeSvg } from './badge.js';
 import { CLUB_LABELS } from './clubs.js';
-import { newTournament, finishRound, roundsWon, currentRung, LADDER } from '../engine/tournament.js';
+import { newTournament, finishRound, roundsWon, revealOpponent, bracketView, opponent, me, champion, ROUNDS } from '../engine/tournament.js';
 import { COMMON, MODES, formationsOf, newMatch, nextMatch, pick, positionOf, canAfford, maxSpend, showdown, seriesOf, rulesOf } from '../engine/draft.js';
 import { ATTRIBUTES, ATTRIBUTE, valueOf } from '../engine/attributes.js';
 import { botMove } from '../engine/bot.js';
@@ -41,9 +41,14 @@ function remember(key, outcome) {
   try { const r = recall(); if (!r[key]) r[key] = { w: 0, l: 0, d: 0 }; r[key][outcome]++; localStorage.setItem(RECORD, JSON.stringify(r)); } catch { /* private window */ }
 }
 
-let pool, state, result, level = 'medium', mode = 'five', format = 'ladder', tournament = null, busy = false, token = 0;
-const LADDER_RECORD = 'prem-wheel:ladder:v1';
+let pool, state, result, level = 'medium', mode = 'five', format = 'cup', tournament = null, busy = false, token = 0;
+const CUP_RECORD = 'prem-wheel:cup:v1';
+const CLUB_KEY = 'prem-wheel:club:v1';
+const DEFAULT_CLUB = 'Grandstand Town';
+const ROUND_SHORT = ['R64', 'R32', 'R16', 'QF', 'SF', 'Final'];
 const clubName = (code) => CLUB_LABELS[code] ?? code;
+// a crest for a club in the cup (the ones on the cards are looked up by code; the rest carry their own kit)
+const crest = (x) => badgeSvg(x.code, { colours: x.colours, pattern: x.pattern });
 const rules = () => rulesOf(state);
 const recordKey = () => `${mode}-${level}`;
 const attr = (k) => ATTRIBUTE[k];
@@ -83,15 +88,15 @@ function showTitle() {
   const r = recall();
   const bits = Object.keys(MODES).flatMap((m) => ['easy', 'medium', 'hard'].map((l) => [`${MODES[m].label} ${l}`, r[`${m}-${l}`] ?? (m === 'five' ? r[l] : null)]))
     .filter(([, v]) => v).map(([k, v]) => `${k}: ${v.w} won, ${v.l} lost${v.d ? `, ${v.d} drawn` : ''}`);
-  const lad = (() => { try { return JSON.parse(localStorage.getItem(LADDER_RECORD)); } catch { return null; } })();
-  const ladBit = lad ? `Ladder: best run ${lad.best} of ${LADDER.length} rounds, ${lad.champions} time${lad.champions === 1 ? '' : 's'} champions in ${lad.runs} run${lad.runs === 1 ? '' : 's'}` : '';
+  const lad = (() => { try { return JSON.parse(localStorage.getItem(CUP_RECORD)); } catch { return null; } })();
+  const ladBit = lad ? `Cup: best run ${lad.best} of ${ROUNDS.length} rounds, ${lad.champions} time${lad.champions === 1 ? '' : 's'} champions in ${lad.runs} run${lad.runs === 1 ? '' : 's'}` : '';
   $('t-record').textContent = [ladBit, bits.length ? `Quick series: ${bits.join(' · ')}` : ''].filter(Boolean).join('. ') + (ladBit || bits.length ? '.' : '');
   tournament = null;
   show('title');
 }
 
-// Two ways to play. The LADDER is a knockout of single matches against clubs with climbing budgets (tournament.js); the QUICK SERIES is a best of three against a
-// bot of the level you choose. Either way each match is a fresh draft for the attribute drawn at its start.
+// Two ways to play. The CUP is a 64-club knockout of single matches, you a League Two club, every club's budget set by its division (tournament.js); the QUICK
+// SERIES is a best of three against a bot of the level you choose. Either way each match is a fresh draft for the attribute drawn at its start.
 function startMatch(seed) {
   mode = document.querySelector('input[name=mode]:checked').value;
   format = document.querySelector('input[name=format]:checked').value;
@@ -99,11 +104,13 @@ function startMatch(seed) {
   document.body.dataset.format = format;
   result = null;
   const my = ++token;
-  if (format === 'ladder') {
-    tournament = newTournament(pool, seed || Date.now(), { mode });
+  if (format === 'cup') {
+    const name = $('t-name').value.trim() || DEFAULT_CLUB;
+    try { localStorage.setItem(CLUB_KEY, name); } catch { /* private window */ }
+    tournament = newTournament(pool, seed || Date.now(), { mode, name });
     state = tournament.tie;
     level = tournament.level;
-    ladderIntro(my);
+    cupIntro(my);
   } else {
     level = document.querySelector('input[name=level]:checked').value;
     tournament = null;
@@ -112,67 +119,113 @@ function startMatch(seed) {
   }
 }
 
-// ---- the ladder -------------------------------------------------------------------------------------------------------------------
-// the path as a list: won rounds ticked, the current one lit, the rest to come
-function renderPath(targetId) {
-  const t = tournament;
-  $(targetId).replaceChildren(...t.path.map((r, i) => {
+// ---- the cup ----------------------------------------------------------------------------------------------------------------------
+// You see yourself travel: a road of six stops with your crest at the round you are in, and the bracket filling in behind you. What is ahead stays a "?" until the
+// round starts (the engine's bracketView carries nothing else).
+function renderRoad(targetId) {
+  const t = tournament, you = me(t);
+  const stops = ROUNDS.map((name, i) => {
     const h = t.history[i];
-    const cls = h ? (h.winner === 'you' ? 'won' : 'lost') : i === t.round && t.status === 'playing' ? 'now' : 'todo';
-    return el('li', { class: `rung ${cls}` },
-      el('span', { class: 'rn', text: r.name }),
-      el('span', { class: 'rb', html: badgeSvg(r.club) }),
-      el('span', { class: 'rc', text: clubName(r.club) }),
-      el('span', { class: 'rm', text: `£${r.budget}` }),
-      el('span', { class: 'rr', text: h ? `${h.winner === 'you' ? 'W' : 'L'} ${n(h.you)}–${n(h.bot)}` : '' }));
-  }));
+    const here = i === t.round && t.status === 'playing';
+    const cls = h ? (h.winner === 'you' ? 'won' : 'lost') : here ? 'now' : 'todo';
+    const opp = h ? t.teams.find((x) => x.name === h.clubName) : null;
+    return el('li', { class: `stop ${cls}`, title: name },
+      el('span', { class: 'sn', text: ROUND_SHORT[i] }),
+      el('span', { class: 'sb', html: here ? crest(you) : opp ? crest(opp) : '<i>?</i>' }),
+      el('span', { class: 'sr', text: h ? `${h.winner === 'you' ? 'W' : 'L'} ${n(h.you)}–${n(h.bot)}` : here ? 'You' : '' }));
+  });
+  const done = t.status === 'champions';
+  stops.push(el('li', { class: `stop trophy ${done ? 'won' : 'todo'}`, title: 'Champions' },
+    el('span', { class: 'sn', text: 'Cup' }), el('span', { class: 'sb', html: done ? crest(you) : '<i>🏆</i>' }), el('span', { class: 'sr', text: done ? 'Won' : '' })));
+  $(targetId).replaceChildren(...stops);
 }
 
-// the screen before a round: who you are playing and how much money they have against yours
-async function ladderIntro(my) {
-  const rung = currentRung(tournament);
+const COLW = 150;
+function slotEl(x, side) {
+  if (!x.known) return el('div', { class: 'bslot unknown' }, el('span', { class: 'bq', text: '?' }));
+  return el('div', { class: `bslot ${x.you ? 'you' : ''} ${side ? (side.won ? 'won' : 'lost') : ''}`, title: `${x.name} (${x.tierName}, £${x.budget})` },
+    el('span', { class: 'bb', html: crest(x) }), el('span', { class: 'bn', text: x.name }), side ? el('span', { class: 'bs', text: n(side.score) }) : null);
+}
+function renderBracket(targetId) {
+  const t = tournament, v = bracketView(t), box = $(targetId);
+  const cols = v.rounds.map((slots, r) => {
+    const last = r === ROUNDS.length;
+    const body = el('div', { class: 'bcol' });
+    if (last) body.append(el('div', { class: 'bmatch', style: 'height:calc(var(--u) * 64)' }, slotEl(slots[0], null)));
+    else {
+      for (let m = 0; m < slots.length / 2; m++) {
+        const tie = v.ties[r][m];
+        const sides = tie ? [{ won: tie.winner === 'a', score: tie.a }, { won: tie.winner === 'b', score: tie.b }] : [null, null];
+        const label = tie ? ATTRIBUTE[tie.category].short : '';
+        body.append(el('div', { class: `bmatch${tie ? ' played' : ''}`, style: `height:calc(var(--u) * ${2 ** (r + 1)})`, title: label }, slotEl(slots[2 * m], sides[0]), slotEl(slots[2 * m + 1], sides[1])));
+      }
+    }
+    return el('div', { class: `bround${r === v.round && v.status === 'playing' ? ' current' : ''}` }, el('div', { class: 'bhead', text: last ? 'Champions' : ROUNDS[r] }), body);
+  });
+  box.replaceChildren(...cols);
+  box.scrollTop = 0;
+  box.scrollLeft = v.status === 'playing' ? Math.max(0, (v.round - 1) * COLW) : 0;
+}
+const drawCup = (road, bracket) => { renderRoad(road); renderBracket(bracket); };
+
+// the screen before a round: the draw. Your opponent is revealed here, not before, with how much money each side has
+async function cupIntro(my) {
+  const t = tournament, you = me(t), opp = opponent(t);
   show('ladder');
-  $('l-h').textContent = rung.name;
-  $('l-badge').innerHTML = badgeSvg(rung.club);
-  $('l-club').textContent = clubName(rung.club);
+  $('l-h').textContent = ROUNDS[t.round];
+  $('l-you-badge').innerHTML = crest(you);
+  $('l-you-name').textContent = you.name;
+  $('l-you-div').textContent = you.tierName;
   $('l-you').textContent = `£${state.money.you}`;
-  $('l-bot').textContent = `£${rung.budget}`;
-  const pct = Math.round((rung.mult - 1) * 100);
+  $('l-badge').innerHTML = '<span class="qmark">?</span>';
+  $('l-club').textContent = 'Drawing…';
+  $('l-div').textContent = ' ';
+  $('l-bot').textContent = '£?';
+  $('l-say').textContent = t.round === 0 ? 'You are a League Two club. The draw is made, and you do not know who you have.' : 'The draw is made, and you do not know who you have.';
+  drawCup('l-path', 'l-bracket');
+  await holdFor(1500);
+  if (my !== token) return;
+  revealOpponent(t);
+  $('l-badge').innerHTML = crest(opp);
+  $('l-club').textContent = opp.name;
+  $('l-div').textContent = opp.tierName;
+  $('l-bot').textContent = `£${opp.budget}`;
+  const pct = Math.round((opp.budget / state.money.you - 1) * 100);
   $('l-say').textContent = pct === 0 ? 'The same money as you.' : pct < 0 ? `${-pct}% less money than you.` : `${pct}% more money than you: an upset if you win.`;
-  renderPath('l-path');
-  await holdFor(4200);
+  drawCup('l-path', 'l-bracket');
+  await holdFor(4800);
   if (my !== token) return;
   beginMatchPage(my);
 }
 
-// the end of a ladder round: through to the next, or out, or champions
+// the end of a cup round: through to the next, or out, or champions
 async function endRound(m, my) {
   const r = finishRound(tournament);
   const h = tournament.history.at(-1);
-  const club = clubName(h.club);
+  const club = h.clubName;
   const margin = Math.abs(h.you - h.bot);
-  const how = r.decidedBy && r.decidedBy !== 'matches' && r.decidedBy !== 'share of the records' ? ` (level on the count: ${r.decidedBy})` : '';
+  const how = r.decidedBy && r.decidedBy !== 'the count' ? ` (level on the count: ${r.decidedBy})` : '';
   const line = r.winner === 'you' ? `You beat ${club} by ${n(margin)}${how}.` : `${club} beat you by ${n(margin)}${how}.`;
-  $('s-path').hidden = false;
-  renderPath('s-path');
+  $('s-path').hidden = false; $('s-bracket').hidden = false;
+  drawCup('s-path', 's-bracket');
   if (tournament.status === 'playing') {
-    const next = currentRung(tournament);
     $('s-hint').hidden = false;
-    await countdown(5, (left) => { $('s-say').textContent = `${line} Through to the ${next.name}: ${clubName(next.club)}, £${next.budget}. Starting in ${left}…`; });
+    await countdown(6, (left) => { $('s-say').textContent = `${line} Through to the ${ROUNDS[tournament.round]}. You will not know the opponent until it starts: ${left}…`; });
     if (my !== token) return;
     state = tournament.tie;
-    ladderIntro(++token);
+    cupIntro(++token);
     return;
   }
   const champions = tournament.status === 'champions';
   const won = roundsWon(tournament);
+  const winner = champion(tournament);
   $('s-say').innerHTML = champions
-    ? `<span class="verdict won">Champions!</span> You won all ${LADDER.length} rounds. ${esc(line)} Code: ${esc(tournament.seed)}.`
-    : `<span class="verdict lost">Knocked out</span> in the ${esc(h.name)} by ${esc(club)}, after winning ${won} round${won === 1 ? '' : 's'}. ${esc(line)} Code: ${esc(tournament.seed)}.`;
+    ? `<span class="verdict won">Champions!</span> ${esc(me(tournament).name)} won the cup from League Two: all ${ROUNDS.length} rounds. ${esc(line)} Code: ${esc(tournament.seed)}.`
+    : `<span class="verdict lost">Knocked out</span> in the ${esc(h.name)} by ${esc(club)}, after winning ${won} round${won === 1 ? '' : 's'}. ${esc(line)} ${esc(winner.name)} won the cup. Code: ${esc(tournament.seed)}.`;
   try {
-    const old = JSON.parse(localStorage.getItem(LADDER_RECORD)) ?? { best: 0, champions: 0, runs: 0 };
+    const old = JSON.parse(localStorage.getItem(CUP_RECORD)) ?? { best: 0, champions: 0, runs: 0 };
     old.runs++; old.best = Math.max(old.best, won); if (champions) old.champions++;
-    localStorage.setItem(LADDER_RECORD, JSON.stringify(old));
+    localStorage.setItem(CUP_RECORD, JSON.stringify(old));
   } catch { /* private window */ }
   $('s-actions').replaceChildren(
     el('button', { class: 'primary', type: 'button', text: 'Play again', onclick: () => startMatch('') }),
@@ -226,10 +279,13 @@ function spinFormation(my) {
 async function beginMatchPage(my) {
   busy = true;
   show('draft');
-  const rung = tournament ? currentRung(tournament) : null;
-  $('d-matchlbl').textContent = tournament ? rung.name : `Match ${state.match}`;
-  $('d-botlbl').textContent = tournament ? `${clubName(rung.club)} has` : 'Bot has';
+  const opp = tournament ? opponent(tournament) : null;
+  $('d-matchlbl').textContent = tournament ? ROUNDS[tournament.round] : `Match ${state.match}`;
+  $('d-botlbl').textContent = tournament ? `${opp.name} has` : 'Bot has';
   $('d-series').hidden = !!tournament;
+  $('p-you-h').textContent = tournament ? me(tournament).name : 'Your team';
+  $('p-bot-h').textContent = tournament ? opp.name : "The bot's team";
+  $('s-you-h').textContent = $('p-you-h').textContent; $('s-bot-h').textContent = $('p-bot-h').textContent;
   $('d-rounds').textContent = `/${rules().rounds}`;
   $('d-round').textContent = 1;
   $('d-attr').textContent = '?';
@@ -240,11 +296,11 @@ async function beginMatchPage(my) {
   $('d-board').classList.add('waiting');
   renderSeries('d-series', state.match - 1, false, true);   // the attribute is not shown until the wheel has landed
   renderAll();
-  say(tournament ? `${rung.name} against ${clubName(rung.club)}. Spin the wheel for the attribute.` : state.match === 1 ? 'Spin the wheel for the first attribute.' : `Match ${state.match}: a fresh team and a fresh budget. Spin for the attribute.`);
+  say(tournament ? `${ROUNDS[tournament.round]} against ${opp.name}. Spin the wheel for the attribute.` : state.match === 1 ? 'Spin the wheel for the first attribute.' : `Match ${state.match}: a fresh team and a fresh budget. Spin for the attribute.`);
   if (!(await spinAttribute(my))) return;
   $('d-attr').textContent = attr(state.category).short;
   renderSeries('d-series', state.match - 1);
-  say(`${tournament ? currentRung(tournament).name : `Match ${state.match}`}: <b>${attr(state.category).label}</b>. ${attr(state.category).unit.replace(/^./, (c) => c.toUpperCase())}, added up. Build a team for it.`);
+  say(`${tournament ? ROUNDS[tournament.round] : `Match ${state.match}`}: <b>${attr(state.category).label}</b>. ${attr(state.category).unit.replace(/^./, (c) => c.toUpperCase())}, added up. Build a team for it.`);
   await sleep(1000);
   if (my !== token) return;
   await runRound(my);
@@ -368,9 +424,9 @@ async function goShowdown() {
   $('s-tally').hidden = true;
   $('s-cards').hidden = true;
   $('s-you').replaceChildren(); $('s-bot').replaceChildren();
-  $('s-head').textContent = tournament ? `${currentRung(tournament).name}: ${clubName(currentRung(tournament).club)}` : `Match ${state.match}: ${attr(state.category).label}`;
+  $('s-head').textContent = tournament ? `${ROUNDS[tournament.round]}: ${opponent(tournament).name}` : `Match ${state.match}: ${attr(state.category).label}`;
   $('s-series').hidden = !!tournament;
-  $('s-path').hidden = true;
+  $('s-path').hidden = true; $('s-bracket').hidden = true;
   if (!tournament) renderSeries('s-series', state.match - 1, true);
   $('s-say').textContent = `Both teams are in. ${attr(state.category).unit.replace(/^./, (c) => c.toUpperCase())}, added up.`;
   $('s-actions').replaceChildren();
@@ -490,7 +546,7 @@ function buildManual() {
     <h2 id="m-h">How to play</h2>
     <h3>Two ways to play</h3>
     <ul>
-      <li><b>Knockout ladder</b> (the main game): seven rounds, each a single match against a Premier League club. The opponent is always the same bot; what changes is its <b>money</b>. A small club has less than you, a big club has more: from 60% of your budget in Round 1 up to 120% in the Final. Win a round and you go through; <b>lose and you are out</b>. Win the Final and you are champions. If a round is level on the count, more appearances goes through, then a coin.</li>
+      <li><b>The Cup</b> (the main game): 64 clubs from the English pyramid, <b>16 each from the Premier League, the Championship and League One, and League Two (you are one of them)</b>. Six knockout rounds, each a single match. The opponent is always the same bot; what changes is its <b>money</b>, which follows the division: a League Two club has about what you have, a Premier League club up to 40% more. You do not know who you play until the round starts, and the bracket fills in behind you as you go. Win a round and you go through; <b>lose and you are out</b>. If a round is level on the count, more appearances goes through, then a coin. Name your club on the title screen.</li>
       <li><b>Quick series</b>: a best of three against a bot of the level you choose (easy, medium or hard).</li>
     </ul>
     <h3>A match</h3>
@@ -527,15 +583,17 @@ function wire() {
   $('d-quit').addEventListener('click', () => { token++; skipSpin = null; $('d-wheelbox').hidden = true; showTitle(); });
   $('d-wheelbox').addEventListener('click', () => skipSpin?.());
   $('show').addEventListener('click', () => skipHold?.());
-  $('ladder').addEventListener('click', () => skipHold?.());
-  const tf = () => { $('t-levels').hidden = document.querySelector('input[name=format]:checked').value === 'ladder'; };
+  $('ladder').addEventListener('click', (e) => { if (!e.target.closest('.bracket')) skipHold?.(); });
+  const tf = () => { const cup = document.querySelector('input[name=format]:checked').value === 'cup'; $('t-levels').hidden = cup; $('t-clubbox').hidden = !cup; };
   document.querySelectorAll('input[name=format]').forEach((x) => x.addEventListener('change', tf));
   tf();
   document.addEventListener('keydown', (e) => { if ((e.key === ' ' || e.key === 'Enter') && skipHold && (!$('show').hidden || !$('ladder').hidden) && !(e.target instanceof HTMLButtonElement)) { e.preventDefault(); skipHold(); } });
-  const fm = params.get('format'); if (fm === 'ladder' || fm === 'series') document.querySelector(`input[name=format][value=${fm}]`).checked = true;
+  let fm = params.get('format'); if (fm === 'ladder') fm = 'cup';
+  if (fm === 'cup' || fm === 'series') document.querySelector(`input[name=format][value=${fm}]`).checked = true;
   const m = params.get('mode'); if (m && MODES[m]) document.querySelector(`input[name=mode][value=${m}]`).checked = true;
   const l = params.get('level'); if (['easy', 'medium', 'hard'].includes(l)) document.querySelector(`input[name=level][value=${l}]`).checked = true;
   if (params.get('seed')) $('t-seed').value = params.get('seed');
+  try { $('t-name').value = params.get('club') ?? localStorage.getItem(CLUB_KEY) ?? ''; } catch { $('t-name').value = params.get('club') ?? ''; }
   tf();
 }
 

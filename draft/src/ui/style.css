@@ -160,24 +160,50 @@ h3 { font: 800 13px/1 system-ui; letter-spacing: .12em; text-transform: uppercas
 .wheelbox svg.landed { filter: drop-shadow(0 0 18px #f5c542aa) drop-shadow(0 8px 12px #000b); }
 .wheelcap { margin: 0; font: 900 22px/1.1 Impact, "Arial Narrow Bold", sans-serif; letter-spacing: .05em; text-transform: uppercase; text-align: center; min-height: 1.1em; color: #fff; }
 
-/* the knockout ladder: the screen before a round, and the path */
-.laddervs { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center; background: #0007; border-radius: 12px; padding: 16px; margin: 8px 0 10px; }
-.lv { text-align: center; }
-.lv small { display: block; font: 700 11px system-ui; letter-spacing: .12em; text-transform: uppercase; color: #b7cdbd; }
-.lv.you b { font: 900 40px/1 Impact, sans-serif; color: var(--gold); }
-.lv.vsword { font: 900 22px Impact, sans-serif; color: #b7cdbd; }
-.lv.bot { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.lv.bot b { font: 900 24px/1.1 Impact, sans-serif; letter-spacing: .03em; text-transform: uppercase; }
+/* the cup: the screen before a round, the road, and the bracket */
+.laddervs { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: start; background: #0007; border-radius: 12px; padding: 16px; margin: 8px 0 10px; }
+.lv { display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center; min-width: 0; }
+.lv small { font: 700 11px system-ui; letter-spacing: .12em; text-transform: uppercase; color: #b7cdbd; min-height: 1.2em; }
+.lv .lname { font: 900 22px/1.1 Impact, sans-serif; letter-spacing: .03em; text-transform: uppercase; overflow-wrap: anywhere; }
+.lv.vsword { font: 900 22px Impact, sans-serif; color: #b7cdbd; align-self: center; }
+.lbadge { display: block; min-height: 66px; }
 .lbadge svg { width: 56px; height: auto; display: block; filter: drop-shadow(0 2px 3px #0009); }
+.lbadge .qmark { display: grid; place-items: center; width: 56px; height: 66px; font: 900 34px Impact, sans-serif; color: #b7cdbd; border: 2px dashed #ffffff44; border-radius: 10px 10px 28px 28px; }
 .lmoney { font: 900 40px/1 Impact, sans-serif; color: #ff9d8a; }
-.path { list-style: none; margin: 10px 0 8px; padding: 0; display: grid; gap: 6px; max-width: 640px; }
-.rung { display: grid; grid-template-columns: 110px 28px 1fr auto auto; gap: 10px; align-items: center; padding: 6px 12px; border-radius: 8px; background: #0005; border: 1px solid #ffffff1a; font: 700 14px system-ui; }
-.rung .rn { color: #b7cdbd; font: 800 11px system-ui; letter-spacing: .1em; text-transform: uppercase; }
-.rung .rb svg { width: 22px; height: auto; display: block; }
-.rung .rm { font: 900 16px Impact, sans-serif; color: #ff9d8a; }
-.rung .rr { font: 800 12px system-ui; min-width: 70px; text-align: right; font-variant-numeric: tabular-nums; }
-.rung.now { border-color: var(--gold); background: #f5c54222; }
-.rung.won { background: #58d68d22; border-color: #58d68d77; } .rung.won .rr { color: #9df0bd; }
-.rung.lost { background: #ff6b6b22; border-color: #ff6b6b77; } .rung.lost .rr { color: #ffb0b0; }
-.rung.todo { opacity: .75; }
-@media (max-width: 700px) { .rung { grid-template-columns: 78px 24px 1fr auto; } .rung .rr { grid-column: 1 / -1; text-align: left; min-width: 0; } .rung .rr:empty { display: none; } .laddervs { padding: 12px 8px; } .lv.you b, .lmoney { font-size: 32px; } }
+.lmoney.gold { color: var(--gold); }
+.clubbox { display: flex; flex-direction: column; gap: 4px; margin: 14px 0 0; font: 700 12px system-ui; letter-spacing: .06em; text-transform: uppercase; color: #b7cdbd; max-width: 340px; }
+.clubbox input { font: 700 16px system-ui; padding: 10px 12px; border-radius: 8px; border: 1px solid #ffffff33; background: #0006; color: #fff; text-transform: none; letter-spacing: 0; }
+
+/* the road: six stops and the cup, with your crest where you are */
+.road { list-style: none; margin: 10px 0 8px; padding: 0; display: flex; gap: 4px; max-width: 720px; }
+.stop { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 2px; border-radius: 8px; background: #0005; border: 1px solid #ffffff1a; font: 700 11px system-ui; position: relative; }
+.stop .sn { color: #b7cdbd; font: 800 10px system-ui; letter-spacing: .08em; text-transform: uppercase; }
+.stop .sb { display: grid; place-items: center; height: 30px; }
+.stop .sb svg { width: 22px; height: auto; display: block; }
+.stop .sb i { font: 900 20px Impact, sans-serif; font-style: normal; color: #ffffff55; }
+.stop .sr { font: 800 10px system-ui; min-height: 1.2em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.stop.now { border-color: var(--gold); background: #f5c54222; box-shadow: 0 0 12px #f5c54255; } .stop.now .sb svg { width: 28px; animation: bob 1.2s ease-in-out infinite; } .stop.now .sr { color: var(--gold); }
+.stop.won { background: #58d68d22; border-color: #58d68d77; } .stop.won .sr { color: #9df0bd; }
+.stop.lost { background: #ff6b6b22; border-color: #ff6b6b77; } .stop.lost .sr { color: #ffb0b0; }
+.stop.todo { opacity: .7; }
+@keyframes bob { 50% { transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .stop.now .sb svg { animation: none; } }
+
+/* the bracket: rounds as columns, 64 slots down the left; you start at the top and the road runs along it */
+.bracket { --u: 24px; overflow: auto; max-height: 440px; max-width: 100%; display: flex; align-items: flex-start; background: #0006; border: 1px solid #ffffff1a; border-radius: 10px; margin: 8px 0; -webkit-overflow-scrolling: touch; }
+.bround { flex: 0 0 150px; display: flex; flex-direction: column; border-right: 1px solid #ffffff12; }
+.bround.current { background: #f5c54210; }
+.bhead { position: sticky; top: 0; z-index: 2; background: #101914; padding: 6px 8px; font: 800 10px system-ui; letter-spacing: .1em; text-transform: uppercase; color: #b7cdbd; border-bottom: 1px solid #ffffff1a; }
+.bround.current .bhead { color: var(--gold); }
+.bmatch { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 0 6px; position: relative; }
+.bmatch::after { content: ""; position: absolute; right: 0; top: 50%; width: 6px; border-top: 1px solid #ffffff33; }
+.bslot { display: flex; align-items: center; gap: 5px; height: calc(var(--u) - 4px); padding: 0 6px; border-radius: 5px; background: #ffffff12; font: 700 11px system-ui; min-width: 0; }
+.bslot .bb svg { width: 12px; height: auto; display: block; }
+.bslot .bn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bslot .bs { font: 800 11px system-ui; font-variant-numeric: tabular-nums; }
+.bslot.unknown { background: transparent; border: 1px dashed #ffffff22; color: #ffffff44; justify-content: center; }
+.bslot.you { background: #f5c54233; outline: 1px solid var(--gold); }
+.bslot.won { background: #58d68d2a; } .bslot.won .bn { font-weight: 900; }
+.bslot.lost { opacity: .6; }
+.bslot.you.lost { background: #ff6b6b33; opacity: 1; outline-color: #ff6b6b; }
+@media (max-width: 700px) { .laddervs { padding: 12px 8px; gap: 6px; } .lmoney { font-size: 32px; } .lv .lname { font-size: 17px; } .bracket { max-height: 380px; } }

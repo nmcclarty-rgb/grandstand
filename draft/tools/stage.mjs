@@ -29,6 +29,7 @@ put('src/draft/draft.js', fix(read('draft/src/engine/draft.js')));
 put('src/draft/bot.js', fix(read('draft/src/engine/bot.js')));
 put('src/draft/attributes.js', fix(read('draft/src/engine/attributes.js')));
 put('src/draft/tournament.js', fix(read('draft/src/engine/tournament.js')));
+put('src/draft/pyramid.js', fix(read('draft/src/engine/pyramid.js')));
 put('src/ui/wheel.js', read('draft/src/ui/wheel.js'));
 put('src/ui/blind.js', fix(read('draft/src/ui/game.js')).replace("'../engine/draft.js'", "'../draft/draft.js'").replace("'../engine/bot.js'", "'../draft/bot.js'").replace("'../engine/attributes.js'", "'../draft/attributes.js'").replace("'../engine/tournament.js'", "'../draft/tournament.js'"));
 
