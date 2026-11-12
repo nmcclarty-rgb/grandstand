@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prem Wheel</title>
+  <meta name="theme-color" content="#0b2d1a">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230f3d24' stroke='%23f5c542' stroke-width='4'/%3E%3Cpath d='M32 32 L32 4 A28 28 0 0 1 59 24 Z M32 32 L51 53 A28 28 0 0 1 13 53 Z M32 32 L5 24 A28 28 0 0 1 32 4 Z' fill='%23f5c542' opacity='.9'/%3E%3Ccircle cx='32' cy='32' r='7' fill='%230b2d1a' stroke='%23f5c542' stroke-width='3'/%3E%3C/svg%3E">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Prem Wheel: take a League Two nobody to the Cup">
+  <meta property="og:description" content="Spin the wheel, draft blind from a name and a price, and beat the Premier League giants. 64 clubs, six rounds, one trophy.">
+  <meta name="twitter:card" content="summary">
+  <meta name="description" content="Spin the wheel, draft blind and take a League Two nobody to the Cup. Names and prices only, 34 seasons of Premier League careers.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&display=swap">
+  <link rel="stylesheet" href="../stickers/src/ui/style.css">
+  <link rel="stylesheet" href="src/ui/style.css">
+</head>
+<body data-screen="loading">
+<main>
+  <section class="screen" id="loading"><p class="lede" id="l-msg">Loading the players…</p></section>
+
+  <section class="screen" id="title" hidden aria-labelledby="t-h">
+    <div class="hero">
+      <p class="kicker">The football draft game</p>
+      <h1 id="t-h" tabindex="-1">Prem <em>Wheel</em></h1>
+      <p class="blurb">Every great manager is a gambler. You have a shoestring budget, a bracket full of giants and a board of players with <b>nothing but a name and a price tag</b>. Spin the wheel, back your hunches, and drag a League Two nobody all the way to the Cup.</p>
+    </div>
+
+    <ul class="hooks">
+      <li><span class="hi" aria-hidden="true">🎡</span><b>Spin the wheel</b><span>Goals. Titles. Clean sheets. Red cards. The wheel decides what wins the match.</span></li>
+      <li><span class="hi" aria-hidden="true">🕵️</span><b>Draft blind</b><span>A name and a price, nothing else. Bargain or trap? Trust your football brain.</span></li>
+      <li><span class="hi" aria-hidden="true">🏆</span><b>Slay the giants</b><span>64 clubs, six rounds, one trophy. You start in League Two with the smallest wallet in the cup.</span></li>
+    </ul>
+
+    <div class="clubcard" id="t-club">
+      <div class="shirt" id="t-shirt" aria-hidden="true"></div>
+      <div class="clubform">
+        <label class="clubname" for="t-name">Your club</label>
+        <div class="namerow">
+          <input id="t-name" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Name your club">
+          <button id="t-dice" class="ghost" type="button" title="A random name" aria-label="A random club name">🎲</button>
+        </div>
+        <p class="clubsub" id="t-clubsub">League Two</p>
+        <div class="pickrow" role="group" aria-label="Colours"><span class="pl">Colours</span><div class="swatches" id="t-colours"></div></div>
+        <div class="pickrow" role="group" aria-label="Shirt design"><span class="pl">Shirt</span><div class="designs" id="t-designs"></div></div>
+      </div>
+    </div>
+
+    <div class="cta">
+      <button id="t-new" class="primary kickoff" type="button">Kick off</button>
+      <p class="runline" id="t-summary">The Cup · 11-a-side</p>
+      <div class="links">
+        <button id="t-more" class="linkbtn" type="button" aria-expanded="false" aria-controls="t-other">Other game modes</button>
+        <button id="t-help" class="linkbtn" type="button">How to play</button>
+      </div>
+    </div>
+
+    <div class="other" id="t-other" hidden>
+      <fieldset class="levels" id="t-format">
+        <legend>How to play</legend>
+        <label><input type="radio" name="format" value="cup" checked><span><b>The Cup</b> 64 clubs from the English pyramid, you a League Two side with the smallest budget. Six knockout rounds, one match each. Lose and you are out</span></label>
+        <label><input type="radio" name="format" value="series"><span><b>Quick series</b> a best of three against a bot of the level you choose</span></label>
+      </fieldset>
+      <fieldset class="levels" id="t-modes">
+        <legend>Game</legend>
+        <label><input type="radio" name="mode" value="eleven" checked><span><b>11-a-side</b> £30m, eleven rounds: a formation is rolled at the start and you work through it</span></label>
+        <label><input type="radio" name="mode" value="five"><span><b>5-a-side</b> £10m, five rounds: a quick one, in a rolled formation</span></label>
+      </fieldset>
+      <fieldset class="levels" id="t-levels">
+        <legend>Opponent</legend>
+        <label><input type="radio" name="level" value="easy"><span><b>Easy</b> goes on names: buys the dearest player it can</span></label>
+        <label><input type="radio" name="level" value="medium" checked><span><b>Medium</b> knows the stats, through a fog</span></label>
+        <label><input type="radio" name="level" value="hard"><span><b>Hard</b> knows every stat exactly and hunts for value</span></label>
+      </fieldset>
+      <label class="seedbox">Match code (optional)
+        <input id="t-seed" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="random">
+      </label>
+      <p class="fine seedhelp">Leave it blank for a random match. The same code gives the same draw, wheel and boards, so you and a friend can play the same match and compare.</p>
+    </div>
+
+    <p class="fine" id="t-record"></p>
+    <p class="fine">Built on the Sticker Season career cards. Player figures are FBref/Opta, 1992/93 to 2025/26. Badges and shirts are generated, not real crests.</p>
+  </section>
+
+  <section class="screen" id="ladder" hidden aria-labelledby="l-h">
+    <h2 id="l-h" tabindex="-1" class="bigh">Round of 64</h2>
+    <div class="laddervs">
+      <div class="lv you"><span class="lbadge" id="l-you-badge"></span><b class="lname" id="l-you-name">You</b><small id="l-you-div">League Two</small><span class="lmoney gold" id="l-you">£10</span></div>
+      <div class="lv vsword">vs</div>
+      <div class="lv bot"><span class="lbadge" id="l-badge"></span><b class="lname" id="l-club">Club</b><small id="l-div">&nbsp;</small><span class="lmoney" id="l-bot">£7</span></div>
+    </div>
+    <p class="say" id="l-say"></p>
+    <ol class="road" id="l-path" aria-label="Your road to the final"></ol>
+    <div class="bracket" id="l-bracket" aria-label="The bracket"></div>
+    <p class="fine">Tap anywhere (or press Space) to start now. Scroll the bracket sideways to see the other half.</p>
+  </section>
+
+  <section class="screen" id="draft" hidden aria-labelledby="d-h">
+    <header class="dhud">
+      <div class="dstat attr"><small>Counting</small><b id="d-attr">…</b></div>
+      <div class="dstat"><small><span id="d-matchlbl">Match 1</span> · Round</small><b id="d-round">1</b><i id="d-rounds">/5</i></div>
+      <div class="dpos"><small id="d-poslabel">The wheel says</small><h2 id="d-h" tabindex="-1"><span id="d-pos">&nbsp;</span></h2></div>
+      <div class="dstat money"><small>You have</small><b id="d-money">£10m</b></div>
+      <div class="dstat money bot"><small id="d-botlbl">Bot has</small><b id="d-botmoney">£10m</b></div>
+    </header>
+    <div class="series" id="d-series" aria-label="The series"></div>
+    <div class="wheelbox" id="d-wheelbox" hidden title="Click to skip the spin">
+      <svg id="d-wheel"></svg>
+      <p class="wheelcap" id="d-wheelcap" aria-live="polite"></p>
+    </div>
+    <p class="say" id="d-say" role="status" aria-live="polite"></p>
+    <p class="formation" id="d-formation" hidden>Formation <b id="d-formation-name">…</b></p>
+    <div class="tiles" id="d-board" aria-label="The board"></div>
+    <div class="pitches">
+      <div><h3 id="p-you-h">Your team</h3><div class="pitch" id="p-you"></div></div>
+      <div><h3 id="p-bot-h">The bot's team</h3><div class="pitch" id="p-bot"></div></div>
+    </div>
+    <div class="actions"><button id="d-quit" class="ghost" type="button">Quit</button></div>
+  </section>
+
+  <section class="screen" id="show" hidden aria-labelledby="s-h">
+    <h2 id="s-h" tabindex="-1" class="bigh"><span id="s-head">Showdown</span></h2>
+    <p class="say" id="s-say" role="status" aria-live="polite"></p>
+    <div class="series" id="s-series" aria-label="The series"></div>
+    <div class="actions" id="s-actions"></div>
+    <p class="fine" id="s-hint" hidden>Tap anywhere (or press Space) to skip the wait.</p>
+    <ol class="road" id="s-path" hidden aria-label="Your run"></ol>
+    <div class="bracket" id="s-bracket" hidden aria-label="The bracket"></div>
+    <div class="tally" id="s-tally" hidden></div>
+    <div id="s-cards" hidden>
+      <h3 id="s-you-h">Your team</h3>
+      <div class="gallery" id="s-you"></div>
+      <h3 id="s-bot-h">The bot's team</h3>
+      <div class="gallery" id="s-bot"></div>
+    </div>
+  </section>
+</main>
+
+<dialog id="manual" aria-labelledby="m-h">
+  <button class="close" type="button" aria-label="Close" onclick="this.closest('dialog').close()">×</button>
+  <div id="m-body"></div>
+</dialog>
+
+<script type="module" src="src/ui/game.js"></script>
+</body>
+</html>

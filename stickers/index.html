@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sticker Season</title>
+  <meta name="description" content="A Balatro x Top Trumps x Panini card game on 34 seasons of Premier League players. Survive a 38-game season.">
+  <link rel="stylesheet" href="src/ui/style.css">
+</head>
+<body data-screen="loading">
+<main>
+  <header class="hud" id="hud" hidden>
+    <div class="hud-top">
+      <div class="hstat"><small>Matchday</small><b id="h-md">1</b><i>/38</i></div>
+      <div class="hstat"><small>Money</small><b id="h-money">£4</b></div>
+      <div class="hstat"><small>VAR</small><b id="h-var">5</b></div>
+      <div class="hstat"><small>Squad</small><button id="h-squad" class="linkish" type="button" title="See your squad">24</button></div>
+      <div class="hud-actions">
+        <button id="h-help" class="ghost" type="button">How to play</button>
+        <button id="h-quit" class="ghost" type="button">Quit</button>
+      </div>
+    </div>
+    <ul class="slots" id="h-mgrs" aria-label="Your managers"></ul>
+  </header>
+
+  <!-- ===== title ===== -->
+  <section class="screen" id="title" aria-labelledby="t-h">
+    <h1 id="t-h" tabindex="-1">Sticker <em>Season</em></h1>
+    <p class="lede">Thirty-four seasons of Premier League careers, as stickers: one card for every player. Build a squad, play a hand each matchday,
+      and make the score beat the target. Thirty-eight matchdays. One bad one and you're sacked.</p>
+    <div class="title-actions">
+      <button id="t-new" class="primary" type="button">Start a season</button>
+      <button id="t-continue" class="ghost" type="button" hidden>Continue</button>
+      <button id="t-help" class="ghost" type="button">How to play</button>
+    </div>
+    <label class="seedbox">Season code (optional) <input id="t-seed" type="text" inputmode="text" autocomplete="off" placeholder="random"></label>
+    <p class="fine seedhelp">Leave it blank for a random season. Type any word to replay the same one: the same code gives the same starting squad and the same wheel spins, so you can retry a season or compare with a friend.</p>
+    <p class="best" id="t-best"></p>
+    <p class="status" id="t-status" role="status" aria-live="polite"></p>
+  </section>
+
+  <!-- ===== matchday intro: the wheel ===== -->
+  <section class="screen" id="intro" aria-labelledby="i-h" hidden>
+    <h2 id="i-h" tabindex="-1">Matchday <span id="i-md">1</span> of 38</h2>
+    <p class="target">Target <b id="i-target">100</b></p>
+    <div class="wheel" id="wheel" aria-label="The wheel: this matchday's stat"></div>
+    <p class="cat-name" id="i-cat" aria-live="polite">&nbsp;</p>
+    <p class="blurb" id="i-blurb">&nbsp;</p>
+    <div class="strength" id="i-strength" aria-label="Your squad's best eight stickers in each stat"></div>
+    <div class="actions">
+      <button id="i-var" class="ghost" type="button">VAR</button>
+      <button id="i-kick" class="primary" type="button">Kick off</button>
+    </div>
+    <p class="hint">VAR overturns the spin and spins again, to a different stat. Five a season, and only before kick-off.</p>
+  </section>
+
+  <!-- ===== the fixture ===== -->
+  <section class="screen" id="play" aria-labelledby="p-h" hidden>
+    <h2 id="p-h" tabindex="-1" class="sr">The fixture</h2>
+    <div class="meter">
+      <div class="big" id="score">0<small>of 100</small></div>
+      <div class="pills"><span id="cat"></span><span id="hands"></span><span id="discards"></span><span id="deckleft"></span></div>
+      <div class="track"><div class="fill" id="fill"></div></div>
+    </div>
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+
+    <div class="hand" id="hand"></div>
+
+    <div class="actionbar" id="actionbar">
+      <div class="actions">
+        <button id="play-btn" class="primary" type="button">Play hand</button>
+        <button id="discard" class="ghost" type="button">Discard</button>
+        <button id="hint" class="ghost" type="button" title="Select the best hand you could play">Hint</button>
+        <button id="clear" class="ghost" type="button">Clear</button>
+      </div>
+      <p class="blurb keys">Keys: 1-8 pick · Enter play · D discard · H hint · Esc clear · hover any number to see what it means</p>
+    </div>
+
+    <div class="live" id="live"><div class="detail"></div></div>
+
+    <div class="result" id="result" hidden>
+      <h3 id="r-h" tabindex="-1"></h3>
+      <ul class="ledger" id="r-ledger"></ul>
+      <button id="r-go" class="primary" type="button">Continue</button>
+    </div>
+  </section>
+
+  <!-- ===== the shop ===== -->
+  <section class="screen" id="shop" aria-labelledby="s-h" hidden>
+    <h2 id="s-h" tabindex="-1">Transfer window <small id="s-sub"></small></h2>
+    <div class="shop-bar">
+      <p class="purse">Purse <b id="s-money">£0</b></p>
+      <button id="s-reroll" class="ghost" type="button">Reroll</button>
+      <button id="s-next" class="primary" type="button">Next matchday</button>
+    </div>
+    <p class="status" id="s-status" role="status" aria-live="polite"></p>
+
+    <div class="pack-panel" id="pack-panel" hidden>
+      <h3 id="pk-h" tabindex="-1">Choose one sticker to keep</h3>
+      <div class="gallery" id="pk-cards"></div>
+      <button id="pk-skip" class="ghost" type="button">Keep none</button>
+    </div>
+
+    <div class="offers" id="offers"></div>
+
+    <h3 class="sub">Your managers</h3>
+    <ul class="owned" id="owned"></ul>
+  </section>
+
+  <!-- ===== the end ===== -->
+  <section class="screen" id="over" aria-labelledby="o-h" hidden>
+    <h2 id="o-h" tabindex="-1"></h2>
+    <p class="lede" id="o-lede"></p>
+    <dl class="summary" id="o-summary"></dl>
+    <h3 class="sub">Form guide</h3>
+    <ol class="form" id="o-form" aria-label="Matchday by matchday"></ol>
+    <div class="actions">
+      <button id="o-new" class="primary" type="button">New season</button>
+      <button id="o-again" class="ghost" type="button">Same code again</button>
+      <button id="o-title" class="ghost" type="button">Title</button>
+    </div>
+  </section>
+</main>
+
+<dialog id="manual" aria-labelledby="m-h">
+  <form method="dialog"><button class="close" aria-label="Close">×</button></form>
+  <div id="m-body"></div>
+</dialog>
+
+<dialog id="squad" aria-labelledby="q-h">
+  <form method="dialog"><button class="close" aria-label="Close">×</button></form>
+  <h2 id="q-h">Your squad</h2>
+  <p class="blurb" id="q-note"></p>
+  <div class="gallery" id="q-cards"></div>
+</dialog>
+
+<script type="module" src="src/ui/game.js"></script>
+</body>
+</html>

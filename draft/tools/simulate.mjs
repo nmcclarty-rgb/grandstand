@@ -1,0 +1,71 @@
+// Balance sim: who wins when the levels play each other, and what does a good draft look like?
+//
+//   node tools/simulate.mjs                 # 1000 matches per pairing
+//   node tools/simulate.mjs --runs 3000
+import { readFileSync } from 'node:fs';
+import { makePool } from '../../stickers/src/engine/deck.js';
+import { newMatch, nextMatch, pick, showdown, seriesOf } from '../src/engine/draft.js';
+import { choose, LEVELS } from '../src/engine/bot.js';
+import * as H from '../src/engine/draft.js';
+import { makeRng } from '../../stickers/src/engine/rng.js';
+
+const arg = (name, dflt) => { const i = process.argv.indexOf(`--${name}`); return i > -1 ? Number(process.argv[i + 1]) : dflt; };
+const RUNS = arg('runs', 1000);
+const MODE = process.argv.includes('--mode') ? process.argv[process.argv.indexOf('--mode') + 1] : 'five';
+if (process.argv.includes('--budget')) H.MODES[MODE].budget = arg('budget', H.MODES[MODE].budget);
+const pool = makePool(JSON.parse(readFileSync(new URL('../../stickers/src/data/cards.json', import.meta.url), 'utf8')));
+
+// a novice who picks at random among legal picks
+
+// policy: 'random' or a bot level. Plays a whole series (a fresh draft each match, first to two).
+function play(seed, youPolicy, botPolicy) {
+  const s = newMatch(pool, seed, { level: botPolicy, mode: MODE });
+  const rng = makeRng(`${seed}|rand`);
+  for (;;) {
+    while (s.phase === 'draft') {
+      const who = s.turn, policy = who === 'you' ? youPolicy : botPolicy;
+      const id = policy === 'random'
+        ? rng.pick(H.free(s).filter((b) => H.canAfford(s, who, b.price))).card.id
+        : choose(s, who, policy);
+      pick(s, who, id);
+    }
+    showdown(s);
+    if (s.phase === 'over') break;
+    nextMatch(s);
+  }
+  return { s, r: { ...seriesOf(s), matches: s.results } };
+}
+
+const policies = ['random', ...LEVELS];
+console.log(`\n${MODE}, budget £${H.MODES[MODE].budget}, best of three, a fresh team each match, ${RUNS} matches per pairing. Rows are "you", columns are the opponent. Win % (draws count half).\n`);
+console.log(''.padEnd(10) + policies.map((p) => p.padStart(9)).join(''));
+const stats = {};
+for (const a of policies) {
+  let line = a.padEnd(10);
+  for (const b of policies) {
+    let w = 0, d = 0;
+    for (let i = 0; i < RUNS; i++) {
+      const { r } = play(`${a}-${b}-${i}`, a, b);
+      if (r.winner === 'you') w++; else if (r.winner === 'draw') d++;
+    }
+    line += `${(100 * (w + d / 2) / RUNS).toFixed(0)}%`.padStart(9);
+  }
+  console.log(line);
+}
+
+// how a series goes
+{
+  let two = 0, close = 0, nm = 0, draws = 0, n = 0; const byAttr = {};
+  for (let i = 0; i < 600; i++) {
+    const { r } = play(`h-${i}`, 'hard', 'medium');
+    if (r.matches.length === 2) two++;
+    for (const m of r.matches) {
+      const hi = Math.max(m.you.total, m.bot.total), lo = Math.min(m.you.total, m.bot.total);
+      if (hi && (hi - lo) / hi < 0.1) close++; nm++;
+      const a = (byAttr[m.category] ??= [0, 0]); a[0]++; if (m.winner === 'you') a[1]++;
+    }
+    if (r.winner === 'draw') draws++; n++;
+  }
+  console.log(`\nhard vs medium: ${(100 * two / n).toFixed(0)}% of series are over after two matches; ${(100 * close / nm).toFixed(0)}% of matches are within 10%; ${draws} drawn series`);
+  console.log(`hard's win rate by attribute (matches): ${Object.entries(byAttr).map(([k, [m, w]]) => `${k} ${(100 * w / m).toFixed(0)}% of ${m}`).join(', ')}`);
+}

@@ -271,3 +271,11 @@ No images, no audio files, no fonts of our own — the only external request is
 two Google Fonts. Everything visual is drawn from code, which is why the whole
 game is a few hundred kilobytes and why a new opponent costs about fifteen
 lines of data.
+
+---
+
+## Also in this repo: Sticker Season
+
+[`stickers/`](stickers/) is a separate game in early prototype: **Balatro × Top Trumps ×
+Panini** on real Premier League player-seasons. It shares no code with Grandstand. See
+[`stickers/README.md`](stickers/README.md).
