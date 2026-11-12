@@ -1,10 +1,11 @@
-// BLIND FIVE: a budget draft against a bot, on the Sticker Season career cards.
+// BLIND FIVE: a budget draft against a bot, on the Sticker Season career cards. A BEST OF THREE, a fresh team each time.
 //
-//   1. Pick a team. A budget each; each round a board of eight players of one position is shown with NAMES AND PRICES ONLY: no stats, no
-//      club, no overall. You and the bot take turns to pick one.
-//   2. Three attributes are drawn from goals, assists, appearances and discipline: a BEST OF THREE. They are called out IN ADVANCE (you
-//      know them while you pick) or rolled AFTER the draft (you buy blind), whichever the match is set to.
-//   3. For each, add up each team's REAL career totals. The bigger total wins the match; two matches win the series.
+// A series is three matches. Each match:
+//   1. An attribute is drawn at the start (goals, assists, goal involvements, appearances, discipline: three different ones in a series).
+//   2. You and the bot each draft a FRESH team on a fresh budget, tailored to that attribute. Each round a board of eight players of one
+//      position goes up with NAMES AND PRICES ONLY: no stats, no club, no overall. You take turns to pick one. A player used in an
+//      earlier match is not on a later board.
+//   3. Add up each team's REAL career totals in the attribute. The bigger total wins the match. Two matches win the series.
 //
 // No hands, no multipliers, no ratings: a team is worth the sum of what its players really did. The skill is football knowledge:
 // who scored the goals, who played the games, who got booked. A price is a hint, not the truth (see PRICE_NOISE): there are
@@ -15,17 +16,19 @@
 //   eleven  11-a-side. £25, eleven rounds. A FORMATION is rolled at the start (4-4-2, 4-3-3, ...) and the draft works through it back
 //           to front: the goalkeeper, then the defenders, the midfielders, the forwards. Both teams play the same formation.
 //
-// Pure state machine (no DOM, no clock). Randomness comes from labelled seed streams, so a seed is a whole match.
+// Pure state machine (no DOM, no clock). Randomness comes from labelled seed streams, so a seed is a whole series.
 import { makeRng } from '../../../stickers/src/engine/rng.js';
 import { instance } from '../../../stickers/src/engine/deck.js';
-import { CATEGORY_KEYS, POSITIONS, statOf } from '../../../stickers/src/engine/cards.js';
+import { POSITIONS } from '../../../stickers/src/engine/cards.js';
+import { ATTRIBUTE_KEYS, valueOf, recordOf } from './attributes.js';
+export { valueOf };
 
 // What is the same in every mode.
 export const COMMON = {
   boardSize: 8,
   minGames: 100,       // only players with 100+ Premier League appearances are on a board: you should have heard of them
   minPrice: 1, maxPrice: 5,
-  matches: 3,          // the showdown is a best of three attributes
+  matches: 3,          // a series is a best of three
 };
 export const MODES = {
   five:   { id: 'five',   label: '5-a-side',  budget: 10, rounds: 5,  maxPerPosition: 2 },   // the wheel never gives one position three times
@@ -82,45 +85,69 @@ export function universeOf(pool) {
 const stream = (state, label) => makeRng(`${state.seed}|${label}`);
 const other = (who) => (who === 'you' ? 'bot' : 'you');
 
-// ---- a match -------------------------------------------------------------------------------------------------------------
-// opts.mode: 'five' (default) or 'eleven'. opts.reveal: 'before' (default: the three attributes are known from the start) or 'after'
-// (rolled once the teams are picked). opts.categories forces the three (tests). opts.level: the bot's level, 'easy' | 'medium' | 'hard' (see bot.js).
-// opts.first: who picks first in round 1. opts.formation: force an 11-a-side formation by name (tests).
+// ---- a series -------------------------------------------------------------------------------------------------------------
+// opts.mode: 'five' (default) or 'eleven'. opts.level: the bot's level, 'easy' | 'medium' | 'hard' (see bot.js). opts.first: who picks
+// first in round 1 of match 1. For tests: opts.categories forces the attributes (one per match), opts.formation forces an 11-a-side
+// formation by name (every match).
 export function newMatch(pool, seed = Date.now(), opts = {}) {
   const mode = opts.mode ?? 'five';
   if (!MODES[mode]) throw new Error(`unknown mode '${mode}'`);
-  const rules = { ...COMMON, ...MODES[mode] };
   const state = {
-    seed: String(seed), mode, level: opts.level ?? 'medium', phase: 'draft', round: 1, formation: null,
-    // the three attributes: known from the start in 'before' mode, null until the draft is over in 'after' mode
-    reveal: opts.reveal ?? 'before', categories: null, forcedCategories: opts.categories ?? null,
-    positions: [], first1: opts.first ?? (makeRng(`${seed}|first`).int(2) ? 'bot' : 'you'),
-    money: { you: rules.budget, bot: rules.budget }, teams: { you: [], bot: [] }, paid: { you: [], bot: [] },
-    board: [], shown: [], turn: null, log: [],
+    seed: String(seed), mode, level: opts.level ?? 'medium',
+    phase: 'draft',               // 'draft' -> 'showdown' (teams picked) -> 'between' (next match to come) or 'over'
+    match: 1, results: [], used: [], forcedCategories: opts.categories ?? null, forcedFormation: opts.formation ?? null,
+    first1: opts.first ?? (makeRng(`${seed}|first`).int(2) ? 'bot' : 'you'),
+    shown: [], log: [],           // players put on a board, and every pick, across the whole series
   };
   Object.defineProperty(state, 'pool', { value: pool, enumerable: false });
-  if (mode === 'eleven') {
-    // the formation is rolled once, and the draft works through it: goalkeeper, defenders, midfielders, forwards
-    const roll = stream(state, 'formation');
-    state.formation = opts.formation ? FORMATIONS.find((f) => f.name === opts.formation) : roll.weighted(FORMATIONS.map((f) => [f, f.weight]));
-    if (!state.formation) throw new Error(`unknown formation '${opts.formation}'`);
+  beginMatch(state);
+  return state;
+}
+
+// Start a match's draft: draw its attribute, roll its formation (11-a-side), reset the money and the teams, deal the first board.
+function beginMatch(state) {
+  const rules = rulesOf(state);
+  state.phase = 'draft';
+  state.round = 1;
+  state.formation = null;
+  state.positions = [];
+  state.money = { you: rules.budget, bot: rules.budget };
+  state.teams = { you: [], bot: [] };
+  state.paid = { you: [], bot: [] };
+  state.board = [];
+  state.turn = null;
+  // the attribute is drawn now, at the start of the match, from the ones not yet used in this series
+  const left = ATTRIBUTE_KEYS.filter((k) => !state.used.includes(k));
+  const forced = state.forcedCategories?.[state.match - 1];
+  state.category = forced ?? stream(state, `attribute|${state.match}`).pick(left);
+  state.used.push(state.category);
+  if (state.mode === 'eleven') {
+    // the formation is rolled at the start of every match, and the draft works through it: goalkeeper, defenders, midfielders, forwards
+    const roll = stream(state, `formation|${state.match}`);
+    state.formation = state.forcedFormation ? FORMATIONS.find((f) => f.name === state.forcedFormation) : roll.weighted(FORMATIONS.map((f) => [f, f.weight]));
+    if (!state.formation) throw new Error(`unknown formation '${state.forcedFormation}'`);
     state.positions = formationPositions(state.formation);
   } else {
     // positions: weighted wheel, but never one position more than maxPerPosition times
-    const rng = stream(state, 'wheel');
+    const rng = stream(state, `wheel|${state.match}`);
     while (state.positions.length < rules.rounds) {
       const pos = rng.weighted(Object.entries(WHEEL));
       if (state.positions.filter((p) => p === pos).length < rules.maxPerPosition) state.positions.push(pos);
     }
   }
-  if (state.reveal !== 'before' && state.reveal !== 'after') throw new Error(`unknown reveal '${state.reveal}'`);
-  if (state.reveal === 'before') state.categories = drawCategories(state);
   dealBoard(state);
-  return state;
+}
+
+// After a match, on to the next: a fresh draft.
+export function nextMatch(state) {
+  if (state.phase !== 'between') throw new Error('the series is not waiting for another match');
+  state.match++;
+  beginMatch(state);
 }
 
 export const positionOf = (state) => state.positions[state.round - 1];
-export const firstPicker = (state) => (state.round % 2 === 1 ? state.first1 : other(state.first1));
+// Alternates every round, and the side that picked first in the last round of a match goes second in the first round of the next
+export const firstPicker = (state) => ((state.round + state.match) % 2 === 0 ? state.first1 : other(state.first1));
 export const roundsAfter = (state) => rulesOf(state).rounds - state.round;
 
 // You must keep £1 for each later round. So the most you can spend this round:
@@ -130,11 +157,17 @@ export const canAfford = (state, who, price) => price <= maxSpend(state, who);
 function dealBoard(state) {
   const pos = positionOf(state);
   const u = universeOf(state.pool)[pos];
-  const rng = stream(state, `board|${state.round}`);
+  const rng = stream(state, `board|${state.match}|${state.round}`);
   const on = new Set(state.shown);
-  const board = TIER_SLOTS.map((tier) => {
-    const options = u[tier].filter((c) => !on.has(c.id));
-    if (!options.length) throw new Error(`no ${pos} left in tier ${tier}`);
+  const board = TIER_SLOTS.map((slot) => {
+    // a tier can run out over a whole series (there are only five star goalkeepers): take the nearest tier that has someone left
+    let tier = slot, options = [];
+    for (let d = 0; d <= 4 && !options.length; d++) {
+      for (const t of d === 0 ? [slot] : [slot - d, slot + d]) {
+        if (t >= 1 && t <= 5 && !options.length) { options = u[t].filter((c) => !on.has(c.id)); tier = t; }
+      }
+    }
+    if (!options.length) throw new Error(`no ${pos} left`);
     const card = rng.pick(options);
     on.add(card.id);
     let price = tier;
@@ -172,41 +205,38 @@ export function pick(state, who, id) {
 export const free = (state) => state.board.filter((b) => !b.takenBy);
 
 // ---- the showdown -----------------------------------------------------------------------------------------------------------
-// A player's REAL career total in the attribute: goals, assists, appearances, or discipline points (a yellow card is 1, a red 3).
-export const valueOf = (card, category) => statOf(card, category);
-
-// Three different attributes, from the four
-function drawCategories(state) {
-  return state.forcedCategories ?? stream(state, 'categories').shuffle([...CATEGORY_KEYS]).slice(0, COMMON.matches);
-}
-
-// The three attributes. In 'before' mode they were fixed at the start; in 'after' mode this is the roll, once the teams are picked.
-export function rollAttributes(state) {
-  if (state.categories == null) {
-    if (state.phase !== 'showdown' && state.phase !== 'over') throw new Error('the teams are not picked yet');
-    state.categories = drawCategories(state);
-  }
-  return state.categories;
-}
-
-// Play the series. For each attribute, add each team up: the bigger total wins the match (equal totals are a draw). Most matches wins;
-// if level, the team with the larger total as a share of each attribute's record; if still level, a draw. The UI plays the matches one
-// at a time and stops when one side has two.
+// Add each team up in this match's attribute: the bigger total wins the match (equal totals are a draw). Then: if one side has two
+// matches, or all three have been played, the series is over; otherwise it waits for the next match.
 export function showdown(state) {
-  if (state.phase !== 'showdown' && state.phase !== 'over') throw new Error('the teams are not picked yet');
-  const categories = rollAttributes(state);
-  const side = (who, category) => {
+  if (state.phase !== 'showdown') throw new Error('the teams are not picked yet');
+  const category = state.category;
+  const side = (who) => {
     const players = state.teams[who].map((card, i) => ({ card, value: valueOf(card, category), paid: state.paid[who][i] }));
     return { players, total: players.reduce((sum, p) => sum + p.value, 0) };
   };
-  const matches = categories.map((category) => {
-    const you = side('you', category), bot = side('bot', category);
-    return { category, you, bot, winner: you.total > bot.total ? 'you' : bot.total > you.total ? 'bot' : 'draw' };
-  });
-  const wins = { you: matches.filter((m) => m.winner === 'you').length, bot: matches.filter((m) => m.winner === 'bot').length };
-  const share = (who) => matches.reduce((sum, m) => sum + m[who].total / state.pool.meta.records[m.category].total, 0);
-  const sy = share('you'), sb = share('bot');
-  const winner = wins.you !== wins.bot ? (wins.you > wins.bot ? 'you' : 'bot') : sy !== sb ? (sy > sb ? 'you' : 'bot') : 'draw';
-  state.phase = 'over';
-  return { categories, matches, wins, winner, decidedBy: wins.you !== wins.bot ? 'matches' : winner === 'draw' ? 'nothing' : 'share of the records' };
+  const you = side('you'), bot = side('bot');
+  const result = { match: state.match, category, formation: state.formation, you, bot, winner: you.total > bot.total ? 'you' : bot.total > you.total ? 'bot' : 'draw' };
+  state.results.push(result);
+  const s = seriesOf(state);
+  state.phase = s.over ? 'over' : 'between';
+  return { ...result, series: s };
+}
+
+// Where the series stands. Most matches wins; if all three are played and it is level, the larger share of each attribute's all-time
+// record wins; otherwise a draw.
+export function seriesOf(state) {
+  const wins = { you: 0, bot: 0 };
+  for (const r of state.results) if (r.winner !== 'draw') wins[r.winner]++;
+  const over = wins.you >= 2 || wins.bot >= 2 || state.results.length >= COMMON.matches;
+  let winner = null, decidedBy = null;
+  if (over) {
+    if (wins.you !== wins.bot) { winner = wins.you > wins.bot ? 'you' : 'bot'; decidedBy = 'matches'; }
+    else {
+      const share = (who) => state.results.reduce((sum, r) => sum + r[who].total / recordOf(state.pool, r.category), 0);
+      const sy = share('you'), sb = share('bot');
+      winner = sy !== sb ? (sy > sb ? 'you' : 'bot') : 'draw';
+      decidedBy = winner === 'draw' ? 'nothing' : 'share of the records';
+    }
+  }
+  return { wins, over, winner, decidedBy, played: state.results.length };
 }

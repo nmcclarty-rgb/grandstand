@@ -15,20 +15,15 @@
   <section class="screen" id="title" hidden aria-labelledby="t-h">
     <h1 id="t-h" tabindex="-1">Blind <em>Five</em></h1>
     <ol class="steps">
-      <li><b>Pick a team</b> of five (or eleven, from a rolled formation) from 34 seasons of Premier League players, on a budget. Each round eight players of one position go on the board with <b>a name and a price</b>: no stats, no club, nothing else. You and the bot take turns to pick one.</li>
-      <li><b>Three attributes</b> are drawn from goals, assists, appearances and discipline: a <b>best of three</b>.</li>
-      <li><b>Add it up</b> for each. Each team's real career totals; the bigger total wins the match. First to two wins.</li>
+      <li><b>An attribute is drawn</b>: goals, assists, goal involvements, appearances or discipline. A series is a best of three, a different attribute each match.</li>
+      <li><b>Draft a fresh team for it</b> (five or eleven, from a rolled formation) from 34 seasons of Premier League players, on a budget. Each round eight players of one position go on the board with <b>a name and a price</b>: no stats, no club, nothing else. You and the bot take turns to pick one.</li>
+      <li><b>Add it up.</b> Each team's real career totals in the attribute; the bigger total wins the match. First to two wins.</li>
     </ol>
     <p class="lede">A price is a hint, not the truth. Know your football.</p>
     <fieldset class="levels" id="t-modes">
       <legend>Game</legend>
       <label><input type="radio" name="mode" value="five" checked><span><b>5-a-side</b> £10, five rounds, a wheel names each position</span></label>
       <label><input type="radio" name="mode" value="eleven"><span><b>11-a-side</b> £30, eleven rounds: a formation is rolled at the start and you work through it</span></label>
-    </fieldset>
-    <fieldset class="levels" id="t-reveal">
-      <legend>The three attributes</legend>
-      <label><input type="radio" name="reveal" value="before" checked><span><b>Called in advance</b> you know what is coming while you pick</span></label>
-      <label><input type="radio" name="reveal" value="after"><span><b>Rolled after the draft</b> you buy blind</span></label>
     </fieldset>
     <fieldset class="levels" id="t-levels">
       <legend>Opponent</legend>
@@ -50,12 +45,13 @@
 
   <section class="screen" id="draft" hidden aria-labelledby="d-h">
     <header class="dhud">
-      <div class="dstat attr"><small>Counting</small><b id="d-attr">???</b></div>
-      <div class="dstat"><small>Round</small><b id="d-round">1</b><i id="d-rounds">/5</i></div>
+      <div class="dstat attr"><small>Counting</small><b id="d-attr">…</b></div>
+      <div class="dstat"><small>Match <span id="d-match">1</span> · Round</small><b id="d-round">1</b><i id="d-rounds">/5</i></div>
       <div class="dpos"><small id="d-poslabel">The wheel says</small><h2 id="d-h" tabindex="-1"><span id="d-pos">&nbsp;</span></h2></div>
       <div class="dstat money"><small>You have</small><b id="d-money">£10</b></div>
       <div class="dstat money bot"><small>Bot has</small><b id="d-botmoney">£10</b></div>
     </header>
+    <div class="series" id="d-series" aria-label="The series"></div>
     <p class="say" id="d-say" role="status" aria-live="polite"></p>
     <p class="formation" id="d-formation" hidden>Formation <b id="d-formation-name">…</b></p>
     <div class="tiles" id="d-board" aria-label="The board"></div>
@@ -71,9 +67,9 @@
   </section>
 
   <section class="screen" id="show" hidden aria-labelledby="s-h">
-    <h2 id="s-h" tabindex="-1" class="bigh">Showdown</h2>
+    <h2 id="s-h" tabindex="-1" class="bigh"><span id="s-head">Showdown</span></h2>
     <p class="say" id="s-say" role="status" aria-live="polite"></p>
-    <div class="series" id="s-series" aria-label="The three matches"></div>
+    <div class="series" id="s-series" aria-label="The series"></div>
     <div class="actions" id="s-actions"></div>
     <div class="tally" id="s-tally" hidden></div>
     <div id="s-cards" hidden>

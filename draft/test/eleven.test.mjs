@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { pool } from './helpers.mjs';
-import { MODES, FORMATIONS, formationPositions, newMatch, pick, free, canAfford, positionOf, showdown, rollAttributes, rulesOf } from '../src/engine/draft.js';
+import { MODES, FORMATIONS, formationPositions, newMatch, nextMatch, pick, free, canAfford, positionOf, showdown, seriesOf, rulesOf, valueOf } from '../src/engine/draft.js';
 import { choose, botMove } from '../src/engine/bot.js';
 
 const play = (seed, policy = (s, who) => choose(s, who, 'medium'), opts = {}) => {
@@ -67,6 +67,37 @@ test('boards: eight different players per round and nobody shown twice in a matc
   }
 });
 
+test('a fresh formation is rolled at the start of every match, and each is worked through back to front', () => {
+  const seen = new Set();
+  for (let i = 0; i < 60; i++) {
+    const s = newMatch(pool, `fm${i}`, { mode: 'eleven' });
+    const names = [];
+    for (;;) {
+      names.push(s.formation.name);
+      assert.deepEqual(s.positions, formationPositions(s.formation));
+      while (s.phase === 'draft') { const who = s.turn; pick(s, who, choose(s, who, 'easy')); }
+      assert.deepEqual(s.teams.you.map((c) => c.pos), s.positions);
+      showdown(s);
+      if (s.phase === 'over') break;
+      nextMatch(s);
+      assert.equal(s.money.you, 30, 'a fresh £30');
+    }
+    names.forEach((n) => seen.add(n));
+    if (i === 0) assert.ok(names.length >= 2);
+  }
+  assert.deepEqual([...seen].sort(), FORMATIONS.map((f) => f.name).sort());
+  // the formation can differ from one match to the next
+  let differed = false;
+  for (let i = 0; i < 40 && !differed; i++) {
+    const s = newMatch(pool, `d${i}`, { mode: 'eleven' });
+    const first = s.formation.name;
+    while (s.phase === 'draft') { const who = s.turn; pick(s, who, choose(s, who, 'easy')); }
+    showdown(s);
+    if (s.phase === 'between') { nextMatch(s); if (s.formation.name !== first) differed = true; }
+  }
+  assert.ok(differed, 'the formation is rolled again for the next match');
+});
+
 test('turns alternate and each side picks once a round, eleven times', () => {
   const s = newMatch(pool, 'turns', { mode: 'eleven', first: 'bot' });
   const order = [];
@@ -90,18 +121,32 @@ test('RULE: every 11-a-side draft finishes, whatever the policy: eleven players 
   }
 });
 
-test('the showdown adds up eleven players\' real totals, in three attributes', () => {
+test('the showdown adds up eleven players\' real totals in the match\'s attribute', () => {
   for (let i = 0; i < 60; i++) {
     const s = play(`sd${i}`);
+    const cat = s.category;
     const r = showdown(s);
-    assert.equal(r.matches.length, 3);
-    for (const m of r.matches) {
-      assert.equal(m.you.players.length, 11);
-      const tally = (who) => s.teams[who].reduce((sum, c) => sum + (m.category === 'discipline' ? c.yellow + 3 * c.red : c[m.category]), 0);
-      assert.equal(m.you.total, tally('you'));
-      assert.equal(m.bot.total, tally('bot'));
+    assert.equal(r.you.players.length, 11);
+    assert.equal(r.you.total, s.teams.you.reduce((sum, c) => sum + valueOf(c, cat), 0));
+    assert.equal(r.bot.total, s.teams.bot.reduce((sum, c) => sum + valueOf(c, cat), 0));
+    assert.equal(r.formation.name, s.formation.name);
+  }
+});
+
+test('a whole 11-a-side series: fresh elevens each match, nobody reused, first to two wins', () => {
+  for (let i = 0; i < 20; i++) {
+    const s = newMatch(pool, `ser${i}`, { mode: 'eleven' });
+    const seenIds = new Set();
+    for (;;) {
+      while (s.phase === 'draft') { const who = s.turn; pick(s, who, choose(s, who, 'medium')); }
+      for (const c of [...s.teams.you, ...s.teams.bot]) { assert.ok(!seenIds.has(c.id), `${c.full} reused`); seenIds.add(c.id); }
+      showdown(s);
+      if (s.phase === 'over') break;
+      nextMatch(s);
     }
-    assert.deepEqual(rollAttributes(s), r.matches.map((m) => m.category));
+    assert.ok(s.results.length === 2 || s.results.length === 3);
+    assert.ok(seriesOf(s).winner);
+    assert.equal(seenIds.size, 22 * s.results.length);
   }
 });
 

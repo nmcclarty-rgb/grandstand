@@ -1,9 +1,10 @@
 // The Blind Five page. All the rules live in the engine (draft.js, bot.js); this file draws screens and calls it.
 import { makePool } from '../../../stickers/src/engine/deck.js';
-import { CATEGORIES, CATEGORY_KEYS, firstNameOf, surnameOf } from '../../../stickers/src/engine/cards.js';
+import { firstNameOf, surnameOf } from '../../../stickers/src/engine/cards.js';
 import { renderCard } from '../../../stickers/src/ui/card.js';
 import { initTooltips } from '../../../stickers/src/ui/tooltip.js';
-import { COMMON, MODES, newMatch, pick, positionOf, canAfford, maxSpend, showdown, rulesOf } from '../engine/draft.js';
+import { COMMON, MODES, newMatch, nextMatch, pick, positionOf, canAfford, maxSpend, showdown, seriesOf, rulesOf } from '../engine/draft.js';
+import { ATTRIBUTES, ATTRIBUTE } from '../engine/attributes.js';
 import { botMove } from '../engine/bot.js';
 
 const $ = (id) => document.getElementById(id);
@@ -13,6 +14,9 @@ const LABEL = { GK: 'Goalkeepers', DEF: 'Defenders', MID: 'Midfielders', FWD: 'F
 const ONE = { GK: 'Goalkeeper', DEF: 'Defender', MID: 'Midfielder', FWD: 'Forward' };
 const SHORT = { GK: 'GK', DEF: 'DEF', MID: 'MID', FWD: 'FWD' };
 const RECORD = 'blind-five:record:v1';
+// the four rows on a Sticker Season card, in order, and which of them an attribute counts
+const ROWS = ['goals', 'assists', 'games', 'discipline'];
+const HIGHLIGHT = { goals: ['goals'], assists: ['assists'], involvements: ['goals', 'assists'], games: ['games'], discipline: ['discipline'] };
 
 function el(tag, props = {}, ...kids) {
   const e = document.createElement(tag);
@@ -34,10 +38,10 @@ function remember(key, outcome) {
   try { const r = recall(); if (!r[key]) r[key] = { w: 0, l: 0, d: 0 }; r[key][outcome]++; localStorage.setItem(RECORD, JSON.stringify(r)); } catch { /* private window */ }
 }
 
-let pool, state, result, level = 'medium', mode = 'five', reveal = 'before', busy = false, token = 0, played = 0;
+let pool, state, result, level = 'medium', mode = 'five', busy = false, token = 0;
 const rules = () => rulesOf(state);
 const recordKey = () => `${mode}-${level}`;
-const shortList = (cats) => cats.map((k) => CATEGORIES[k].short).join(' · ');
+const attr = (k) => ATTRIBUTE[k];
 const params = new URLSearchParams(location.search);
 
 const SCREENS = ['loading', 'title', 'draft', 'show'];
@@ -62,22 +66,59 @@ function showTitle() {
   show('title');
 }
 
+// A series is three matches (the page stops at 2-0). Each match is a fresh draft for the attribute drawn at its start.
 function startMatch(seed) {
   level = document.querySelector('input[name=level]:checked').value;
   mode = document.querySelector('input[name=mode]:checked').value;
-  reveal = document.querySelector('input[name=reveal]:checked').value;
-  state = newMatch(pool, seed || Date.now(), { level, mode, reveal });
+  state = newMatch(pool, seed || Date.now(), { level, mode });
   document.body.dataset.mode = mode;
   result = null;
   const my = ++token;
+  beginMatchPage(my);
+}
+
+// the pills: one per match. Played ones say who won and the totals; the current one shows its attribute; the rest are still ???
+function renderSeries(targetId, current, hideLast = false) {
+  const target = $(targetId);
+  const done = hideLast ? state.results.slice(0, -1) : state.results;   // at the showdown, this match's result is not shown until it is counted
+  target.replaceChildren(...Array.from({ length: COMMON.matches }, (_, i) => {
+    const r = done[i];
+    const cls = r ? (r.winner === 'you' ? 'w' : r.winner === 'bot' ? 'l' : 'd') : (i === current ? 'next' : '');
+    const label = r ? attr(r.category).short : i === current ? attr(state.category).short : '???';
+    return el('div', { class: `pill ${cls}` }, el('small', { text: `Match ${i + 1}` }), el('b', { text: label }), r ? el('span', { text: `${n(r.you.total)}–${n(r.bot.total)}` }) : null);
+  }));
+}
+
+// the draw: the attribute for this match is drawn at the start, so you can tailor the team to it
+async function rollAttribute(my) {
+  const h = $('d-attr');
+  if (!reduceMotion) for (let i = 0; i < 14; i++) { h.textContent = ATTRIBUTES[i % ATTRIBUTES.length].short; await sleep(50 + i * 14); if (my !== token) return false; }
+  h.textContent = attr(state.category).short;
+  return true;
+}
+
+async function beginMatchPage(my) {
+  busy = true;
   show('draft');
-  $('d-attr').textContent = state.categories ? shortList(state.categories) : '???';
+  $('d-match').textContent = state.match;
   $('d-rounds').textContent = `/${rules().rounds}`;
+  $('d-round').textContent = 1;
+  $('d-attr').textContent = '…';
   $('d-formation').hidden = mode !== 'eleven';
   $('d-poslabel').textContent = mode === 'eleven' ? 'Now drafting' : 'The wheel says';
+  $('d-pos').textContent = ' ';
   $('d-formation-name').textContent = '…';
-  renderTeams();
-  runRound(my);
+  $('d-board').classList.add('waiting');
+  renderSeries('d-series', state.match - 1);
+  renderAll();
+  say(state.match === 1 ? 'Drawing the first attribute…' : `Match ${state.match}: a fresh team, a fresh budget. Drawing the attribute…`);
+  if (!(await rollAttribute(my))) return;
+  $('d-attr').textContent = attr(state.category).short;
+  renderSeries('d-series', state.match - 1);
+  say(`Match ${state.match}: <b>${attr(state.category).label}</b>. ${attr(state.category).unit.replace(/^./, (c) => c.toUpperCase())}, added up. Build a team for it.`);
+  await sleep(1000);
+  if (my !== token) return;
+  await runRound(my);
 }
 
 // ---- the draft --------------------------------------------------------------------------------------------------------------------
@@ -224,56 +265,17 @@ function renderPitches() {
 function renderAll() { renderBoard(); renderTeams(); renderMoney(); }
 
 // ---- the showdown -----------------------------------------------------------------------------------------------------------
-const UNIT = { goals: 'goals', assists: 'assists', games: 'appearances', discipline: 'discipline points' };
-
-// The showdown is a best of three. Each attribute is a match; the series stops as soon as one side has two.
+// After the draft: this match's showdown. The page plays one match at a time; the series stops as soon as one side has two.
 function goShowdown() {
-  result = showdown(state);   // all three matches are worked out; the page plays them one at a time
-  played = 0;
+  result = showdown(state);
   show('show');
   $('s-tally').hidden = true;
   $('s-cards').hidden = true;
   $('s-you').replaceChildren(); $('s-bot').replaceChildren();
-  renderSeries(reveal === 'after' ? null : result.categories);   // rolled after: the pills say ??? until the roll
-  if (reveal === 'after') {
-    $('s-say').textContent = 'Both teams are in. Which three attributes are being counted? Nobody knows yet.';
-    $('s-actions').replaceChildren(el('button', { class: 'primary', type: 'button', text: 'Roll the attributes', onclick: roll }));
-  } else {
-    $('s-say').textContent = `Both teams are in. ${shortList(result.categories)}: best of three.`;
-    $('s-actions').replaceChildren(el('button', { class: 'primary', type: 'button', text: 'Reveal the teams', onclick: revealTeams }));
-  }
-}
-
-// the three matches as pills: the attribute (or ???) and, once played, who won it
-function renderSeries(cats) {
-  $('s-series').replaceChildren(...Array.from({ length: 3 }, (_, i) => {
-    const m = result.matches[i];
-    const done = i < played;
-    const cls = done ? (m.winner === 'you' ? 'w' : m.winner === 'bot' ? 'l' : 'd') : (i === played && cats ? 'next' : '');
-    return el('div', { class: `pill ${cls}`, id: `s-pill-${i}` },
-      el('small', { text: `Match ${i + 1}` }),
-      el('b', { text: cats ? CATEGORIES[cats[i]].short : '???' }),
-      done ? el('span', { text: `${n(m.you.total)}–${n(m.bot.total)}` }) : null);
-  }));
-}
-
-// the roll ('after' mode): the pills cycle through the attributes and land one at a time on the three that were drawn
-async function roll() {
-  const my = token;
-  $('s-actions').replaceChildren();
-  const labels = CATEGORY_KEYS.map((k) => CATEGORIES[k].short);
-  for (let i = 0; i < 3; i++) {
-    const b = $(`s-pill-${i}`).querySelector('b');
-    if (!reduceMotion) for (let k = 0; k < 12; k++) { b.textContent = labels[(k + i) % 4]; await sleep(55 + k * 14); if (my !== token) return; }
-    b.textContent = CATEGORIES[result.categories[i]].short;
-    $(`s-pill-${i}`).classList.add('landed');
-    await sleep(350);
-    if (my !== token) return;
-  }
-  $('d-attr').textContent = shortList(result.categories);
-  renderSeries(result.categories);
-  $('s-say').textContent = `Counting ${shortList(result.categories)}, best of three.`;
-  $('s-actions').replaceChildren(el('button', { class: 'primary', type: 'button', text: 'Reveal the teams', onclick: revealTeams }));
+  $('s-head').textContent = `Match ${state.match}: ${attr(state.category).label}`;
+  renderSeries('s-series', state.match - 1, true);
+  $('s-say').textContent = `Both teams are in. ${attr(state.category).unit.replace(/^./, (c) => c.toUpperCase())}, added up.`;
+  $('s-actions').replaceChildren(el('button', { class: 'primary', type: 'button', text: 'Reveal the teams', onclick: countMatch }));
 }
 
 // what each player cost against what he was: a bargain was priced below his tier, a trap above
@@ -285,15 +287,19 @@ function captionFor(who, c) {
 }
 
 // The Sticker Season card, turned into a Blind Five card: here the REAL career totals are what counts, so each row shows the
-// total (not the 1-99 rating), the counted row is highlighted, and the overall plate is hidden.
+// total (not the 1-99 rating), the rows being counted are highlighted, and the overall plate is hidden.
 function playerCard(c, category) {
-  const node = renderCard(c, { category });
-  CATEGORY_KEYS.forEach((key, i) => {
-    const li = node.querySelectorAll('.stats li')[i];
-    const total = key === 'discipline' ? c.yellow + 3 * c.red : c[key];
+  const node = renderCard(c, {});
+  const lis = node.querySelectorAll('.stats li');
+  ROWS.forEach((key, i) => {
+    const li = lis[i];
+    const total = key === 'discipline' ? c.yellow + 3 * c.red : c[key === 'games' ? 'games' : key];
+    li.classList.remove('active');
+    if (category && HIGHLIGHT[category].includes(key)) li.classList.add('active');
     li.querySelector('i').textContent = n(total);
     li.querySelector('em')?.remove();
-    li.dataset.tip = `${n(total)} ${UNIT[key]} in his Premier League career${key === 'discipline' ? ` (${c.yellow} yellow, ${c.red} red)` : ''}`;
+    li.querySelector('.chips')?.remove();
+    li.dataset.tip = `${n(total)} ${attr(key === 'games' ? 'games' : key).unit} in his Premier League career${key === 'discipline' ? ` (${c.yellow} yellow, ${c.red} red)` : ''}`;
   });
   node.querySelector('.rating')?.remove();
   const pos = node.querySelector('.pos');
@@ -307,26 +313,16 @@ function renderCards(category) {
   }
 }
 
-function revealTeams() {
-  renderCards(null);
-  $('s-cards').hidden = false;
-  $('s-say').textContent = 'Here is who you really bought.';
-  nextMatchButton();
-}
-
-function nextMatchButton() {
-  $('s-actions').replaceChildren(el('button', { class: 'primary', type: 'button', text: `Play match ${played + 1}: ${CATEGORIES[result.categories[played]].short}`, onclick: playMatch }));
-}
-
-// one match: count each player's real total in this attribute, row by row, with running totals
-async function playMatch() {
+// count one match: reveal both teams, then each player's real total in the attribute, row by row with running totals
+async function countMatch() {
   const my = token;
-  const m = result.matches[played];
+  const m = result;
   $('s-actions').replaceChildren();
-  $('s-say').textContent = `Match ${played + 1}: ${CATEGORIES[m.category].label}. The real career totals, added up.`;
+  $('s-say').textContent = `${attr(m.category).label}: the real career totals, added up.`;
+  renderCards(m.category);
+  $('s-cards').hidden = false;
   const tally = $('s-tally');
   tally.hidden = false;
-  renderCards(m.category);
   const rows = Array.from({ length: rules().rounds }, (_, i) => {
     const y = m.you.players[i], b = m.bot.players[i];
     const pay = (p) => el('small', { text: `£${p.paid}` });
@@ -336,7 +332,7 @@ async function playMatch() {
       el('div', { class: 'v r', text: n(b.value) }), el('div', { class: 'nm r' }, b.card.full, pay(b)));
   });
   const totalY = el('div', { class: 'v', text: '0' }), totalB = el('div', { class: 'v r', text: '0' });
-  const total = el('div', { class: 'trow total' }, el('div', { class: 'nm', text: 'Total' }), totalY, el('div', { class: 'lbl', text: UNIT[m.category].toUpperCase() }), totalB, el('div', { class: 'nm r' }));
+  const total = el('div', { class: 'trow total' }, el('div', { class: 'nm', text: 'Total' }), totalY, el('div', { class: 'lbl', text: attr(m.category).short }), totalB, el('div', { class: 'nm r' }));
   tally.replaceChildren(
     el('div', { class: 'trow head' }, el('div', { class: 'y', text: 'You' }), el('div', { class: 'b', text: 'The bot' })),
     ...rows, total);
@@ -353,60 +349,50 @@ async function playMatch() {
   await sleep(500);
   if (my !== token) return;
   total.classList.add(m.winner === 'draw' ? 'draw' : `win-${m.winner}`);
-  played++;
-  renderSeries(result.categories);
-  const w = { you: 0, bot: 0 };
-  for (const x of result.matches.slice(0, played)) if (x.winner !== 'draw') w[x.winner]++;
-  const decided = w.you === 2 || w.bot === 2 || played === 3;
+  renderSeries('s-series', -1);
   const margin = Math.abs(m.you.total - m.bot.total);
-  const line = m.winner === 'draw' ? 'Exactly level.' : `${m.winner === 'you' ? 'You win' : 'The bot wins'} match ${played} by ${n(margin)} ${UNIT[m.category]}.`;
-  if (!decided) {
-    $('s-say').textContent = `${line} It is ${w.you}–${w.bot}.`;
-    nextMatchButton();
+  const line = m.winner === 'draw' ? 'Exactly level.' : `${m.winner === 'you' ? 'You win' : 'The bot wins'} match ${m.match} by ${n(margin)}.`;
+  const ser = m.series;
+  if (!ser.over) {
+    $('s-say').textContent = `${line} It is ${ser.wins.you}–${ser.wins.bot}. Next: a fresh team.`;
+    $('s-actions').replaceChildren(el('button', { class: 'primary', type: 'button', text: `Match ${state.match + 1}: fresh team`, onclick: () => { nextMatch(state); beginMatchPage(++token); } }));
     return;
   }
-  // the series is over: the full result counts all matches played, and the one the engine reported is for all three, so work it out from those played
-  const final = seriesResult(played);
-  const won = final === 'you', draw = final === 'draw';
-  $('s-say').innerHTML = `<span class="verdict ${won ? 'won' : draw ? '' : 'lost'}">${draw ? 'A draw' : won ? 'You win' : 'The bot wins'}</span> ${draw ? 'Level on everything.' : `the series ${Math.max(w.you, w.bot)}–${Math.min(w.you, w.bot)}.`} ${esc(line)} Match code: ${esc(state.seed)}.`;
+  const won = ser.winner === 'you', draw = ser.winner === 'draw';
+  $('s-say').innerHTML = `<span class="verdict ${won ? 'won' : draw ? '' : 'lost'}">${draw ? 'A draw' : won ? 'You win' : 'The bot wins'}</span> ${draw ? 'Level on everything.' : `the series ${Math.max(ser.wins.you, ser.wins.bot)}–${Math.min(ser.wins.you, ser.wins.bot)}.`} ${esc(line)} Match code: ${esc(state.seed)}.`;
   remember(recordKey(), won ? 'w' : draw ? 'd' : 'l');
   $('s-actions').replaceChildren(
     el('button', { class: 'primary', type: 'button', text: 'Play again', onclick: () => startMatch('') }),
     el('button', { class: 'ghost', type: 'button', text: 'Change opponent', onclick: showTitle }));
 }
 
-// who won the series after `count` matches (the series stops as soon as one side has two, so this is the engine's winner unless it was decided early)
-function seriesResult(count) {
-  const ms = result.matches.slice(0, count);
-  const w = { you: ms.filter((x) => x.winner === 'you').length, bot: ms.filter((x) => x.winner === 'bot').length };
-  if (w.you !== w.bot) return w.you > w.bot ? 'you' : 'bot';
-  return result.winner;
-}
-
 // ---- the manual ------------------------------------------------------------------------------------------------------------------------
 function buildManual() {
   const five = MODES.five, eleven = MODES.eleven;
+  const list = ATTRIBUTES.map((a) => `<li><b>${a.label.toLowerCase()}</b>: ${a.unit}</li>`).join('');
   $('m-body').innerHTML = `
     <h2 id="m-h">How to play</h2>
-    <p><b>The aim.</b> Build a team that wins two of three matches against the bot's, knowing nothing about the players but their names and prices.</p>
+    <p><b>The aim.</b> Win two matches out of three against the bot, with teams you build knowing nothing about the players but their names and prices.</p>
+    <h3>A series is up to three matches</h3>
     <ol>
-      <li><b>Pick your team.</b> You and the bot each have a budget for the whole team: <b>£${five.budget}</b> in 5-a-side, <b>£${eleven.budget}</b> in 11-a-side. Each round a board of eight players of one position goes up with <b>a name and a price</b> of £1 to £5. You and the bot take turns to pick <b>one</b> each; who picks first swaps every round. Once a player is taken he is gone, and you see what the bot takes as it takes it. You must keep <b>£${COMMON.minPrice} for every round still to come</b>, so you can never be locked out.
-        <ul>
-          <li><b>5-a-side</b>: ${five.rounds} rounds. A wheel names the position each round (never one position three times).</li>
-          <li><b>11-a-side</b>: ${eleven.rounds} rounds. A <b>formation</b> (4-4-2, 4-3-3, 4-5-1, 3-5-2, 3-4-3 or 5-3-2) is rolled at the start and both teams play it. You work through it from the goalkeeper to the forwards, so you decide early how much of the money goes into defence and how much is kept for attack.</li>
-        </ul></li>
-      <li><b>Best of three.</b> Three different attributes are drawn from <b>goals, assists, appearances and discipline</b> (a yellow card is 1 point, a red card is 3). Depending on the game you pick on the title screen, they are <b>called out in advance</b>, so you buy knowing what is coming, or <b>rolled after the draft</b>, so you buy blind.</li>
-      <li><b>Three matches.</b> The teams are revealed. For each attribute, each player's <b>real Premier League career total</b> (1992/93 to 2025/26) is added up, and the bigger total wins the match. First to two matches wins; if you are level, the larger share of the all-time records wins.</li>
+      <li><b>An attribute is drawn</b> at the start of each match (never the same one twice in a series). The attributes are:<ul>${list}</ul>Each is a player's <b>real Premier League career total</b>, 1992/93 to 2025/26.</li>
+      <li><b>You draft a fresh team</b> for it, every match, on a fresh budget: <b>£${five.budget}</b> in 5-a-side, <b>£${eleven.budget}</b> in 11-a-side. You know the attribute while you pick, so you can tailor the team to it. Anyone who played in an earlier match is gone.</li>
+      <li><b>The teams are counted.</b> Each player's total in the attribute is added up and the bigger total wins the match. <b>First to two matches wins the series</b>, so it can be over after two.</li>
     </ol>
+    <h3>The draft</h3>
+    <p>Each round a board of eight players of one position goes up with <b>a name and a price</b> of £1 to £5: no stats, no club. You and the bot take turns to pick <b>one</b> each; who picks first swaps every round. Once a player is taken he is gone, and you see what the bot takes as it takes it. You must keep <b>£${COMMON.minPrice} for every round still to come</b>, so you can never be locked out.</p>
+    <ul>
+      <li><b>5-a-side</b>: ${five.rounds} rounds a match. A wheel names the position each round (never one position three times).</li>
+      <li><b>11-a-side</b>: ${eleven.rounds} rounds a match. A <b>formation</b> (4-4-2, 4-3-3, 4-5-1, 3-5-2, 3-4-3 or 5-3-2) is rolled at the start of each match and both teams play it. You work through it from the goalkeeper to the forwards, so you decide early how much of the money goes into defence and how much is kept for attack.</li>
+    </ul>
     <h3>Prices are a hint, not the truth</h3>
     <p>A £5 is usually a star of his position and a £1 a squad man, but about one player in three in the middle prices is a <b>bargain</b> (cheaper than he is) or a <b>trap</b> (dearer). Prices are by position: the best goalkeeper in the league is a £5 goalkeeper, but he will score no goals. Everyone on a board has made at least ${COMMON.minGames} Premier League appearances.</p>
     <h3>Tips</h3>
     <ul>
-      <li>You need to win two matches out of three, so buy a team that is good at more than one attribute: forwards for goals, midfielders for assists, and long-serving players of any position for appearances. A long-serving defender can win you appearances and discipline; a striker only goals.</li>
-      <li>In 11-a-side every position is a slot: a team of eleven stars is impossible. Spend where the totals are, and find bargains everywhere else.</li>
-      <li>A goalkeeper is the cheapest place to save: he will score no goals and make almost no assists, but a long-serving keeper has plenty of appearances.</li>
+      <li>Tailor each team to its attribute. <b>Goals</b>: forwards, and never pay for a goalkeeper. <b>Assists</b>: midfielders and wingers. <b>Goal involvements</b>: goals plus assists, so attacking midfielders are as good as strikers. <b>Appearances</b>: a long-serving defender or keeper is worth as much as a star. <b>Discipline</b>: find the hard men.</li>
       <li>Money left at the end is wasted. Spend it, but not on the wrong name.</li>
       <li>A career total rewards a long career: someone who played 15 years beats a brilliant two-season wonder.</li>
+      <li>You can only use a player once in a series, so a bargain you spend in match 1 is not there in match 3.</li>
     </ul>`;
 }
 
@@ -416,7 +402,6 @@ function wire() {
   $('t-help').addEventListener('click', () => $('manual').showModal?.());
   $('d-quit').addEventListener('click', showTitle);
   const m = params.get('mode'); if (m && MODES[m]) document.querySelector(`input[name=mode][value=${m}]`).checked = true;
-  const rv = params.get('reveal'); if (rv === 'before' || rv === 'after') document.querySelector(`input[name=reveal][value=${rv}]`).checked = true;
   const l = params.get('level'); if (['easy', 'medium', 'hard'].includes(l)) document.querySelector(`input[name=level][value=${l}]`).checked = true;
   if (params.get('seed')) $('t-seed').value = params.get('seed');
 }

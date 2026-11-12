@@ -27,7 +27,8 @@ const fix = (s) => s
   .replace(/'\.\.\/\.\.\/\.\.\/stickers\/src\/data\/cards\.json'/g, "'../data/cards.json'");
 put('src/draft/draft.js', fix(read('draft/src/engine/draft.js')));
 put('src/draft/bot.js', fix(read('draft/src/engine/bot.js')));
-put('src/ui/blind.js', fix(read('draft/src/ui/game.js')).replace("'../engine/draft.js'", "'../draft/draft.js'").replace("'../engine/bot.js'", "'../draft/bot.js'"));
+put('src/draft/attributes.js', fix(read('draft/src/engine/attributes.js')));
+put('src/ui/blind.js', fix(read('draft/src/ui/game.js')).replace("'../engine/draft.js'", "'../draft/draft.js'").replace("'../engine/bot.js'", "'../draft/bot.js'").replace("'../engine/attributes.js'", "'../draft/attributes.js'"));
 
 // the page: both stylesheets inlined, as Sticker Season's page is
 let html = read('draft/index.html');
