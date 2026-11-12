@@ -14,12 +14,13 @@
 //
 // RULE: only stats that exist for every season: appearances, goals, assists, yellow cards, red cards, and league titles (the champions of
 // each season, tools/champions.mjs, attached to the players who made 5+ league appearances for them).
-import { writeFile } from 'node:fs/promises';
+import { writeFile, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadFbrefSeasons, fbrefNumbers } from './fbref.mjs';
 import { CLUB_NAMES, FBREF_CLUBS } from './clubs.mjs';
 import { CHAMPIONS, TITLE_APPS } from './champions.mjs';
+import { tableOf } from './results.mjs';
 import { CATEGORY_KEYS, DISCIPLINE_POINTS, RATING_TO_CHIPS, RATING_EXPONENT, ratingFor, overallOf } from '../src/engine/cards.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -55,6 +56,16 @@ const seasons = [...fbref.keys()].sort();
 if (!seasons.length) throw new Error('no FBref exports in data/fbref/');
 for (const season of seasons) if (!CHAMPIONS[season]) throw new Error(`${season}: no champion in tools/champions.mjs`);
 
+// Match results (data/results.json, from fetch-results.mjs) give each club-season's wins and clean sheets exactly. A player's share of them
+// is ESTIMATED from his minutes: a club-season's wins (or clean sheets) times his minutes / the club's minutes (matches x 90).
+//   wins          every player, for the club's wins while he was on the pitch (estimated)
+//   cleanSheets   goalkeepers and defenders only (the row's first listed position is GK or DF, season by season, so a player who moved
+//                 up the pitch earns none in those seasons), for the club's clean sheets while he was on the pitch (estimated)
+const results = JSON.parse(await readFile(join(ROOT, 'data', 'results.json'), 'utf8'));
+const tables = {};
+for (const season of seasons) { if (!results[season]) throw new Error(`${season}: no match results in data/results.json`); tables[season] = tableOf(results[season]); }
+const shareSum = {}, gkShare = {};   // per club-season, to check the estimate adds up
+
 // ---- 1. every row of every season, summed per player ---------------------------------------------------------------
 const players = new Map();
 const unknownClubs = new Set();
@@ -67,11 +78,21 @@ for (const season of seasons) {
     const pid = `${slug(row.player)}:${row.birth_year}`;
     let p = players.get(pid);
     if (!p) {
-      p = { id: pid, full: row.player, titles: 0, apps: 0, goals: 0, assists: 0, yellow: 0, red: 0, clubApps: new Map(), stints: new Set(), posApps: new Map(), first: season, last: season, latest: season };
+      p = { id: pid, full: row.player, titles: 0, wins: 0, cleanSheets: 0, apps: 0, goals: 0, assists: 0, yellow: 0, red: 0, clubApps: new Map(), stints: new Set(), posApps: new Map(), first: season, last: season, latest: season };
       players.set(pid, p);
     }
     p.apps += n.games; p.goals += n.goals; p.assists += n.assists; p.yellow += n.yellow; p.red += n.red;
     p.clubApps.set(club, (p.clubApps.get(club) ?? 0) + n.games);
+    // wins and clean sheets while on the pitch, estimated from his share of the club's minutes
+    const tab = tables[season][club];
+    if (!tab) throw new Error(`${season}: no results for ${club} (${row.player})`);
+    const share = n.minutes / (tab.P * 90);
+    const key = `${season}|${club}`;
+    shareSum[key] = (shareSum[key] ?? 0) + share;
+    p.wins += tab.W * share;
+    const first = row.position.split(',')[0];
+    if (first === 'GK') gkShare[key] = (gkShare[key] ?? 0) + share;
+    if (first === 'GK' || first === 'DF') p.cleanSheets += tab.CS * share;
     // a title: a season at the champions with 5+ league appearances for them (a mid-season mover counts for the club he won it with)
     if (CHAMPIONS[season] === club && n.games >= TITLE_APPS) p.titles++;
     p.stints.add(`${club}|${season}`);
@@ -80,6 +101,13 @@ for (const season of seasons) {
     if (season < p.first) p.first = season;
     if (season >= p.last) { p.last = season; p.full = row.player; } // the most recent spelling
   }
+}
+// the estimate adds up: 11 players are on the pitch at once, and exactly one of them is the goalkeeper
+{
+  const sums = Object.values(shareSum), gks = Object.keys(shareSum).map((k) => gkShare[k] ?? 0);
+  console.log(`minutes shares per club-season: all players ${Math.min(...sums).toFixed(2)} to ${Math.max(...sums).toFixed(2)} (11 on the pitch), goalkeepers ${Math.min(...gks).toFixed(2)} to ${Math.max(...gks).toFixed(2)} (one on the pitch)`);
+  if (Math.min(...sums) < 10.2 || Math.max(...sums) > 11.3) throw new Error('a club-season does not have about 11 players\' worth of minutes: check the exports');
+  if (Math.min(...gks) < 0.9 || Math.max(...gks) > 1.05) throw new Error('a club-season does not have about one goalkeeper\'s worth of minutes: check the exports');
 }
 if (unknownClubs.size) throw new Error(`club names missing for: ${[...unknownClubs].join(', ')}`);
 
@@ -115,7 +143,7 @@ const cards = pool.map((p) => ({
   clubs: p.clubs.map(([c, a]) => [c, a]),
   stints: [...p.stints].sort((a, b) => a.split('|')[1].localeCompare(b.split('|')[1]) || a.localeCompare(b)),
   first: p.first, last: p.last,
-  games: p.apps, goals: p.goals, assists: p.assists, yellow: p.yellow, red: p.red, titles: p.titles,
+  games: p.apps, goals: p.goals, assists: p.assists, yellow: p.yellow, red: p.red, titles: p.titles, wins: Math.round(p.wins), cleanSheets: Math.round(p.cleanSheets),
   rate: p.rate, rating: p.rating,
 })).sort((a, b) => b.rating - a.rating || b.games - a.games || a.id.localeCompare(b.id));
 

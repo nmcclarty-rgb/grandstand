@@ -201,7 +201,8 @@ test('nextMatch only works between matches', () => {
 });
 
 test('the showdown is addition: each team\'s real career totals in the attribute, the bigger total wins the match', () => {
-  const tally = (s, who, cat) => s.teams[who].reduce((sum, c) => sum + (cat === 'discipline' ? c.yellow + 3 * c.red : cat === 'involvements' ? c.goals + c.assists : c[cat]), 0);
+  const field = { cleansheets: 'cleanSheets' };
+  const tally = (s, who, cat) => s.teams[who].reduce((sum, c) => sum + (cat === 'discipline' ? c.yellow + 3 * c.red : cat === 'involvements' ? c.goals + c.assists : c[field[cat] ?? cat]), 0);
   let you = 0, bot = 0;
   for (let i = 0; i < 300; i++) {
     const s = draft(`sd${i}`);
@@ -325,4 +326,31 @@ test('the levels are ordered over a series: hard beats medium beats easy', () =>
   assert.ok(win('medium', 'easy') > 0.5);
   assert.ok(win('hard', 'medium') > 0.55);
   assert.ok(win('easy', 'hard') < 0.4);
+});
+
+test('a clean-sheets match needs at least two goalkeeper or defender slots (5-a-side), and the draw is still reproducible', () => {
+  let n = 0;
+  for (let i = 0; i < 400; i++) {
+    const s = newMatch(pool, `cs${i}`, { categories: ['cleansheets'] });
+    const back = s.positions.filter((p) => p === 'GK' || p === 'DEF').length;
+    assert.ok(back >= 2, `${s.positions}`);
+    for (const pos of ['GK', 'DEF', 'MID', 'FWD']) assert.ok(s.positions.filter((p) => p === pos).length <= 2);
+    assert.deepEqual(newMatch(pool, `cs${i}`, { categories: ['cleansheets'] }).positions, s.positions);
+    n++;
+  }
+  // other attributes keep the plain wheel, and it can give just one back-line slot
+  let one = 0;
+  for (let i = 0; i < 400; i++) { const s = newMatch(pool, `plain${i}`, { categories: ['goals'] }); if (s.positions.filter((p) => p === 'GK' || p === 'DEF').length === 1) one++; }
+  assert.ok(one > 0, 'the plain wheel sometimes gives a single back-line slot');
+  assert.equal(n, 400);
+});
+
+test('told clean sheets, the bot spends on the back line and not on forwards', () => {
+  let back = 0, front = 0, backN = 0, frontN = 0;
+  for (let i = 0; i < 40; i++) {
+    const s = newMatch(pool, `bl${i}`, { mode: 'eleven', categories: ['cleansheets'] });
+    while (s.phase === 'draft') { const who = s.turn; pick(s, who, choose(s, who, 'hard')); }
+    s.teams.bot.forEach((c, k) => { const paid = s.paid.bot[k]; if (c.pos === 'GK' || c.pos === 'DEF') { back += paid; backN++; } else if (c.pos === 'FWD') { front += paid; frontN++; } });
+  }
+  assert.ok(back / backN > 2 * (front / frontN), `back line £${(back / backN).toFixed(2)} a player, forwards £${(front / frontN).toFixed(2)}`);
 });

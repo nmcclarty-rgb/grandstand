@@ -4,7 +4,7 @@ import { firstNameOf, surnameOf } from '../../../stickers/src/engine/cards.js';
 import { renderCard } from '../../../stickers/src/ui/card.js';
 import { initTooltips } from '../../../stickers/src/ui/tooltip.js';
 import { COMMON, MODES, newMatch, nextMatch, pick, positionOf, canAfford, maxSpend, showdown, seriesOf, rulesOf } from '../engine/draft.js';
-import { ATTRIBUTES, ATTRIBUTE } from '../engine/attributes.js';
+import { ATTRIBUTES, ATTRIBUTE, valueOf } from '../engine/attributes.js';
 import { botMove } from '../engine/bot.js';
 
 const $ = (id) => document.getElementById(id);
@@ -16,7 +16,7 @@ const SHORT = { GK: 'GK', DEF: 'DEF', MID: 'MID', FWD: 'FWD' };
 const RECORD = 'blind-five:record:v1';
 // the four rows on a Sticker Season card, in order, and which of them an attribute counts
 const ROWS = ['goals', 'assists', 'games', 'discipline'];
-const HIGHLIGHT = { goals: ['goals'], assists: ['assists'], involvements: ['goals', 'assists'], games: ['games'], discipline: ['discipline'], titles: [] };
+const HIGHLIGHT = { goals: ['goals'], assists: ['assists'], involvements: ['goals', 'assists'], games: ['games'], discipline: ['discipline'], titles: [], wins: [], cleansheets: [] };
 
 function el(tag, props = {}, ...kids) {
   const e = document.createElement(tag);
@@ -304,8 +304,14 @@ function playerCard(c, category) {
   node.querySelector('.rating')?.remove();
   const pos = node.querySelector('.pos');
   if (pos) pos.textContent = c.pos;
-  // league titles aren't a row on a Sticker Season card: a gold tag, lit up when titles are what is being counted
-  if (c.titles) node.querySelector('.art').append(el('div', { class: `ttag${category === 'titles' ? ' on' : ''}`, text: `${c.titles}× TITLE${c.titles > 1 ? 'S' : ''}`, 'data-tip': `${c.titles} Premier League title${c.titles > 1 ? 's' : ''}: seasons with the champions, 5+ league appearances` }));
+  // titles, wins and clean sheets aren't rows on a Sticker Season card: a gold tag on the art, lit up when it is what is being counted.
+  // Titles are always shown when he has any; wins and clean sheets (estimates) only when they are the attribute being counted.
+  if (category === 'wins' || category === 'cleansheets') {
+    const v = valueOf(c, category);
+    node.querySelector('.art').append(el('div', { class: 'ttag on', text: `${n(v)} ${attr(category).short}`, 'data-tip': `${n(v)} ${attr(category).unit}` }));
+  } else if (c.titles) {
+    node.querySelector('.art').append(el('div', { class: `ttag${category === 'titles' ? ' on' : ''}`, text: `${c.titles}× TITLE${c.titles > 1 ? 'S' : ''}`, 'data-tip': `${c.titles} Premier League title${c.titles > 1 ? 's' : ''}: seasons with the champions, 5+ league appearances` }));
+  }
   return node;
 }
 
@@ -387,11 +393,13 @@ function buildManual() {
       <li><b>5-a-side</b>: ${five.rounds} rounds a match. A wheel names the position each round (never one position three times).</li>
       <li><b>11-a-side</b>: ${eleven.rounds} rounds a match. A <b>formation</b> (4-4-2, 4-3-3, 4-5-1, 3-5-2, 3-4-3 or 5-3-2) is rolled at the start of each match and both teams play it. You work through it from the goalkeeper to the forwards, so you decide early how much of the money goes into defence and how much is kept for attack.</li>
     </ul>
+    <h3>Estimates</h3>
+    <p><b>Wins</b> and <b>clean sheets</b> are estimates. We know every club's real results, so a club-season's wins and clean sheets are exact; a player gets the share that matches the minutes he was on the pitch (a goalkeeper who played every minute gets all of them). Clean sheets only count for the seasons he is listed as a goalkeeper or defender. Checked against the published totals: Čech 199 against 202, James 169 against 169.</p>
     <h3>Prices are a hint, not the truth</h3>
     <p>A £5 is usually a star of his position and a £1 a squad man, but about one player in three in the middle prices is a <b>bargain</b> (cheaper than he is) or a <b>trap</b> (dearer). Prices are by position: the best goalkeeper in the league is a £5 goalkeeper, but he will score no goals. Everyone on a board has made at least ${COMMON.minGames} Premier League appearances.</p>
     <h3>Tips</h3>
     <ul>
-      <li>Tailor each team to its attribute. <b>League titles</b>: think of the champions (Man Utd in the 90s and 00s, Chelsea, Man City now, Arsenal, Liverpool): a squad player at a club that won it beats a star at one that never did. <b>Goals</b>: forwards, and never pay for a goalkeeper. <b>Assists</b>: midfielders and wingers. <b>Goal involvements</b>: goals plus assists, so attacking midfielders are as good as strikers. <b>Appearances</b>: a long-serving defender or keeper is worth as much as a star. <b>Discipline</b>: find the hard men.</li>
+      <li>Tailor each team to its attribute. <b>Clean sheets</b>: only goalkeepers and defenders earn them (a striker is worth nothing), so spend on the back line and £1 on everyone else. <b>Wins</b>: everyone counts, so it is the long careers at winning clubs: a £1 midfielder at Man Utd can beat a £5 striker at a mid-table side. <b>League titles</b>: think of the champions (Man Utd in the 90s and 00s, Chelsea, Man City now, Arsenal, Liverpool): a squad player at a club that won it beats a star at one that never did. <b>Goals</b>: forwards, and never pay for a goalkeeper. <b>Assists</b>: midfielders and wingers. <b>Goal involvements</b>: goals plus assists, so attacking midfielders are as good as strikers. <b>Appearances</b>: a long-serving defender or keeper is worth as much as a star. <b>Discipline</b>: find the hard men.</li>
       <li>Money left at the end is wasted. Spend it, but not on the wrong name.</li>
       <li>A career total rewards a long career: someone who played 15 years beats a brilliant two-season wonder.</li>
       <li>You can only use a player once in a series, so a bargain you spend in match 1 is not there in match 3.</li>

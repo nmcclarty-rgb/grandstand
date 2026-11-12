@@ -20,7 +20,7 @@
 import { makeRng } from '../../../stickers/src/engine/rng.js';
 import { instance } from '../../../stickers/src/engine/deck.js';
 import { POSITIONS } from '../../../stickers/src/engine/cards.js';
-import { ATTRIBUTE_KEYS, valueOf, recordOf } from './attributes.js';
+import { ATTRIBUTE_KEYS, ATTRIBUTE, valueOf, recordOf } from './attributes.js';
 export { valueOf };
 
 // What is the same in every mode.
@@ -128,11 +128,17 @@ function beginMatch(state) {
     if (!state.formation) throw new Error(`unknown formation '${state.forcedFormation}'`);
     state.positions = formationPositions(state.formation);
   } else {
-    // positions: weighted wheel, but never one position more than maxPerPosition times
+    // positions: weighted wheel, but never one position more than maxPerPosition times. An attribute that only some positions can earn
+    // (clean sheets: goalkeepers and defenders) needs enough of those slots, so the wheel is drawn again until it has them.
     const rng = stream(state, `wheel|${state.match}`);
-    while (state.positions.length < rules.rounds) {
-      const pos = rng.weighted(Object.entries(WHEEL));
-      if (state.positions.filter((p) => p === pos).length < rules.maxPerPosition) state.positions.push(pos);
+    const needs = ATTRIBUTE[state.category].needs;
+    for (let attempt = 0; attempt < 200; attempt++) {
+      state.positions = [];
+      while (state.positions.length < rules.rounds) {
+        const pos = rng.weighted(Object.entries(WHEEL));
+        if (state.positions.filter((p) => p === pos).length < rules.maxPerPosition) state.positions.push(pos);
+      }
+      if (!needs || state.positions.filter((p) => needs.positions.includes(p)).length >= needs.min) break;
     }
   }
   dealBoard(state);

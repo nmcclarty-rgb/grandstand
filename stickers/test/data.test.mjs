@@ -25,10 +25,11 @@ test('every card is a well-formed career, and there is only one of each player',
     assert.ok(c.rating >= 1 && c.rating <= 99, `${c.id}: overall ${c.rating}`);
     for (const k of ['games', 'goals', 'assists', 'yellow', 'red']) assert.ok(Number.isInteger(c[k]) && c[k] >= 0, `${c.id}: ${k}=${c[k]}`);
     assert.ok(Number.isInteger(c.titles) && c.titles >= 0 && c.titles <= c.stints.length, `${c.id}: titles=${c.titles}`);
+    for (const k of ['wins', 'cleanSheets']) assert.ok(Number.isInteger(c[k]) && c[k] >= 0 && c[k] <= c.games, `${c.id}: ${k}=${c[k]} from ${c.games} appearances`);
     // RULE: a card carries only stats that exist for every season. Partial stats (clean sheets, saves, bonus points,
     // price) would be missing for most seasons, so they must not be on a card.
     assert.deepEqual(Object.keys(c).sort(),
-      ['assists', 'club', 'clubs', 'first', 'full', 'games', 'goals', 'id', 'last', 'name', 'pos', 'rate', 'rating', 'red', 'stints', 'titles', 'yellow'], `${c.id}: unexpected fields`);
+      ['assists', 'cleanSheets', 'club', 'clubs', 'first', 'full', 'games', 'goals', 'id', 'last', 'name', 'pos', 'rate', 'rating', 'red', 'stints', 'titles', 'wins', 'yellow'], `${c.id}: unexpected fields`);
     assert.deepEqual(Object.keys(c.rate).sort(), [...CATEGORY_KEYS].sort(), `${c.id}: a rating for every category`);
     for (const k of CATEGORY_KEYS) assert.ok(Number.isInteger(c.rate[k]) && c.rate[k] >= 1 && c.rate[k] <= 99, `${c.id}: ${k} rating ${c.rate[k]}`);
   }
@@ -294,4 +295,34 @@ test('a title needs the stint at the champions: nobody has more titles than seas
   // and a player who only cameoed for the champions does not get one
   const cameo = cards.find((c) => c.stints.some((s) => CHAMPIONS[s.split('|')[1]] === s.split('|')[0]) && c.titles === 0);
   assert.ok(cameo, 'some players were at a title-winning club without winning a title');
+});
+
+// ---- wins and clean sheets (estimated) --------------------------------------------------------------------------------------------------
+test('clean sheets (est.) agree with the published goalkeeper totals to within a few per cent', () => {
+  const cs = (n) => get(n).cleanSheets;
+  assert.ok(Math.abs(cs('Petr Čech') - 202) <= 6, `Čech ${cs('Petr Čech')} against 202`);
+  assert.ok(Math.abs(cs('David James') - 169) <= 6, `James ${cs('David James')} against 169`);
+  assert.ok(Math.abs(cs('David de Gea') - 147) <= 8, `de Gea ${cs('David de Gea')} against 147`);
+  assert.equal(Math.max(...cards.filter((c) => c.pos === 'GK').map((c) => c.cleanSheets)), cs('Petr Čech'), 'Čech is the best goalkeeper');
+});
+
+test('clean sheets are credited to goalkeepers and defenders only, season by season', () => {
+  for (const n of ['Alan Shearer', 'Harry Kane', 'Wayne Rooney', 'Thierry Henry', 'Ryan Giggs', 'Frank Lampard', 'Steven Gerrard', 'Gareth Barry']) assert.equal(get(n).cleanSheets, 0, n);
+  const share = (pos) => cards.filter((c) => c.pos === pos && c.cleanSheets > 0).length / cards.filter((c) => c.pos === pos).length;
+  assert.equal(share('GK'), 1); assert.equal(share('DEF'), 1);
+  assert.ok(share('MID') < 0.06, `${share('MID')} of midfielders have some (seasons listed as a defender)`);
+  assert.ok(share('FWD') < 0.01);
+  assert.ok(get('James Milner').cleanSheets > 0 && get('James Milner').cleanSheets < get('James Milner').games * 0.2, 'Milner only earns them in the seasons he is listed as a defender');
+  // the defenders everyone would name
+  const top = [...cards].sort((a, b) => b.cleanSheets - a.cleanSheets).slice(0, 6).map((c) => c.full);
+  for (const n of ['John Terry', 'Petr Čech', 'Rio Ferdinand', 'Jamie Carragher']) assert.ok(top.includes(n), `${n} in the top six: ${top}`);
+});
+
+test('wins (est.) are credited to everyone, from the minutes he was on the pitch, and the best are the long careers at the best clubs', () => {
+  assert.ok(cards.filter((c) => c.wins > 0).length / cards.length > 0.99, 'nearly every player with 20+ appearances has been on the pitch for wins');
+  const top = [...cards].sort((a, b) => b.wins - a.wins).slice(0, 6).map((c) => c.full);
+  for (const n of ['Ryan Giggs', 'Frank Lampard', 'John Terry']) assert.ok(top.includes(n), `${n} in the top six: ${top}`);
+  assert.ok(get('Ryan Giggs').wins > get('Harry Kane').wins);
+  // wins while on the pitch are a share of his appearances, between a third and four fifths for anyone who played at the top
+  assert.ok(get('Ryan Giggs').wins / get('Ryan Giggs').games > 0.4);
 });

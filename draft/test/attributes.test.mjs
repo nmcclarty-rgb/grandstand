@@ -5,11 +5,11 @@ import { ATTRIBUTES, ATTRIBUTE_KEYS, ATTRIBUTE, valueOf, recordOf } from '../src
 
 const get = (full) => pool.cards.find((c) => c.full === full);
 
-test('six attributes, each with a label, a short label and a unit', () => {
-  assert.deepEqual(ATTRIBUTE_KEYS, ['goals', 'assists', 'involvements', 'games', 'titles', 'discipline']);
+test('eight attributes, each with a label, a short label and a unit', () => {
+  assert.deepEqual(ATTRIBUTE_KEYS, ['goals', 'assists', 'involvements', 'games', 'titles', 'wins', 'cleansheets', 'discipline']);
   for (const a of ATTRIBUTES) { assert.ok(a.label && a.short && a.unit, a.key); assert.equal(typeof a.value, 'function'); }
   assert.equal(new Set(ATTRIBUTE_KEYS).size, ATTRIBUTE_KEYS.length);
-  assert.throws(() => valueOf({}, 'wins'), /unknown attribute/);
+  assert.throws(() => valueOf({}, 'tackles'), /unknown attribute/);
 });
 
 test('goal involvements are goals plus assists, from the real career totals', () => {
@@ -50,4 +50,16 @@ test('a forward and a midfielder can both win goal involvements: it is not one p
   const positions = new Set(top.map((c) => c.pos));
   assert.ok(positions.has('FWD') && positions.has('MID'), [...positions].join());
   assert.ok(top.some((c) => c.pos === 'DEF') || true);
+});
+
+test('wins (est.) count for everyone; clean sheets (est.) only for goalkeepers and defenders', () => {
+  const get2 = (n) => pool.cards.find((c) => c.full === n);
+  assert.ok(valueOf(get2('Ryan Giggs'), 'wins') > 300);
+  assert.equal(valueOf(get2('Alan Shearer'), 'cleansheets'), 0);
+  assert.ok(valueOf(get2('Petr Čech'), 'cleansheets') > 190);
+  assert.equal(recordOf(pool, 'cleansheets'), valueOf(get2('John Terry'), 'cleansheets'));
+  assert.deepEqual(ATTRIBUTE.cleansheets.needs, { positions: ['GK', 'DEF'], min: 2 });
+  const byPos = (k, p) => { const a = pool.cards.filter((c) => c.pos === p && c.games >= 100); return a.reduce((s, c) => s + valueOf(c, k), 0) / a.length; };
+  assert.ok(byPos('cleansheets', 'GK') > 20 && byPos('cleansheets', 'DEF') > 20 && byPos('cleansheets', 'FWD') < 1, 'clean sheets belong to the back line');
+  assert.ok(byPos('wins', 'FWD') > 50 && byPos('wins', 'GK') > 50, 'wins belong to everyone');
 });

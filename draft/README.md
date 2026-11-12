@@ -13,7 +13,7 @@ Two games, one engine (pick on the title screen):
 
 A series is a **best of three matches**, and every match is a fresh draft:
 
-1. **An attribute is drawn** at the start of the match: goals, assists, goal involvements (goals plus assists), appearances, league titles or discipline (a yellow card is 1 point, a red card is 3). Never the same one twice in a series.
+1. **An attribute is drawn** at the start of the match: goals, assists, goal involvements (goals plus assists), appearances, league titles, wins (est.), clean sheets (est.) or discipline (a yellow card is 1 point, a red card is 3). Never the same one twice in a series.
 2. **You draft a fresh team for it** on a fresh budget, tailored to the attribute you know is being counted. Each round a board of eight players of one position goes up with **a name and a price only**: no stats, no club. You alternate picks (who goes first swaps every round, and the side that picked first last round of a match goes second in the next) and you can see what the bot takes. Anyone used in an earlier match of the series is gone.
 3. **Add it up.** Each team's **real Premier League career totals** in the attribute; the bigger total wins the match. **First to two matches wins the series.**
 
@@ -21,7 +21,7 @@ No hands, no multipliers, no ratings: none of Sticker Season's rules are used, o
 
 ```bash
 cd draft
-npm test             # 43 tests: boards, prices, budget rules, turn order, every draft finishes, the attributes, fresh teams, the series, formations, the bot levels
+npm test             # 46 tests: boards, prices, budget rules, turn order, every draft finishes, the attributes, fresh teams, the series, formations, the bot levels
 npm run simulate     # the levels play each other; prints win rates and the hands that come up
 npm start            # then open http://localhost:8779/draft/ and play (?mode=eleven&level=hard&seed=abc for a link)
 ```
@@ -55,7 +55,8 @@ tools/simulate.mjs    bots against bots
 - **Price** is the true tier, nudged one step with probability 0.3 for tiers 2-4 (a **bargain** if down, a **trap** if up);
   a star can only be a £4 bargain. After the draft each player's caption says what he cost and whether he was a bargain or a trap.
 - **Wheel** GK 1 : DEF 2 : MID 2 : FWD 2, never one position more than twice in a match.
-- **Attributes** one per match, drawn at the start of the match from those not yet used in the series, from the seed (so it never depends on who you buy). Goals, assists, appearances are career totals; goal involvements are goals + assists; discipline is yellow cards + 3 × red cards. The list is in `src/engine/attributes.js`: **adding an attribute is one entry there** and the draw, the bot, the tally and the page pick it up.
+- **Attributes** one per match, drawn at the start of the match from those not yet used in the series, from the seed (so it never depends on who you buy). Goals, assists, appearances and league titles are career totals; goal involvements are goals + assists; wins and clean sheets are estimates (below); discipline is yellow cards + 3 × red cards. The list is in `src/engine/attributes.js`: **adding an attribute is one entry there** and the draw, the bot, the tally and the page pick it up.
+- **Clean sheets need a back line.** Only goalkeepers and defenders earn them, so a 5-a-side match on clean sheets re-draws the wheel until it has at least two goalkeeper or defender slots (`needs` on the attribute in `attributes.js`); in 11-a-side every formation has four or more.
 - **Fresh teams** every match: a fresh budget, a fresh team, a fresh formation (11-a-side). A player who was on any board earlier in the series is not on a later one, so nobody can be used twice (if a tier runs out, the board takes the nearest tier that has someone left: there are only five star goalkeepers).
 - **Showdown** the sum of each team's players' totals in the match's attribute; the bigger total wins the match, equal totals are a draw. First to two matches wins (the series stops at 2-0). If a three-match series is level (a drawn match), the larger share of each attribute's all-time record wins; otherwise a draw.
 
@@ -64,7 +65,7 @@ tools/simulate.mjs    bots against bots
 Everything below is in the FBref Standard Stats exports for **all 34 seasons** (1992/93 to 2025/26), checked column by column. It is more than
 the four in the game: the Sticker Season cards were built to use only appearances, goals, assists and cards, so these are not on the cards yet.
 
-**In the game now**: appearances, goals, assists, goal involvements (goals + assists), league titles, discipline (yellows + 3 × reds).
+**In the game now**: appearances, goals, assists, goal involvements (goals + assists), league titles, wins (est.), clean sheets (est.), discipline (yellows + 3 × reds).
 
 **Complete in every season but not used yet**
 - **Starts** (so substitute appearances = appearances - starts), **minutes** and **90s played**.
@@ -75,28 +76,46 @@ the four in the game: the Sticker Season cards were built to use only appearance
 
 **Derived from those, no new data needed**: goals or assists per game or per 90 minutes (with a minimum-minutes rule), starts as a share of appearances ("a regular"), career length in seasons, number of clubs, a one-club career, debut season, goals from the bench.
 
-**Not available for 34 seasons**: match wins, tackles, interceptions, saves, clean sheets, shots, xG, passes, fouls, offsides, trophies, transfer fees, minutes by position, results, anything per match. (Rule 2: a stat with gaps is not used.)
+**Not available for 34 seasons**: tackles, interceptions, saves, clean sheets, shots, xG, passes, fouls, offsides, trophies, transfer fees, minutes by position, results, anything per match. (Rule 2: a stat with gaps is not used.)
 
 Next, in my order of preference: **minutes** (like appearances but it rewards starters), **penalties scored** (a lucky, funny one), **nationality** (a team of eleven from
 eleven countries, or "most English players"), **seasons played / career length**, **non-penalty goals**.
 
-## League titles, not wins
+## Wins and clean sheets (estimated), and league titles
 
-Match wins are not in the exports (no results, no per-match lineups), but **league titles** are easy and exact: who won the Premier League each
-season is public record, so a player gets a title for every season he made **5 or more league appearances for the champions** (the line the
-Premier League uses for a winners' medal). The 34 champions are in `stickers/tools/champions.mjs` (Man Utd 13, Man City 8, Chelsea 5, Arsenal 4,
-Liverpool 2, Blackburn 1, Leicester 1; 2025/26 is Arsenal, checked against several published final tables, and the exports have a complete 38 games
-for every club that season). It is attached to every card as `titles` by `build-cards.mjs`.
+**Match results are open data.** `stickers/tools/fetch-results.mjs` downloads every Premier League match from
+[footballcsv/england](https://github.com/footballcsv/england) (1992/93 to 2020/21) and
+[openfootball/england](https://github.com/openfootball/england) (2021/22 to 2025/26), both CC0 / public domain, and writes
+`stickers/data/results.json` (committed, 237 KB, about 12,400 matches). Each season is checked before it is written: the right number of matches
+(380, or 462 for the first three 22-club seasons), every club with the same number of games, goals for = goals against, and **the table leader equal to the champion**
+in `stickers/tools/champions.mjs` (all 34 match, which independently confirms the champions list, including Arsenal in 2025/26). Spot checks are in
+`stickers/test/results.test.mjs`: Arsenal 2003/04 26-12-0, Derby 11 points, Man City 100, Chelsea 2004/05 95 points and 25 clean sheets, Arsenal 2025/26 85 points.
 
-Checked against careers everyone knows: Giggs 13, Scholes 11, Neville 8, Keane 7, Rooney 5, Terry 5, Cantona 4, Kompany 4, Lampard 3 (not the one
-at Man City when Chelsea won), Henry 2, Salah 2 (two league games for Chelsea in 2014/15 don't count), Shearer 1, Kane 0, Gerrard 0. 334 of the
-3,162 players have at least one. It is an attribute a person can really *know from a name*, and it is a club's achievement: a squad player at a title-winning club
-beats a star at one that never won it. It is the one attribute where the bots' idea of value (a share of the record, 13) is nearly worthless to a
-price-only reader, which makes it a good one for a knowledgeable human.
+**The player stat is an estimate**, because the results have no lineups. For every player's row in every season (club, position, minutes):
 
-A match on titles is drawn about 5% of the time against a bot that knows the stats (up to about 11% for two hard bots in 5-a-side, rarer in
-11-a-side), because totals are small (a mean of 6.5 titles per team in 5-a-side, 18 in 11-a-side). A drawn match just doesn't count; the series
-then goes to the third match, and a level three-match series is settled by the larger share of the records.
+```
+share = his minutes / (the club's matches x 90)
+wins          += the club's wins x share                           (every player)
+cleanSheets   += the club's clean sheets x share                   (only if the row's first position is GK or DF)
+```
+
+- **It adds up, and the build checks that.** Across every club-season the players' shares sum to 10.34 to 11.14 (11 players are on the pitch) and the goalkeepers'
+  to 0.96 to 1.03 (exactly one is). A club-season outside 10.2-11.3 or 0.9-1.05 stops the build.
+- **Checked against published goalkeeper totals**: Čech 199 (published 202), James 169 (169), de Gea 152 (147). Within about 3%.
+- **Wins are minutes-weighted**, not "appearances in a win": a winger who is substituted at 70 minutes gets 78% of the win. So Giggs is 333, not the 400-odd his appearances in wins would give.
+  The label says (est.). It is credited to every position.
+- **Clean sheets go to goalkeepers and defenders only, season by season**, as the official stat does. Milner earns them only in the seasons FBref lists him as a defender
+  (104, from 658 appearances), and a striker earns none. If credited to everyone, clean sheets would correlate 0.89 with appearances and Lampard (235) and Giggs (227) would top
+  the list: a team-success stat, not a defensive one. The back-line version is what gives a reason to spend on keepers and defenders: the top six are Terry 215, Čech 199, Ferdinand 195,
+  Carragher 194, James 169, Phil Neville 164. Goalkeepers average 33.7 and defenders 28.4 a player against 0.3 for midfielders and 0.0 for forwards.
+- **Why both?** Wins (est.) is the one where every one of the eleven slots counts and price does the sorting (it correlates 0.86 with appearances, so a long career matters most, with a
+  club-quality swing on top). Clean sheets (est.) is the one with a clear job, where the back line is the whole match.
+
+**League titles.** A player gets a title for every season he made **5 or more league appearances for the champions** (the line the Premier League uses for a winners' medal). The 34 champions
+are in `stickers/tools/champions.mjs` (Man Utd 13, Man City 8, Chelsea 5, Arsenal 4, Liverpool 2, Blackburn 1, Leicester 1). Checked against careers everyone knows: Giggs 13, Scholes 11, Neville 8,
+Keane 7, Rooney 5, Terry 5, Cantona 4, Kompany 4, Lampard 3 (not the one at Man City when Chelsea won), Henry 2, Salah 2, Shearer 1, Kane 0, Gerrard 0. 334 of 3,162 players have one. It is
+the attribute that is least like appearances (correlation 0.27), and a squad player at a title-winning club beats a star at one that never won it. A match on titles is drawn about 5% of the time
+against a bot that knows the stats; a drawn match just doesn't count and the series goes to the third.
 
 ## What the simulator found (win % over a whole series; draws count half; rows are "you")
 
@@ -124,8 +143,9 @@ Best of three, fresh teams, 11-a-side (£30), 200 series per pairing:
   medium, which has not happened yet. If medium proves too strong, the fog (`FOG` in `bot.js`) is the dial.
 - A fresh draft every match is why the series is so skill-driven: three independent chances to buy the right team. Hard beats medium 80% (5-a-side) and
   89% (11-a-side).
-- **Which attribute is hardest to beat the bot at**: hard's match win rate against medium is highest on discipline (80%) and appearances (75%) and
-  lowest on goal involvements (67%) and goals (70%), where the stars are on everyone's lips and prices already point at them.
+- **Which attribute is hardest to beat the bot at** (hard's match win rate against medium, with all eight attributes): in 5-a-side goal involvements 65%, appearances and titles 68%, clean sheets 69%, goals 71%, wins 72%,
+  assists and discipline 78%. In 11-a-side titles 77% and wins 71% (the team-success attributes, where prices point least at the answer), clean sheets 83%, discipline 88%. The spread is narrow, so no
+  attribute is a lottery and none is solved.
 - About two series in three are over after two matches. A quarter of matches (24% in 5-a-side, 30% in 11-a-side) are within 10%.
 - The bot levels: easy = prices only; medium = knows the stats through a fog; hard = exact stats and value for money, for the attribute drawn for the match.
 
