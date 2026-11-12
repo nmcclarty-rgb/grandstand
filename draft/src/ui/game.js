@@ -5,6 +5,7 @@ import { renderCard } from '../../../stickers/src/ui/card.js';
 import { initTooltips } from '../../../stickers/src/ui/tooltip.js';
 import { drawWheel } from './wheel.js';
 import { shirtSvg } from './shirt.js';
+import { openGuide } from './tutorial.js';
 import { badgeSvg } from './badge.js';
 import { CLUB_LABELS } from './clubs.js';
 import { KITS, PATTERNS, codeFor, cleanKit } from '../engine/pyramid.js';
@@ -47,6 +48,8 @@ let pool, state, result, level = 'medium', mode = 'five', format = 'cup', tourna
 const CUP_RECORD = 'prem-wheel:cup:v1';
 const CLUB_KEY = 'prem-wheel:club:v1';
 const KIT_KEY = 'prem-wheel:kit:v1';
+const GUIDE_KEY = 'prem-wheel:guide:v1';
+const COACH_KEY = 'prem-wheel:coach:v1';
 const DEFAULT_CLUB = 'Grandstand Town';
 const ROUND_SHORT = ['R64', 'R32', 'R16', 'QF', 'SF', 'Final'];
 // money is in £m, to one decimal: £30m, £4.5m
@@ -122,6 +125,33 @@ function startMatch(seed) {
     state = newMatch(pool, seed || Date.now(), { level, mode });
     beginMatchPage(my);
   }
+}
+
+// ---- teaching: the guide before a first game, and the coach panel in the first drafts ---------------------------------------------------
+const guideSeen = () => { try { return localStorage.getItem(GUIDE_KEY) === '1'; } catch { return false; } };
+const markGuide = () => { try { localStorage.setItem(GUIDE_KEY, '1'); } catch { /* private window */ } };
+// "Kick off": a first-time player gets the short guide first (skippable); everyone else goes straight in
+function kickOff() {
+  const seed = $('t-seed').value.trim();
+  if (params.get('guide') === '0' || guideSeen()) { startMatch(seed); return; }
+  let rules = false;
+  openGuide({ pool, first: true, onFullRules: () => { rules = true; }, onClose: () => { markGuide(); if (rules) $('manual').showModal?.(); else startMatch(seed); } });
+}
+function showGuide() { openGuide({ pool, first: false, onFullRules: () => $('manual').showModal?.(), onClose: markGuide }); }
+// a short panel above the board for the first two matches (until "Got it"), worded for the attribute that has just landed
+function coachState() { try { return JSON.parse(localStorage.getItem(COACH_KEY)) ?? { shown: 0, off: false }; } catch { return { shown: 0, off: false }; } }
+function showCoach() {
+  const c = coachState();
+  if (c.off || c.shown >= 2 || params.get('guide') === '0') { $('d-coach').hidden = true; return; }
+  c.shown++;
+  try { localStorage.setItem(COACH_KEY, JSON.stringify(c)); } catch { /* private window */ }
+  const who = tournament ? opponent(tournament).name : 'the bot';
+  $('c-1').innerHTML = `This match counts <b>${esc(attr(state.category).label)}</b>. Every player has a real career total in it. Both teams are added up, and the <b>bigger total beats ${esc(who)}</b>.`;
+  $('d-coach').hidden = false;
+}
+function dismissCoach() {
+  $('d-coach').hidden = true;
+  try { localStorage.setItem(COACH_KEY, JSON.stringify({ shown: 2, off: true })); } catch { /* private window */ }
 }
 
 // ---- your club (the title screen) -------------------------------------------------------------------------------------------------
@@ -350,6 +380,7 @@ async function beginMatchPage(my) {
   say(tournament ? `${ROUNDS[tournament.round]} against ${opp.name}. Spin the wheel for the attribute.` : state.match === 1 ? 'Spin the wheel for the first attribute.' : `Match ${state.match}: a fresh team and a fresh budget. Spin for the attribute.`);
   if (!(await spinAttribute(my))) return;
   $('d-attr').textContent = attr(state.category).short;
+  showCoach();
   renderSeries('d-series', state.match - 1);
   say(`${tournament ? ROUNDS[tournament.round] : `Match ${state.match}`}: <b>${attr(state.category).label}</b>. ${attr(state.category).unit.replace(/^./, (c) => c.toUpperCase())}, added up. Build a team for it.`);
   await sleep(1000);
@@ -629,9 +660,11 @@ function buildManual() {
 
 // ---- boot -----------------------------------------------------------------------------------------------------------------------------
 function wire() {
-  $('t-new').addEventListener('click', () => startMatch($('t-seed').value.trim()));
-  $('t-help').addEventListener('click', () => $('manual').showModal?.());
-  $('d-quit').addEventListener('click', () => { token++; skipSpin = null; $('d-wheelbox').hidden = true; showTitle(); });
+  $('t-new').addEventListener('click', kickOff);
+  $('d-help').addEventListener('click', showGuide);
+  $('d-coach-ok').addEventListener('click', dismissCoach);
+  $('t-help').addEventListener('click', showGuide);
+  $('d-quit').addEventListener('click', () => { $('d-coach').hidden = true; token++; skipSpin = null; $('d-wheelbox').hidden = true; showTitle(); });
   $('d-wheelbox').addEventListener('click', () => skipSpin?.());
   $('show').addEventListener('click', () => skipHold?.());
   $('ladder').addEventListener('click', (e) => { if (!e.target.closest('.bracket')) skipHold?.(); });

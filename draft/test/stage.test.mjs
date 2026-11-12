@@ -10,7 +10,7 @@ import { join } from 'node:path';
 test('the staged site is flat: every import resolves inside it and climbs at most one level', () => {
   const out = join(mkdtempSync(join(tmpdir(), 'b5-')), 'site');
   const log = execFileSync('node', [new URL('../tools/stage.mjs', import.meta.url).pathname, out], { encoding: 'utf8' });
-  assert.match(log, /staged 21 files/);
+  assert.match(log, /staged 22 files/);
   for (const f of ['index.html', 'src/ui/blind.js', 'src/draft/draft.js', 'src/draft/bot.js', 'src/draft/attributes.js', 'src/draft/tournament.js', 'src/ui/wheel.js', 'src/engine/rng.js', 'src/data/cards.json']) assert.ok(existsSync(join(out, f)), f);
   const html = readFileSync(join(out, 'index.html'), 'utf8');
   assert.match(html, /<script type="module" src="src\/ui\/blind\.js">/);

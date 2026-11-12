@@ -278,3 +278,80 @@ button.linkbtn:hover { color: var(--gold); }
   .namerow input { font-size: 20px; padding: 10px; }
   button.kickoff { width: 100%; padding: 18px 20px; }
 }
+
+/* ---- the how-to-play guide (a dialog of six slides) and the coach panel in the first drafts ---- */
+.guide { width: min(580px, calc(100vw - 20px)); padding: 16px 20px 20px; }
+.guide[open] { display: flex; flex-direction: column; gap: 12px; }
+.g-top { display: flex; justify-content: space-between; align-items: center; }
+.g-step { font: 800 11px system-ui; letter-spacing: .16em; text-transform: uppercase; color: #9fb7a6; }
+.guide h2 { margin: 0; font: 900 32px/1.05 var(--display); text-transform: uppercase; color: var(--gold); letter-spacing: .02em; outline: none; }
+.g-stage { min-height: 220px; display: grid; place-items: center; background: #0007; border: 1px solid #ffffff14; border-radius: 12px; padding: 14px; }
+.guide .g-text { margin: 0; font-size: 16px; line-height: 1.5; color: #e4efe7; }
+.guide .g-text b { color: #fff; }
+.g-dots { display: flex; gap: 7px; justify-content: center; }
+.g-dots span { width: 8px; height: 8px; border-radius: 50%; background: #ffffff30; }
+.g-dots span.on { background: var(--gold); transform: scale(1.25); }
+.g-nav { display: flex; justify-content: space-between; gap: 10px; }
+.g-nav button { padding: 12px 22px; font-size: 16px; }
+.g-nav button:disabled { opacity: .35; cursor: default; }
+.g-note { margin: 10px 0 0; text-align: center; font: 400 14px/1.45 system-ui; color: #cfe0d4; max-width: 44ch; }
+.g-note b { color: #fff; }
+
+.g-vs { display: flex; align-items: center; gap: 18px; }
+.g-team { text-align: center; padding: 14px 18px; border-radius: 12px; background: #ffffff0d; min-width: 120px; position: relative; }
+.g-team.win { background: #f5c54222; outline: 2px solid var(--gold); }
+.g-team small { display: block; font: 800 11px system-ui; letter-spacing: .16em; text-transform: uppercase; color: #b7cdbd; }
+.g-total { font: 900 54px/1 var(--display); font-variant-numeric: tabular-nums; }
+.g-team.win .g-total { color: var(--gold); }
+.g-tick { position: absolute; top: -10px; right: -8px; padding: 3px 9px; border-radius: 999px; background: var(--gold); color: #261c00; font: 800 11px system-ui; letter-spacing: .08em; text-transform: uppercase; }
+.g-v { font: 900 24px var(--display); color: #b7cdbd; }
+
+.g-wheelwrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.g-wheel { width: min(56vw, 220px); height: auto; filter: drop-shadow(0 6px 10px #000b); overflow: visible; }
+.g-wheel.landed { filter: drop-shadow(0 0 14px #f5c542aa) drop-shadow(0 6px 10px #000b); }
+.g-cap { margin: 0; min-height: 1.3em; font: 800 22px/1.1 var(--display); letter-spacing: .04em; text-transform: uppercase; text-align: center; }
+.g-cap b { color: var(--gold); }
+.g-again { padding: 6px 14px; font-size: 13px; }
+
+.g-blind { width: 100%; display: flex; flex-direction: column; align-items: center; }
+.g-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
+.g-tile { min-height: 96px; cursor: pointer; }
+.g-tile .last { font-size: 18px; }
+.g-rev { font: 700 12px/1.2 system-ui; min-height: 1.2em; color: #7a828a; }
+.g-tile:not(.shown) .g-rev::before { content: "Tap to reveal"; }
+.g-tile.shown { cursor: default; transform: none; }
+.g-tile.shown .g-rev { color: #14181c; }
+.g-tile.shown .g-rev b { font: 900 18px var(--display); }
+.g-tile.bargain { outline: 3px solid var(--ok); } .g-tile.trap { outline: 3px solid var(--bad); }
+.g-tile.bargain .g-rev { color: #0e7a3c; } .g-tile.trap .g-rev { color: #b3261e; }
+
+.g-money { width: 100%; }
+.g-bar { display: flex; width: 100%; border-radius: 10px; overflow: hidden; font: 800 11px/1.2 system-ui; text-align: center; letter-spacing: .02em; }
+.g-bar .seg { padding: 16px 6px; display: grid; place-items: center; min-width: 0; }
+.g-bar .spent { background: var(--gold); color: #261c00; }
+.g-bar .can { background: #1f7a4a; color: #fff; }
+.g-bar .held { background: repeating-linear-gradient(135deg, #3a4540 0 8px, #2d3834 8px 16px); color: #cfe0d4; }
+
+.g-turns { display: flex; flex-direction: column; gap: 14px; align-items: center; width: 100%; }
+.g-minis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: min(100%, 320px); }
+.g-mini { position: relative; height: 40px; border-radius: 7px; background: var(--paper); }
+.g-mini.taken { opacity: .8; } .g-mini.you { background: #58d68d; } .g-mini.bot { background: #ff8f8f; }
+.g-mini.taken::after { content: attr(data-by); position: absolute; inset: 0; display: grid; place-items: center; font: 900 11px system-ui; letter-spacing: .08em; color: #10231a; }
+.g-path { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 0; padding: 0; }
+.g-path li { padding: 5px 11px; border-radius: 999px; background: #ffffff14; font: 800 12px system-ui; letter-spacing: .06em; text-transform: uppercase; color: #e4efe7; }
+.g-path li + li::before { content: "›  "; color: var(--gold); }
+
+.g-cup { display: flex; flex-direction: column; align-items: center; width: 100%; }
+.g-road { list-style: none; display: flex; gap: 5px; margin: 0; padding: 0; width: 100%; }
+.g-road li { flex: 1; text-align: center; padding: 14px 2px; border-radius: 8px; background: #ffffff10; font: 800 12px system-ui; letter-spacing: .04em; color: #b7cdbd; }
+.g-road li small { display: block; margin-top: 3px; font: 800 9px system-ui; letter-spacing: .06em; text-transform: uppercase; }
+.g-road li.now { background: #f5c54230; outline: 2px solid var(--gold); color: var(--gold); }
+.g-rules { margin-top: 8px; }
+
+.coach { margin: 8px 0 4px; padding: 12px 16px 12px; border-radius: 12px; background: linear-gradient(160deg, #164029, #0d2a1b); border: 1px solid #f5c54266; }
+.coach .ct { font: 800 12px system-ui; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); }
+.coach ol { margin: 6px 0 8px; padding-left: 20px; }
+.coach li { font-size: 14px; line-height: 1.45; color: #e4efe7; margin: 5px 0; }
+.coach li b { color: #fff; }
+.coach button { padding: 6px 16px; font-size: 13px; }
+@media (max-width: 520px) { .guide { padding: 14px 14px 16px; } .guide h2 { font-size: 26px; } .g-total { font-size: 44px; } .g-stage { min-height: 200px; padding: 10px; } }

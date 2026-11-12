@@ -105,6 +105,15 @@
       <div class="dstat money"><small>You have</small><b id="d-money">£10m</b></div>
       <div class="dstat money bot"><small id="d-botlbl">Bot has</small><b id="d-botmoney">£10m</b></div>
     </header>
+    <aside class="coach" id="d-coach" hidden aria-label="How this works">
+      <b class="ct">How this works</b>
+      <ol>
+        <li id="c-1"></li>
+        <li>You see <b>a name and a price</b> only. £5m is usually a star and £1m a squad man, but some are <b>bargains</b> and some are <b>traps</b>. Pick <b>one</b> player each round.</li>
+        <li>Keep money back: you must keep <b>£1m for every pick still to come</b>. The bot picks too, and a player who is taken is gone.</li>
+      </ol>
+      <button id="d-coach-ok" class="ghost" type="button">Got it</button>
+    </aside>
     <div class="series" id="d-series" aria-label="The series"></div>
     <div class="wheelbox" id="d-wheelbox" hidden title="Click to skip the spin">
       <svg id="d-wheel"></svg>
@@ -117,7 +126,7 @@
       <div><h3 id="p-you-h">Your team</h3><div class="pitch" id="p-you"></div></div>
       <div><h3 id="p-bot-h">The bot's team</h3><div class="pitch" id="p-bot"></div></div>
     </div>
-    <div class="actions"><button id="d-quit" class="ghost" type="button">Quit</button></div>
+    <div class="actions"><button id="d-help" class="ghost" type="button">How to play</button><button id="d-quit" class="ghost" type="button">Quit</button></div>
   </section>
 
   <section class="screen" id="show" hidden aria-labelledby="s-h">

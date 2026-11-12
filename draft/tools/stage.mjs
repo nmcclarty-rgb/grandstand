@@ -32,6 +32,7 @@ put('src/draft/tournament.js', fix(read('draft/src/engine/tournament.js')));
 put('src/draft/pyramid.js', fix(read('draft/src/engine/pyramid.js')));
 put('src/ui/wheel.js', read('draft/src/ui/wheel.js'));
 put('src/ui/shirt.js', read('draft/src/ui/shirt.js'));
+put('src/ui/tutorial.js', fix(read('draft/src/ui/tutorial.js')).replace(/'\.\.\/engine\/(draft|attributes)\.js'/g, "'../draft/$1.js'"));
 put('src/ui/blind.js', fix(read('draft/src/ui/game.js')).replace("'../engine/draft.js'", "'../draft/draft.js'").replace("'../engine/bot.js'", "'../draft/bot.js'").replace("'../engine/attributes.js'", "'../draft/attributes.js'").replace("'../engine/tournament.js'", "'../draft/tournament.js'").replace("'../engine/pyramid.js'", "'../draft/pyramid.js'"));
 
 // the page: both stylesheets inlined, as Sticker Season's page is

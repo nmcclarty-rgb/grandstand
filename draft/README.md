@@ -19,6 +19,18 @@ the formation, in both modes. Click it to skip. (`src/ui/wheel.js`: the geometry
 Nothing between the rounds needs a button: when a draft ends the page moves to the showdown, counts by itself after two seconds, and after a match it counts down five seconds (to read the
 result) and starts the next fresh draft. A tap, a click or Space on the showdown screen skips a wait. Only "Play again" and "Change opponent" at the very end are buttons.
 
+## Teaching the game
+
+People did not get it until a few goes in, because the rules were a wall of text in a pop-up. Now it is taught in three places:
+
+- **The guide** (`src/ui/tutorial.js`): six slides, one idea each, shown before a first game (the first **Kick off**) and from **How to play** on the title screen and the draft screen. *Build a team, beat the bot* (a
+  total counts up) · *a wheel decides what counts* (a live, spinnable wheel) · *you only see a name and a price* (a real board of goalkeepers from the engine: tap a player to reveal his real appearances, and see a
+  £1.5m bargain and a £3.1m trap) · *one budget for the whole team* (the "keep £1m for every pick still to come" rule drawn as a bar) · *pick one each, take turns* · *win the Cup from League Two*. It is skippable at
+  any point, remembered in the browser, and links to the full written rules.
+- **The coach panel** above the board in the first two matches ("This match counts GOALS… the bigger total beats Port Vale"; "you see a name and a price only"; "keep money back"), worded for the attribute that has just
+  landed, until the player taps **Got it**.
+- `?guide=0` on the URL turns both off (for links, tests and scripts).
+
 ## The title screen
 
 A poster, not a settings menu: the name, a one-paragraph sell, three hooks, and **your club** front and centre: a live shirt preview, a big club-name box (with a dice for a random name), ten colourways and five shirt
